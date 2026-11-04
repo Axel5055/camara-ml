@@ -54,7 +54,7 @@
             <flux:input wire:model.live.debounce.300ms="search" icon="magnifying-glass" clearable placeholder="Buscar por referencia o solicitante" />
 
             <div class="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-                <flux:select wire:model.live="chamberId" label="Cámara de origen" placeholder="Todas las cámaras">
+                <flux:select wire:model.live="chamberId" label="Cámara de origen">
                     <flux:select.option value="">Todas las cámaras</flux:select.option>
                     @foreach ($chambers as $chamber)
                         <flux:select.option :value="$chamber->id">{{ $chamber->branch->name }} · {{ $chamber->name }}</flux:select.option>

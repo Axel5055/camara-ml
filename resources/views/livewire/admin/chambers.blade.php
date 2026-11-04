@@ -49,7 +49,7 @@
             <div class="sm:col-span-2">
                 <flux:input wire:model.live.debounce.300ms="search" label="Buscar" icon="magnifying-glass" clearable placeholder="Nombre o código de la cámara" />
             </div>
-            <flux:select wire:model.live="branchFilter" label="Sucursal" placeholder="Todas las sucursales">
+            <flux:select wire:model.live="branchFilter" label="Sucursal">
                 <flux:select.option value="">Todas las sucursales</flux:select.option>
                 @foreach ($branches as $branch)
                     <flux:select.option :value="$branch->id">{{ $branch->name }}</flux:select.option>
@@ -115,7 +115,6 @@
         <form wire:submit="save" class="space-y-6">
             <flux:heading size="lg">{{ $editingId ? 'Editar cámara' : 'Nueva cámara' }}</flux:heading>
             <flux:select wire:model="branch_id" label="Sucursal" placeholder="Selecciona una sucursal">
-                <flux:select.option value="">Selecciona una sucursal</flux:select.option>
                 @foreach ($branches as $branch)
                     <flux:select.option :value="$branch->id">{{ $branch->name }}</flux:select.option>
                 @endforeach

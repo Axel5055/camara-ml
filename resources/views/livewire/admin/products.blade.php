@@ -49,7 +49,7 @@
             <flux:input wire:model.live.debounce.300ms="search" icon="magnifying-glass" clearable placeholder="Buscar por nombre, código o información adicional" />
 
             <div class="grid gap-4 sm:grid-cols-2">
-                <flux:select wire:model.live="categoryFilter" label="Categoría" placeholder="Todas las categorías">
+                <flux:select wire:model.live="categoryFilter" label="Categoría">
                     <flux:select.option value="">Todas las categorías</flux:select.option>
                     @foreach ($categories as $category)
                         <flux:select.option :value="$category->id">{{ $category->name }}</flux:select.option>
@@ -121,7 +121,6 @@
         <form wire:submit="save" class="space-y-6">
             <flux:heading size="lg">{{ $editingId ? 'Editar producto' : 'Nuevo producto' }}</flux:heading>
             <flux:select wire:model="category_id" label="Categoría" placeholder="Selecciona una categoría">
-                <flux:select.option value="">Selecciona una categoría</flux:select.option>
                 @foreach ($categories as $category)
                     <flux:select.option :value="$category->id">{{ $category->name }}</flux:select.option>
                 @endforeach

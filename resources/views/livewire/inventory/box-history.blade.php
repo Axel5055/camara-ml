@@ -32,7 +32,6 @@
             <div class="grid gap-3 md:grid-cols-4">
                 <flux:input wire:model="weightOut" label="Peso a retirar (kg)" inputmode="decimal" />
                 <flux:select wire:model="destBranchId" label="Sucursal destino" placeholder="Selecciona">
-                    <flux:select.option value="">Selecciona</flux:select.option>
                     @foreach ($branches as $branch)
                         <flux:select.option :value="$branch->id">{{ $branch->name }}</flux:select.option>
                     @endforeach

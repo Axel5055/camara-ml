@@ -32,7 +32,7 @@
     <div class="rounded-xl border border-zinc-200 bg-white p-4 shadow-xs dark:border-zinc-700 dark:bg-zinc-800">
         <div class="grid gap-4 sm:grid-cols-2">
             <flux:input wire:model.live.debounce.300ms="search" label="Producto" icon="magnifying-glass" clearable placeholder="Buscar por nombre de producto" />
-            <flux:select wire:model.live="chamberFilter" label="Cámara" placeholder="Todas">
+            <flux:select wire:model.live="chamberFilter" label="Cámara">
                 <flux:select.option value="">Todas</flux:select.option>
                 @foreach ($chambers as $chamber)
                     <flux:select.option :value="$chamber->id">{{ $chamber->branch->name }} · {{ $chamber->name }}</flux:select.option>
@@ -93,13 +93,11 @@
         <form wire:submit="saveThreshold" class="space-y-6">
             <flux:heading size="lg">Umbral de existencias</flux:heading>
             <flux:select wire:model="thresholdChamberId" label="Cámara" placeholder="Selecciona">
-                <flux:select.option value="">Selecciona</flux:select.option>
                 @foreach ($chambers as $chamber)
                     <flux:select.option :value="$chamber->id">{{ $chamber->branch->name }} · {{ $chamber->name }}</flux:select.option>
                 @endforeach
             </flux:select>
             <flux:select wire:model="thresholdProductId" label="Producto" placeholder="Selecciona">
-                <flux:select.option value="">Selecciona</flux:select.option>
                 @foreach ($products as $product)
                     <flux:select.option :value="$product->id">{{ $product->name }}</flux:select.option>
                 @endforeach

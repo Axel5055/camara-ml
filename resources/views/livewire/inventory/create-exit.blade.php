@@ -12,7 +12,6 @@
                 <flux:heading size="lg">Datos de la salida</flux:heading>
 
                 <flux:select wire:model.live="originChamberId" label="Cámara de origen" placeholder="Selecciona una cámara">
-                    <flux:select.option value="">Selecciona una cámara</flux:select.option>
                     @foreach ($chambers as $chamber)
                         <flux:select.option :value="$chamber->id">{{ $chamber->branch->name }} · {{ $chamber->name }}</flux:select.option>
                     @endforeach
@@ -21,14 +20,13 @@
                 <flux:input wire:model="requester" label="Solicitante" placeholder="Nombre de quien solicita" />
 
                 <flux:select wire:model.live="destBranchId" label="Sucursal destino" placeholder="Selecciona una sucursal">
-                    <flux:select.option value="">Selecciona una sucursal</flux:select.option>
                     @foreach ($branches as $branch)
                         <flux:select.option :value="$branch->id">{{ $branch->name }}</flux:select.option>
                     @endforeach
                 </flux:select>
 
                 @if ($destChambers->isNotEmpty())
-                    <flux:select wire:model="destChamberId" label="Cámara destino (si va a otra cámara)" placeholder="Ninguna (entrega directa)">
+                    <flux:select wire:model="destChamberId" label="Cámara destino (si va a otra cámara)">
                         <flux:select.option value="">Ninguna (entrega directa)</flux:select.option>
                         @foreach ($destChambers as $chamber)
                             <flux:select.option :value="$chamber->id">{{ $chamber->name }}</flux:select.option>
@@ -49,7 +47,6 @@
                 <flux:heading size="lg">Agregar cajas</flux:heading>
 
                 <flux:select wire:model.live="productId" label="Producto" placeholder="Selecciona un producto">
-                    <flux:select.option value="">Selecciona un producto</flux:select.option>
                     @foreach ($products as $product)
                         <flux:select.option :value="$product->id">{{ $product->name }}</flux:select.option>
                     @endforeach

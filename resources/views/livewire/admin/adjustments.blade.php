@@ -133,7 +133,6 @@
             @endif
             @if ($type === 'status_fix')
                 <flux:select wire:model="newStatus" label="Nuevo estado" placeholder="Selecciona">
-                    <flux:select.option value="">Selecciona</flux:select.option>
                     @foreach ($statuses as $status)
                         <flux:select.option :value="$status->value">{{ $status->label() }}</flux:select.option>
                     @endforeach
@@ -141,7 +140,6 @@
             @endif
             @if (in_array($type, ['found', 'status_fix']))
                 <flux:select wire:model="chamberId" label="Cámara (si queda disponible)" placeholder="Selecciona">
-                    <flux:select.option value="">Selecciona</flux:select.option>
                     @foreach ($chambers as $chamber)
                         <flux:select.option :value="$chamber->id">{{ $chamber->branch->name }} · {{ $chamber->name }}</flux:select.option>
                     @endforeach

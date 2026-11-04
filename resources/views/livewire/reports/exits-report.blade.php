@@ -30,7 +30,7 @@
         @include('livewire.reports.filters', ['show' => ['dates', 'chamber', 'category', 'product', 'user'], 'chamberLabel' => 'Cámara de origen'])
 
         <div class="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            <flux:select wire:model.live="destBranchId" label="Sucursal de destino" placeholder="Todas">
+            <flux:select wire:model.live="destBranchId" label="Sucursal de destino">
                 <flux:select.option value="">Todas</flux:select.option>
                 @foreach ($branches as $branch)
                     <flux:select.option :value="$branch->id">{{ $branch->name }}</flux:select.option>

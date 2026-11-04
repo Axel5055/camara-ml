@@ -12,7 +12,6 @@
                 <flux:heading size="lg">Datos de la entrada</flux:heading>
 
                 <flux:select wire:model="chamberId" label="Cámara de destino" placeholder="Selecciona una cámara">
-                    <flux:select.option value="">Selecciona una cámara</flux:select.option>
                     @foreach ($chambers as $chamber)
                         <flux:select.option :value="$chamber->id">{{ $chamber->branch->name }} · {{ $chamber->name }}</flux:select.option>
                     @endforeach
@@ -28,7 +27,6 @@
                 <flux:heading size="lg">Agregar cajas</flux:heading>
 
                 <flux:select wire:model="productId" label="Producto" placeholder="Selecciona un producto">
-                    <flux:select.option value="">Selecciona un producto</flux:select.option>
                     @foreach ($products as $product)
                         <flux:select.option :value="$product->id">{{ $product->name }}</flux:select.option>
                     @endforeach

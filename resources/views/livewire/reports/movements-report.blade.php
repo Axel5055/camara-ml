@@ -30,7 +30,7 @@
         @include('livewire.reports.filters', ['show' => ['dates', 'chamber', 'category', 'product', 'user']])
 
         <div class="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            <flux:select wire:model.live="type" label="Tipo de movimiento" placeholder="Todos">
+            <flux:select wire:model.live="type" label="Tipo de movimiento">
                 <flux:select.option value="">Todos</flux:select.option>
                 @foreach ($types as $typeOption)
                     <flux:select.option :value="$typeOption->value">{{ $typeOption->label() }}</flux:select.option>

@@ -64,13 +64,13 @@
 
     <div class="rounded-xl border border-zinc-200 bg-white p-4 shadow-xs dark:border-zinc-700 dark:bg-zinc-800">
         <div class="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-            <flux:select wire:model.live="event" label="Evento" placeholder="Todos los eventos">
+            <flux:select wire:model.live="event" label="Evento">
                 <flux:select.option value="">Todos los eventos</flux:select.option>
                 @foreach ($events as $eventOption)
                     <flux:select.option :value="$eventOption">{{ $eventLabel($eventOption) }}</flux:select.option>
                 @endforeach
             </flux:select>
-            <flux:select wire:model.live="userId" label="Usuario" placeholder="Todos">
+            <flux:select wire:model.live="userId" label="Usuario">
                 <flux:select.option value="">Todos</flux:select.option>
                 @foreach ($users as $user)
                     <flux:select.option :value="$user->id">{{ $user->name }}</flux:select.option>

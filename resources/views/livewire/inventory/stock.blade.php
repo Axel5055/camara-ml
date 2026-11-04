@@ -38,19 +38,19 @@
         <flux:input wire:model.live.debounce.300ms="search" icon="magnifying-glass" clearable placeholder="Buscar por código de barras o nombre de producto" />
 
         <div class="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-            <flux:select wire:model.live="chamberId" label="Cámara" placeholder="Todas las cámaras">
+            <flux:select wire:model.live="chamberId" label="Cámara">
                 <flux:select.option value="">Todas las cámaras</flux:select.option>
                 @foreach ($chambers as $chamber)
                     <flux:select.option :value="$chamber->id">{{ $chamber->branch->name }} · {{ $chamber->name }}</flux:select.option>
                 @endforeach
             </flux:select>
-            <flux:select wire:model.live="categoryId" label="Categoría" placeholder="Todas las categorías">
+            <flux:select wire:model.live="categoryId" label="Categoría">
                 <flux:select.option value="">Todas las categorías</flux:select.option>
                 @foreach ($categories as $category)
                     <flux:select.option :value="$category->id">{{ $category->name }}</flux:select.option>
                 @endforeach
             </flux:select>
-            <flux:select wire:model.live="productId" label="Producto" placeholder="Todos los productos">
+            <flux:select wire:model.live="productId" label="Producto">
                 <flux:select.option value="">Todos los productos</flux:select.option>
                 @foreach ($products as $product)
                     <flux:select.option :value="$product->id">{{ $product->name }}</flux:select.option>
