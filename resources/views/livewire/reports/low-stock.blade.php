@@ -1,5 +1,5 @@
 <section class="w-full space-y-6">
-    <x-page-header icon="bell-alert" title="Existencias bajas" description="Productos con pocas cajas disponibles.">
+    <x-page-header icon="bell-alert" title="Existencias bajas" description="Productos con pocas cajas disponibles. Sin umbral propio se avisa con 20 cajas o menos; puedes configurar uno por cámara y producto.">
         <div class="flex gap-2">
             <flux:modal.trigger name="threshold-form"><flux:button icon="plus">Configurar umbral</flux:button></flux:modal.trigger>
             <flux:button icon="arrow-down-tray" wire:click="export">Exportar CSV</flux:button>
@@ -8,7 +8,7 @@
 
     @php
         $cards = [
-            ['key' => 'thresholds', 'icon' => 'adjustments-horizontal', 'color' => 'indigo', 'label' => 'Umbrales configurados'],
+            ['key' => 'thresholds', 'icon' => 'adjustments-horizontal', 'color' => 'indigo', 'label' => 'Productos vigilados'],
             ['key' => 'low', 'icon' => 'bell-alert', 'color' => 'amber', 'label' => 'En alerta'],
             ['key' => 'empty', 'icon' => 'exclamation-triangle', 'color' => 'red', 'label' => 'Sin existencias'],
             ['key' => 'healthy', 'icon' => 'check-circle', 'color' => 'emerald', 'label' => 'Con existencias suficientes'],
@@ -60,10 +60,10 @@
             <flux:table.rows>
                 @forelse ($rows as $row)
                     @php
-                        $isLow = ($row->min_boxes !== null && $row->boxes < $row->min_boxes) || ($row->min_weight_kg !== null && (float) $row->kg < (float) $row->min_weight_kg);
+                        $isLow = (bool) $row->is_low;
                         [$statusLabel, $statusColor] = (int) $row->boxes === 0 ? ['Sin existencias', 'red'] : ($isLow ? ['Bajo', 'amber'] : ['Suficiente', 'green']);
                     @endphp
-                    <flux:table.row wire:key="low-{{ $row->threshold_id }}" class="hover:bg-zinc-50 dark:hover:bg-zinc-700/40">
+                    <flux:table.row wire:key="low-{{ $row->chamber_id }}-{{ $row->product_id }}" class="hover:bg-zinc-50 dark:hover:bg-zinc-700/40">
                         <flux:table.cell class="whitespace-nowrap">
                             <div class="font-medium text-zinc-900 dark:text-white">{{ $row->chamber }}</div>
                             <div class="text-xs text-zinc-500">{{ $row->branch }}</div>
@@ -72,12 +72,17 @@
                         <flux:table.cell><flux:badge size="sm" :color="$statusColor">{{ $statusLabel }}</flux:badge></flux:table.cell>
                         <flux:table.cell align="end" class="whitespace-nowrap tabular-nums">
                             <span class="font-medium text-zinc-900 dark:text-white">{{ number_format($row->boxes) }}</span> <span class="text-zinc-500">/ {{ $row->min_boxes ?? '—' }}</span>
+                            @if ($row->is_default)
+                                <flux:badge size="sm" color="zinc" class="ms-1" title="Umbral por defecto: 20 cajas o menos">Por defecto</flux:badge>
+                            @endif
                         </flux:table.cell>
                         <flux:table.cell align="end" class="whitespace-nowrap tabular-nums">
                             <span class="font-medium text-zinc-900 dark:text-white">{{ number_format((float) $row->kg, 3) }}</span> <span class="text-zinc-500">/ {{ $row->min_weight_kg ?? '—' }}</span>
                         </flux:table.cell>
                         <flux:table.cell align="end">
-                            <flux:button size="sm" variant="ghost" icon="trash" wire:click="deleteThreshold({{ $row->threshold_id }})" wire:confirm="¿Eliminar este umbral?">Quitar umbral</flux:button>
+                            @unless ($row->is_default)
+                                <flux:button size="sm" variant="ghost" icon="trash" wire:click="deleteThreshold({{ $row->threshold_id }})" wire:confirm="¿Eliminar este umbral?">Quitar umbral</flux:button>
+                            @endunless
                         </flux:table.cell>
                     </flux:table.row>
                 @empty

@@ -17,9 +17,11 @@ use App\Models\Incident;
 use App\Models\Product;
 use App\Models\User;
 use App\Services\Inventory\AdjustInventory;
+use App\Services\Inventory\LowStockAlerts;
 use App\Services\Inventory\RegisterEntry;
 use App\Services\Inventory\RegisterExit;
 use App\Support\CsvExport;
+use Illuminate\Support\Facades\DB;
 use Livewire\Livewire;
 
 /**
@@ -301,4 +303,22 @@ it('summarises thresholds, filters them and clears the filters', function () {
     $component->call('clearFilters');
     expect($component->viewData('hasFilters'))->toBeFalse()
         ->and($component->viewData('rows'))->toHaveCount(2);
+});
+
+it('lists every stocked product with the default threshold and lets a configured one replace it', function () {
+    $w = reportsWorld();
+    DB::table('boxes')->where('status', 'available')->limit(12)->update(['status' => 'dispatched', 'current_chamber_id' => null]);
+
+    // 18 boxes left: low by the default rule (20 or fewer), with no threshold configured.
+    $component = Livewire::actingAs($w['admin'])->test(LowStock::class);
+    expect($component->viewData('rows'))->toHaveCount(1)
+        ->and((bool) $component->viewData('rows')[0]->is_default)->toBeTrue()
+        ->and((int) $component->viewData('rows')[0]->min_boxes)->toBe(20);
+    $component->assertSee('Por defecto');
+    expect(app(LowStockAlerts::class)->for($w['admin']))->toHaveCount(1);
+
+    // A configured threshold replaces the default one, in the report and on the dashboard.
+    $component->set('thresholdChamberId', $w['c1']->id)->set('thresholdProductId', $w['product']->id)->set('minBoxes', '10')->call('saveThreshold');
+    expect($component->viewData('rows'))->toHaveCount(0)
+        ->and(app(LowStockAlerts::class)->for($w['admin']))->toBeEmpty();
 });

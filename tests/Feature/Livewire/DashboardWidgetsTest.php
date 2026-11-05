@@ -190,11 +190,15 @@ it('summarizes the system on the dashboard, scoped to the chambers of the user',
         ->assertSee('Últimas entradas')
         ->assertSee('Últimas salidas')
         ->assertDontSee('Valor del inventario')
+        ->assertDontSee('Valor (MXN)')
+        ->assertDontSeeHtml('data-test="chamber-value"')
         ->assertDontSee('Incidencias abiertas');
 
     $admin = Livewire::actingAs($w['admin'])->test(Dashboard::class)
         ->assertSee('Valor del inventario')
         ->assertSee('Incidencias abiertas')
+        ->assertSee('Valor (MXN)')
+        ->assertSeeHtml('data-test="chamber-value"')
         ->assertSee('Centro 1')
         ->assertSee('Norte 1');
 

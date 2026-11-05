@@ -109,9 +109,11 @@ class Dashboard extends Component
         $chambers = $selected ? collect([$selected]) : $allChambers;
         $today = CarbonImmutable::now()->startOfDay();
 
+        $showCosts = Gate::allows('view-costs');
+
         $stockByChamber = $this->limit(
             DB::table('boxes')
-                ->selectRaw('current_chamber_id, count(*) as boxes, coalesce(sum(current_weight_kg), 0) as kg')
+                ->selectRaw('current_chamber_id, count(*) as boxes, coalesce(sum(current_weight_kg), 0) as kg'.($showCosts ? ', coalesce(sum(unit_cost_mxn * current_weight_kg / initial_weight_kg), 0) as value' : ''))
                 ->where('status', BoxStatus::Available->value)
                 ->groupBy('current_chamber_id'),
             'current_chamber_id',
@@ -136,7 +138,6 @@ class Dashboard extends Component
             $visible,
         )->first();
 
-        $showCosts = Gate::allows('view-costs');
         $inventoryValue = $showCosts
             ? $this->limit(
                 DB::table('boxes')->where('status', BoxStatus::Available->value)

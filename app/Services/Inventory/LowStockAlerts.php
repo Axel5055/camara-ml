@@ -14,8 +14,9 @@ class LowStockAlerts
     public const THRESHOLD = 20;
 
     /**
-     * Products that have been stocked in a chamber the user can see and that now have THRESHOLD boxes or fewer
-     * available there (including none). Products never stocked in a chamber are not reported for it.
+     * Products that have been stocked in a chamber the user can see and are now low there: with a configured
+     * threshold (minimum boxes or kilograms) that one applies, otherwise THRESHOLD boxes or fewer (including none).
+     * Products never stocked in a chamber are not reported for it.
      *
      * @return Collection<int, stdClass> rows with chamber_id, chamber, branch, product_id, product, boxes and kg
      */
@@ -38,9 +39,11 @@ class LowStockAlerts
             ->join('products', 'products.id', '=', 'h.product_id')
             ->join('chambers', 'chambers.id', '=', 'h.chamber_id')
             ->join('branches', 'branches.id', '=', 'chambers.branch_id')
+            ->leftJoin('stock_thresholds as t', fn ($join) => $join->on('t.chamber_id', '=', 'h.chamber_id')->on('t.product_id', '=', 'h.product_id'))
             ->where('products.is_active', true)
             ->where('chambers.is_active', true)
-            ->whereRaw('coalesce(a.boxes, 0) <= ?', [self::THRESHOLD])
+            ->whereRaw('case when t.id is null then coalesce(a.boxes, 0) <= ?
+                else ((t.min_boxes is not null and coalesce(a.boxes, 0) < t.min_boxes) or (t.min_weight_kg is not null and coalesce(a.kg, 0) < t.min_weight_kg)) end', [self::THRESHOLD])
             ->when($visible !== null, fn ($query) => $query->whereIn('h.chamber_id', $visible))
             ->selectRaw('h.chamber_id, chambers.name as chamber, branches.name as branch, h.product_id, products.name as product, coalesce(a.boxes, 0) as boxes, coalesce(a.kg, 0) as kg')
             ->orderByRaw('coalesce(a.boxes, 0)')

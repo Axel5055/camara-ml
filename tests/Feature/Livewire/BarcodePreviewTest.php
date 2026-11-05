@@ -128,3 +128,16 @@ it('shows the route of the exit being captured', function () {
         ->assertSee($w['c1']->name)
         ->assertSee($w['sur']->name);
 });
+
+it('does not add boxes for a product that does not exist', function () {
+    $w = barcodeWorld();
+
+    Livewire::actingAs($w['user'])->test(CreateEntry::class)
+        ->set('chamberId', $w['c1']->id)
+        ->set('productId', null)->set('boxesCount', '2')->set('weight', '10')->set('cost', '50')
+        ->call('addLine')
+        ->assertHasErrors(['productId'])
+        ->set('productId', 999999)
+        ->call('addLine')
+        ->assertHasErrors(['productId']);
+});

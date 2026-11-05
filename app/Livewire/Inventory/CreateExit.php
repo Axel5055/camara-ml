@@ -338,7 +338,7 @@ class CreateExit extends Component
             'products' => $allowed
                 ? Product::query()
                     ->whereIn('id', Box::query()->availableIn((int) $this->originChamberId)->select('product_id')->distinct())
-                    ->orderBy('name')->get(['id', 'name'])
+                    ->orderBy('name')->get(['id', 'name', 'code'])
                 : collect(),
             'availableForProduct' => $allowed && $this->productId ? array_sum(array_column($this->variantsOf($this->productId), 'available')) : null,
             'summaries' => $summaries,

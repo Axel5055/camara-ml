@@ -56,11 +56,7 @@
                     <flux:heading size="lg">Agregar cajas</flux:heading>
                 </div>
 
-                <flux:select wire:model="productId" label="Producto" placeholder="Selecciona un producto">
-                    @foreach ($products as $product)
-                        <flux:select.option :value="$product->id">{{ $product->name }}</flux:select.option>
-                    @endforeach
-                </flux:select>
+                <x-product-search :products="$products" wire:key="product-search" />
                 <flux:error name="productId" />
 
                 <flux:input wire:model.live.debounce.400ms="boxesCount" label="Cantidad de cajas" type="number" min="1" />

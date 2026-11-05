@@ -236,7 +236,7 @@ class CreateEntry extends Component
         return view('livewire.inventory.create-entry', [
             'draft' => $this->draft(),
             'chambers' => $this->accessibleChambers(),
-            'products' => Product::query()->where('is_active', true)->orderBy('name')->get(['id', 'name']),
+            'products' => Product::query()->where('is_active', true)->orderBy('name')->get(['id', 'name', 'code']),
             'summaries' => $summaries,
             'totals' => ['boxes' => $totalBoxes, 'weight' => $totalWeight, 'cost' => $totalCost],
         ]);
