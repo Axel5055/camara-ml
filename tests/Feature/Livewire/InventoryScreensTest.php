@@ -574,3 +574,14 @@ it('offers only other chambers as transfer destination and keeps the read-only a
     $this->actingAs($w['centroUser'])->get(route('transfers.create'))->assertOk();
     $this->actingAs(User::factory()->create(['role' => 'admin']))->get(route('transfers.create'))->assertForbidden();
 });
+
+it('keeps the entries, exits and transfers submenus always open for warehouse users', function () {
+    $w = screensWorld();
+
+    $html = $this->actingAs($w['centroUser'])->get(route('dashboard'))->assertOk()->getContent();
+
+    expect(substr_count($html, 'x-data=\'{ open: true }\''))->toBe(3);
+
+    $this->actingAs($w['admin'])->get(route('dashboard'))->assertOk()
+        ->assertSee('$persist(true).as(', false);
+});

@@ -11,10 +11,11 @@
             </flux:sidebar.header>
 
             <flux:sidebar.nav>
+                @php($warehouseNav = auth()->user()->role->value === 'warehouse')
                 <flux:sidebar.group heading="Inventario" class="grid">
                     <flux:sidebar.item icon="home" :href="route('dashboard')" :current="request()->routeIs('dashboard')" wire:navigate>Panel</flux:sidebar.item>
                     <flux:sidebar.item icon="archive-box" :href="route('stock')" :current="request()->routeIs('stock', 'boxes.show')" wire:navigate>Existencias</flux:sidebar.item>
-                    <div x-data="{ open: $persist(true).as('nav-entries') }" data-test="nav-entries">
+                    <div x-data='{ open: {{ $warehouseNav ? "true" : '$persist(true).as("nav-entries")' }} }' data-test="nav-entries">
                         <flux:sidebar.item as="button" type="button" icon="arrow-down-tray" x-on:click="open = ! open" x-bind:aria-expanded="open" class="w-full">
                             <span class="flex w-full items-center justify-between gap-2">
                                 Entradas
@@ -28,7 +29,7 @@
                             @endcan
                         </div>
                     </div>
-                    <div x-data="{ open: $persist(true).as('nav-exits') }" data-test="nav-exits">
+                    <div x-data='{ open: {{ $warehouseNav ? "true" : '$persist(true).as("nav-exits")' }} }' data-test="nav-exits">
                         <flux:sidebar.item as="button" type="button" icon="arrow-up-tray" x-on:click="open = ! open" x-bind:aria-expanded="open" class="w-full">
                             <span class="flex w-full items-center justify-between gap-2">
                                 Salidas
@@ -43,7 +44,7 @@
                         </div>
                     </div>
                     @can('viewAny', \App\Models\Transfer::class)
-                        <div x-data="{ open: $persist(true).as('nav-transfers') }" data-test="nav-transfers">
+                        <div x-data='{ open: {{ $warehouseNav ? "true" : '$persist(true).as("nav-transfers")' }} }' data-test="nav-transfers">
                             <flux:sidebar.item as="button" type="button" icon="arrows-right-left" x-on:click="open = ! open" x-bind:aria-expanded="open" class="w-full">
                                 <span class="flex w-full items-center justify-between gap-2">
                                     Transferencias
