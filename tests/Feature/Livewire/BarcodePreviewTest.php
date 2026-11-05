@@ -106,3 +106,25 @@ it('shows the barcode range of an entry group inside the collapsible under the p
         ->assertSee("POLLO-{$today}-000005")
         ->assertSee('5 códigos consecutivos');
 });
+
+it('previews the totals of the group being captured before it is added', function () {
+    $w = barcodeWorld();
+
+    Livewire::actingAs($w['user'])->test(CreateEntry::class)
+        ->assertDontSeeHtml('data-test="entry-draft"')
+        ->set('boxesCount', '4')->set('weight', '12.5')->set('cost', '80')
+        ->assertSeeHtml('data-test="entry-draft"')
+        ->assertSee('50.000 kg')
+        ->assertSee('$320.00');
+});
+
+it('shows the route of the exit being captured', function () {
+    $w = barcodeWorld();
+
+    Livewire::actingAs($w['user'])->test(CreateExit::class)
+        ->set('originChamberId', $w['c1']->id)
+        ->set('destBranchId', $w['sur']->id)
+        ->assertSeeHtml('data-test="exit-new-route"')
+        ->assertSee($w['c1']->name)
+        ->assertSee($w['sur']->name);
+});

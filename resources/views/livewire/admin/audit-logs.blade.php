@@ -9,14 +9,14 @@
             'product.created' => 'Producto creado', 'product.updated' => 'Producto actualizado',
             'user.created' => 'Usuario creado', 'user.updated' => 'Usuario actualizado',
             'exit.reversed' => 'Salida revertida', 'transfer.cancelled' => 'Transferencia cancelada',
-            'inventory.adjusted' => 'Inventario ajustado', 'entry.corrected' => 'Entrada corregida', 'exit.corrected' => 'Salida corregida', 'incident.resolved' => 'Incidencia resuelta',
+            'inventory.adjusted' => 'Inventario ajustado', 'stock.adjusted' => 'Existencias ajustadas', 'box.edited' => 'Caja editada', 'entry.corrected' => 'Entrada corregida', 'exit.corrected' => 'Salida corregida', 'incident.resolved' => 'Incidencia resuelta',
         ];
         $eventLabel = fn (string $event): string => $eventLabels[$event] ?? str_replace(['.', '_'], ' ', $event);
         $eventColor = fn (string $event): string => match (true) {
             str_ends_with($event, '.created') => 'green',
             str_ends_with($event, '.updated') => 'sky',
             str_ends_with($event, '.reversed'), str_ends_with($event, '.cancelled') => 'red',
-            str_ends_with($event, '.adjusted'), str_ends_with($event, '.corrected') => 'amber',
+            str_ends_with($event, '.adjusted'), str_ends_with($event, '.corrected'), str_ends_with($event, '.edited') => 'amber',
             str_ends_with($event, '.resolved') => 'emerald',
             default => 'zinc',
         };

@@ -183,6 +183,28 @@ class CreateEntry extends Component
         }
     }
 
+    /**
+     * Live preview of the group being captured, shown before it is added to the entry.
+     *
+     * @return array{boxes: int, weight: string, cost: string}|null
+     */
+    private function draft(): ?array
+    {
+        if (! ctype_digit($this->boxesCount) || (int) $this->boxesCount < 1 || ! is_numeric($this->weight) || ! is_numeric($this->cost)) {
+            return null;
+        }
+
+        try {
+            return [
+                'boxes' => (int) $this->boxesCount,
+                'weight' => Decimal::mul(Decimal::normalize($this->weight, Decimal::WEIGHT_SCALE), $this->boxesCount, Decimal::WEIGHT_SCALE),
+                'cost' => Decimal::mul(Decimal::normalize($this->cost, Decimal::MONEY_SCALE), $this->boxesCount, Decimal::MONEY_SCALE),
+            ];
+        } catch (InventoryException) {
+            return null;
+        }
+    }
+
     public function render(): View
     {
         $barcodes = app(BarcodeGenerator::class);
@@ -212,6 +234,7 @@ class CreateEntry extends Component
         }
 
         return view('livewire.inventory.create-entry', [
+            'draft' => $this->draft(),
             'chambers' => $this->accessibleChambers(),
             'products' => Product::query()->where('is_active', true)->orderBy('name')->get(['id', 'name']),
             'summaries' => $summaries,

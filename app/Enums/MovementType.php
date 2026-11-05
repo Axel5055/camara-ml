@@ -40,4 +40,18 @@ enum MovementType: string
             self::TransferCancel => 'zinc',
         };
     }
+
+    public function icon(): string
+    {
+        return match ($this) {
+            self::Entry => 'arrow-down-tray',
+            self::Exit => 'arrow-up-tray',
+            self::TransferOut => 'truck',
+            self::TransferIn => 'inbox-arrow-down',
+            self::PartialWithdrawal => 'scissors',
+            self::Adjustment => 'adjustments-horizontal',
+            self::Reversal => 'arrow-uturn-left',
+            self::TransferCancel => 'x-circle',
+        };
+    }
 }

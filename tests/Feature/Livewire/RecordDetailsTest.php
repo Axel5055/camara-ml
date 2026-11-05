@@ -1,9 +1,11 @@
 <?php
 
+use App\Livewire\Inventory\BoxHistory;
 use App\Livewire\Inventory\CreateEntry;
 use App\Livewire\Inventory\CreateExit;
 use App\Livewire\Inventory\EntryDetail;
 use App\Livewire\Inventory\ExitDetail;
+use App\Livewire\Inventory\Stock;
 use App\Models\Box;
 use App\Models\Branch;
 use App\Models\Chamber;
@@ -315,4 +317,78 @@ it('shows the print button on the detail of an entry and of an exit', function (
 
     Livewire::actingAs($w['centroUser'])->test(EntryDetail::class, ['entry' => $w['entry']])->assertSeeHtml('data-test="entry-print"');
     Livewire::actingAs($w['centroUser'])->test(ExitDetail::class, ['exit' => $exit])->assertSeeHtml('data-test="exit-print"');
+});
+
+it('shows the stock grouped by chamber and product, with the costs only for those who may see them', function () {
+    $w = detailsWorld();
+
+    Livewire::actingAs($w['admin'])->test(Stock::class)
+        ->call('showView', 'summary')
+        ->assertSee('Centro 1')->assertSee('Pollo')->assertSee('130.09')
+        ->assertSee('Ajustar');
+
+    Livewire::actingAs($w['centroUser'])->test(Stock::class)
+        ->call('showView', 'summary')
+        ->assertSee('Pollo')->assertDontSee('130.09')
+        ->assertDontSee('Ajustar')
+        ->call('openAdjust', $w['c1']->id, $w['product']->id)->assertForbidden();
+});
+
+it('lets the super administrator adjust the boxes of a product from the summary', function () {
+    $w = detailsWorld();
+
+    Livewire::actingAs($w['admin'])->test(Stock::class)
+        ->call('showView', 'summary')
+        ->call('openAdjust', $w['c1']->id, $w['product']->id)
+        ->assertSet('adjustBoxes', '4')
+        ->set('adjustBoxes', '3')
+        ->set('adjustReason', 'x')
+        ->call('saveAdjust')->assertHasErrors(['adjustReason'])
+        ->set('adjustReason', 'Conteo físico del almacén')
+        ->call('saveAdjust')
+        ->assertHasNoErrors();
+
+    expect(Box::query()->where('status', 'available')->count())->toBe(3)
+        ->and(Box::query()->where('status', 'written_off')->count())->toBe(1);
+});
+
+it('shows the history of a box as a timeline with links to its entry and exit', function () {
+    $w = detailsWorld();
+    $exit = app(RegisterExit::class)->handle($w['centroUser'], $w['c1'], $w['sur'], null, 'Ana', [$w['boxes'][0]->id]);
+
+    Livewire::actingAs($w['admin'])->test(BoxHistory::class, ['box' => $w['boxes'][0]->fresh()])
+        ->assertSeeHtml('data-test="box-timeline"')
+        ->assertSee($w['entry']->reference)
+        ->assertSee($exit->reference)
+        ->assertSee('Entrada')
+        ->assertSee('Salida')
+        ->assertSee('Entregada')
+        ->assertSeeHtml('data-test="box-card-cost"');
+
+    Livewire::actingAs($w['centroUser'])->test(BoxHistory::class, ['box' => $w['boxes'][1]])
+        ->assertSee('Centro 1')
+        ->assertSee('Retiro parcial')
+        ->assertDontSeeHtml('data-test="box-card-cost"');
+});
+
+it('lets the super administrator edit a box from the stock list', function () {
+    $w = detailsWorld();
+    $box = $w['boxes'][0];
+
+    Livewire::actingAs($w['centroUser'])->test(Stock::class)
+        ->assertDontSee('Editar')
+        ->call('openEditBox', $box->id)->assertForbidden();
+
+    Livewire::actingAs($w['admin'])->test(Stock::class)
+        ->assertSee('Editar')
+        ->call('openEditBox', $box->id)
+        ->assertSet('editWeight', '20.000')
+        ->set('editWeight', '18.500')
+        ->set('editReason', 'x')
+        ->call('saveEditBox')->assertHasErrors(['editReason'])
+        ->set('editReason', 'Se pesó mal al recibir')
+        ->call('saveEditBox')
+        ->assertHasNoErrors();
+
+    expect($box->fresh()->current_weight_kg)->toBe('18.500')->and($box->fresh()->unit_cost_mxn)->toBe('123.45');
 });

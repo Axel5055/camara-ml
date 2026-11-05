@@ -15,9 +15,11 @@ use App\Models\Entry;
 use App\Models\Product;
 use App\Models\User;
 use App\Services\Inventory\AdjustInventory;
+use App\Services\Inventory\AdjustStockSummary;
 use App\Services\Inventory\CancelTransfer;
 use App\Services\Inventory\CorrectEntry;
 use App\Services\Inventory\CorrectExit;
+use App\Services\Inventory\EditBox;
 use App\Services\Inventory\ReceiveTransfer;
 use App\Services\Inventory\RegisterEntry;
 use App\Services\Inventory\RegisterExit;
@@ -588,4 +590,93 @@ it('only changes the requester and notes of an exit that created a transfer', fu
     expect($corrected->requester_name)->toBe('Sucursal Norte')
         ->and($corrected->notes)->toBe('Con prisa')
         ->and($exit->transfer->fresh()->status)->toBe(TransferStatus::InTransit);
+});
+
+it('lets only the super administrator settle the stock of a product in a chamber', function () {
+    $w = warehouseWorld();
+    registerExampleEntry($w);
+    $service = app(AdjustStockSummary::class);
+
+    expect(fn () => $service->handle($w['centroUser'], $w['c1'], $w['product'], 'Conteo físico', 30))->toThrow(AuthorizationException::class)
+        ->and(fn () => $service->handle($w['admin'], $w['c1'], $w['product'], 'Conteo físico'))->toThrow(InventoryException::class, 'No hay cambios')
+        ->and(fn () => $service->handle($w['admin'], $w['c1'], $w['product'], 'x', 30))->toThrow(InventoryException::class, 'motivo');
+
+    // Fewer boxes than the system says: the oldest ones are written off, not deleted.
+    $result = $service->handle($w['admin'], $w['c1'], $w['product'], 'Conteo físico', 30);
+
+    expect($result['written_off'])->toBe(3)
+        ->and(Box::query()->where('status', BoxStatus::Available)->count())->toBe(30)
+        ->and(Box::query()->where('status', BoxStatus::WrittenOff)->orderBy('id')->pluck('id')->all())->toBe(Box::query()->orderBy('id')->limit(3)->pluck('id')->all())
+        ->and(DB::table('audit_logs')->where('event', 'stock.adjusted')->count())->toBe(1);
+
+    // More boxes, a new weight and a new cost: the remaining boxes follow, the new ones are created.
+    $result = $service->handle($w['admin'], $w['c1'], $w['product'], 'Llegó mercancía sin registrar', 32, '25', '600');
+
+    expect($result['added'])->toBe(2)
+        ->and($result['reweighed'])->toBe(30)
+        ->and(Box::query()->where('status', BoxStatus::Available)->where('initial_weight_kg', 25)->where('current_weight_kg', 25)->where('unit_cost_mxn', 600)->count())->toBe(32)
+        ->and(Box::query()->distinct()->count('barcode'))->toBe(Box::query()->count());
+
+    $added = Box::query()->orderByDesc('id')->first();
+    $movement = DB::table('box_movements')->where('box_id', $added->id)->first();
+    expect($movement->type)->toBe(MovementType::Adjustment->value)->and($movement->status_before)->toBeNull();
+});
+
+it('keeps the weight of partial boxes and uses the average for the boxes it creates', function () {
+    $w = warehouseWorld();
+    registerExampleEntry($w);
+    $partial = Box::query()->orderBy('id')->first();
+    app(AdjustInventory::class)->handle($w['admin'], $partial, AdjustmentType::WeightCorrection, 'Merma real', '10');
+
+    $result = app(AdjustStockSummary::class)->handle($w['admin'], $w['c1'], $w['product'], 'Se pesó de nuevo', null, '25');
+
+    expect($result['skipped_partial'])->toBe(1)
+        ->and($result['reweighed'])->toBe(32)
+        ->and($partial->fresh()->current_weight_kg)->toBe('10.000');
+
+    $result = app(AdjustStockSummary::class)->handle($w['admin'], $w['c1'], $w['product'], 'Faltaba una caja', 34);
+    $created = Box::query()->orderByDesc('id')->first();
+
+    // Average of the 32 boxes of 25 kg and the partial one of 10 kg.
+    expect($result['added'])->toBe(1)->and($created->current_weight_kg)->toBe('24.545');
+});
+
+it('lets only the super administrator edit the weight and cost of a box', function () {
+    $w = warehouseWorld();
+    registerExampleEntry($w);
+    $box = Box::query()->orderBy('id')->first();
+    $service = app(EditBox::class);
+
+    expect(fn () => $service->handle($w['centroUser'], $box, 'Peso mal capturado', '19'))->toThrow(AuthorizationException::class)
+        ->and(fn () => $service->handle($w['admin'], $box, 'Peso mal capturado'))->toThrow(InventoryException::class, 'No hay cambios')
+        ->and(fn () => $service->handle($w['admin'], $box, 'x', '19'))->toThrow(InventoryException::class, 'motivo')
+        ->and(fn () => $service->handle($w['admin'], $box, 'Peso mal capturado', '0'))->toThrow(InventoryException::class, 'mayor a cero');
+
+    // An intact box stays intact: initial and current weight both change.
+    $edited = $service->handle($w['admin'], $box, 'Peso y costo mal capturados', '19.5', '510');
+
+    expect($edited->initial_weight_kg)->toBe('19.500')
+        ->and($edited->current_weight_kg)->toBe('19.500')
+        ->and($edited->unit_cost_mxn)->toBe('510.00')
+        ->and($edited->isPartial())->toBeFalse()
+        ->and(DB::table('audit_logs')->where('event', 'box.edited')->count())->toBe(1);
+
+    $movement = DB::table('box_movements')->where('box_id', $box->id)->orderByDesc('id')->first();
+    expect($movement->type)->toBe(MovementType::Adjustment->value)->and($movement->notes)->toContain('Peso y costo mal capturados');
+});
+
+it('only changes the current weight of a partial box and refuses a box that is not available', function () {
+    $w = warehouseWorld();
+    registerExampleEntry($w);
+    $boxes = Box::query()->orderBy('id')->limit(2)->get();
+    app(AdjustInventory::class)->handle($w['admin'], $boxes[0], AdjustmentType::WeightCorrection, 'Merma real', '10');
+    $service = app(EditBox::class);
+
+    expect(fn () => $service->handle($w['admin'], $boxes[0]->fresh(), 'Peso mal capturado', '25'))->toThrow(InventoryException::class, 'no puede superar');
+
+    $edited = $service->handle($w['admin'], $boxes[0]->fresh(), 'Se pesó de nuevo', '12');
+    expect($edited->current_weight_kg)->toBe('12.000')->and($edited->initial_weight_kg)->toBe('20.000');
+
+    app(RegisterExit::class)->handle($w['centroUser'], $w['c1'], $w['sur'], null, 'Ana', [$boxes[1]->id]);
+    expect(fn () => $service->handle($w['admin'], $boxes[1]->fresh(), 'Caja ya entregada', '15'))->toThrow(InventoryException::class, 'no está disponible');
 });

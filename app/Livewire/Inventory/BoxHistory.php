@@ -8,6 +8,8 @@ use App\Livewire\Concerns\ReportsInventoryErrors;
 use App\Models\Box;
 use App\Models\Branch;
 use App\Models\Chamber;
+use App\Models\Entry;
+use App\Models\StockExit;
 use App\Services\Inventory\WithdrawPartial;
 use Flux\Flux;
 use Illuminate\Contracts\View\View;
@@ -69,13 +71,16 @@ class BoxHistory extends Component
         $chamberIds = $movements->pluck('from_chamber_id')->merge($movements->pluck('to_chamber_id'))->filter()->unique();
         $branchIds = $movements->pluck('to_branch_id')->filter()->unique();
 
-        $currentChamber = $this->box->current_chamber_id ? Chamber::query()->find($this->box->current_chamber_id) : null;
+        $currentChamber = $this->box->current_chamber_id ? Chamber::query()->with('branch:id,name')->find($this->box->current_chamber_id) : null;
 
         return view('livewire.inventory.box-history', [
             'movements' => $movements,
             'chamberNames' => Chamber::query()->whereIn('id', $chamberIds)->pluck('name', 'id'),
             'branchNames' => Branch::query()->whereIn('id', $branchIds)->pluck('name', 'id'),
-            'product' => $this->box->product()->first(),
+            'currentChamber' => $currentChamber,
+            'entryRefs' => Entry::query()->whereIn('id', $movements->pluck('entry_id')->filter()->unique())->pluck('reference', 'id'),
+            'exitRefs' => StockExit::query()->whereIn('id', $movements->pluck('exit_id')->filter()->unique())->pluck('reference', 'id'),
+            'product' => $this->box->product()->with('category:id,name')->first(),
             'canWithdraw' => $this->box->status === BoxStatus::Available
                 && $currentChamber !== null
                 && Auth::user()->canAccessChamber($currentChamber),
