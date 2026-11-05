@@ -12,6 +12,7 @@
         body { margin: 0; padding: 3mm; width: 72mm; font: 12px/1.35 "Courier New", monospace; color: #000; background: #fff; }
         .center { text-align: center; }
         .title { font-size: 15px; font-weight: bold; }
+        .logo { display: block; width: 23mm; height: auto; margin: 0 auto 2mm; }
         .rule { border: 0; border-top: 1px dashed #000; margin: 2mm 0; }
         .row { display: flex; justify-content: space-between; gap: 2mm; }
         .row span:last-child { text-align: right; }
@@ -24,7 +25,7 @@
     </style>
 </head>
 <body>
-    <div class="center title">ML Grupo Comercial</div>
+    <div class="center"><img class="logo" src="{{ asset('images/ticket-logo.png') }}" alt="ML Grupo Comercial"></div>
     <div class="center">{{ $heading }}</div>
     <div class="center title">{{ $reference }}</div>
     <hr class="rule">
