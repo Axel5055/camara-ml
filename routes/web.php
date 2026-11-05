@@ -15,6 +15,7 @@ use App\Livewire\Dashboard;
 use App\Livewire\Inventory\BoxHistory;
 use App\Livewire\Inventory\CreateEntry;
 use App\Livewire\Inventory\CreateExit;
+use App\Livewire\Inventory\CreateTransfer;
 use App\Livewire\Inventory\Entries;
 use App\Livewire\Inventory\EntryDetail;
 use App\Livewire\Inventory\ExitDetail;
@@ -44,6 +45,7 @@ Route::middleware(['auth', 'active', 'verified'])->group(function () {
     Route::middleware('can:operate-inventory')->group(function () {
         Route::livewire('inventario/entradas/nueva', CreateEntry::class)->name('entries.create');
         Route::livewire('inventario/salidas/nueva', CreateExit::class)->name('exits.create');
+        Route::livewire('inventario/transferencias/nueva', CreateTransfer::class)->name('transfers.create');
     });
 
     // Transfers: operated by warehouse users and super administrators; the read-only administrator can only list them.

@@ -147,7 +147,8 @@
             <flux:text class="-mt-3 text-xs">{{ \App\Enums\UserRole::tryFrom($role)?->description() }}</flux:text>
 
             @if ($role === 'warehouse')
-                <flux:select wire:model.live="branch_id" label="Sucursal" placeholder="Selecciona una sucursal">
+                <flux:select wire:model.live="branch_id" label="Sucursal">
+                    <flux:select.option value="">Selecciona una sucursal</flux:select.option>
                     @foreach ($branches as $branch)
                         <flux:select.option :value="$branch->id">{{ $branch->name }}</flux:select.option>
                     @endforeach

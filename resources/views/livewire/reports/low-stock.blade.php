@@ -97,12 +97,14 @@
     <flux:modal name="threshold-form" class="md:w-96">
         <form wire:submit="saveThreshold" class="space-y-6">
             <flux:heading size="lg">Umbral de existencias</flux:heading>
-            <flux:select wire:model="thresholdChamberId" label="Cámara" placeholder="Selecciona">
+            <flux:select wire:model="thresholdChamberId" label="Cámara">
+                <flux:select.option value="">Selecciona</flux:select.option>
                 @foreach ($chambers as $chamber)
                     <flux:select.option :value="$chamber->id">{{ $chamber->branch->name }} · {{ $chamber->name }}</flux:select.option>
                 @endforeach
             </flux:select>
-            <flux:select wire:model="thresholdProductId" label="Producto" placeholder="Selecciona">
+            <flux:select wire:model="thresholdProductId" label="Producto">
+                <flux:select.option value="">Selecciona</flux:select.option>
                 @foreach ($products as $product)
                     <flux:select.option :value="$product->id">{{ $product->name }}</flux:select.option>
                 @endforeach

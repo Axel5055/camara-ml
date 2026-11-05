@@ -32,8 +32,6 @@ class CreateExit extends Component
 
     public ?int $destBranchId = null;
 
-    public ?int $destChamberId = null;
-
     public string $requester = '';
 
     public string $notes = '';
@@ -72,9 +70,6 @@ class CreateExit extends Component
     {
         $this->occurredAt = now()->format('Y-m-d\TH:i');
         $this->clientToken = (string) Str::uuid();
-
-        $chambers = $this->accessibleChambers();
-        $this->originChamberId = $chambers->count() === 1 ? $chambers->first()->id : null;
     }
 
     public function updatedOriginChamberId(): void
@@ -84,9 +79,37 @@ class CreateExit extends Component
         $this->quantity = '';
     }
 
-    public function updatedDestBranchId(): void
+    /**
+     * Validation rules for the destination; an exit only needs a branch and is always confirmed on save.
+     *
+     * @return array<string, array<int, string>>
+     */
+    protected function destinationRules(): array
     {
-        $this->destChamberId = null;
+        return ['destBranchId' => ['required', 'exists:branches,id']];
+    }
+
+    /**
+     * Destination branch and chamber handed to the service; exits never go through a transfer.
+     *
+     * @return array{0: Branch, 1: Chamber|null}
+     */
+    protected function destination(): array
+    {
+        return [Branch::query()->findOrFail($this->destBranchId), null];
+    }
+
+    protected function isTransfer(): bool
+    {
+        return false;
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    protected function destinationViewData(): array
+    {
+        return [];
     }
 
     /**
@@ -268,8 +291,7 @@ class CreateExit extends Component
     {
         $this->validate([
             'originChamberId' => ['required', 'exists:chambers,id'],
-            'destBranchId' => ['required', 'exists:branches,id'],
-            'destChamberId' => ['nullable', 'exists:chambers,id'],
+            ...$this->destinationRules(),
             'requester' => ['required', 'string', 'max:255'],
             'notes' => ['nullable', 'string', 'max:2000'],
         ]);
@@ -286,11 +308,13 @@ class CreateExit extends Component
         $exit = null;
 
         $done = $this->attempt(function () use ($registerExit, $occurredAt, &$exit): void {
+            [$destBranch, $destChamber] = $this->destination();
+
             $exit = $registerExit->handle(
                 Auth::user(),
                 Chamber::query()->findOrFail($this->originChamberId),
-                Branch::query()->findOrFail($this->destBranchId),
-                $this->destChamberId ? Chamber::query()->findOrFail($this->destChamberId) : null,
+                $destBranch,
+                $destChamber,
                 $this->requester,
                 $this->takenIds(),
                 $occurredAt,
@@ -301,8 +325,8 @@ class CreateExit extends Component
 
         if ($done && $exit !== null) {
             session()->flash('print_ticket', route('exits.ticket', ['exit' => $exit, 'auto' => 1]));
-            Flux::toast(text: 'Salida registrada.', variant: 'success');
-            $this->redirectRoute('exits.index', navigate: true);
+            Flux::toast(text: $this->isTransfer() ? 'Transferencia enviada.' : 'Salida registrada.', variant: 'success');
+            $this->redirectRoute($this->isTransfer() ? 'transfers.index' : 'exits.index', navigate: true);
         }
     }
 
@@ -331,10 +355,6 @@ class CreateExit extends Component
         return view('livewire.inventory.create-exit', [
             'chambers' => $this->accessibleChambers(),
             'branches' => $this->activeBranches(),
-            'destChambers' => $this->destBranchId
-                ? Chamber::query()->where('branch_id', $this->destBranchId)->where('is_active', true)
-                    ->when($this->originChamberId, fn (Builder $query, int $id) => $query->where('id', '!=', $id))->orderBy('name')->get()
-                : collect(),
             'products' => $allowed
                 ? Product::query()
                     ->whereIn('id', Box::query()->availableIn((int) $this->originChamberId)->select('product_id')->distinct())
@@ -348,6 +368,8 @@ class CreateExit extends Component
             'showCosts' => Gate::allows('view-costs'),
             'isSuperAdmin' => Auth::user()->isSuperAdmin(),
             'pendingProduct' => $this->pendingProductId ? Product::query()->find($this->pendingProductId) : null,
+            'isTransfer' => $this->isTransfer(),
+            ...$this->destinationViewData(),
         ]);
     }
 }

@@ -14,10 +14,49 @@
                 <flux:sidebar.group heading="Inventario" class="grid">
                     <flux:sidebar.item icon="home" :href="route('dashboard')" :current="request()->routeIs('dashboard')" wire:navigate>Panel</flux:sidebar.item>
                     <flux:sidebar.item icon="archive-box" :href="route('stock')" :current="request()->routeIs('stock', 'boxes.show')" wire:navigate>Existencias</flux:sidebar.item>
-                    <flux:sidebar.item icon="arrow-down-tray" :href="route('entries.index')" :current="request()->routeIs('entries.*')" wire:navigate>Entradas</flux:sidebar.item>
-                    <flux:sidebar.item icon="arrow-up-tray" :href="route('exits.index')" :current="request()->routeIs('exits.*')" wire:navigate>Salidas</flux:sidebar.item>
+                    <div x-data="{ open: $persist(true).as('nav-entries') }" data-test="nav-entries">
+                        <flux:sidebar.item as="button" type="button" icon="arrow-down-tray" x-on:click="open = ! open" x-bind:aria-expanded="open" class="w-full">
+                            <span class="flex w-full items-center justify-between gap-2">
+                                Entradas
+                                <flux:icon name="chevron-down" class="size-4 text-zinc-400 transition-transform duration-200" x-bind:class="open ? '' : '-rotate-90'" />
+                            </span>
+                        </flux:sidebar.item>
+                        <div x-show="open" x-collapse class="ms-5 mt-0.5 grid gap-0.5 border-s border-zinc-700 ps-2">
+                            <flux:sidebar.item icon="list-bullet" :href="route('entries.index')" :current="request()->routeIs('entries.index', 'entries.show')" wire:navigate>Todas las entradas</flux:sidebar.item>
+                            @can('operate-inventory')
+                                <flux:sidebar.item icon="plus-circle" :href="route('entries.create')" :current="request()->routeIs('entries.create')" wire:navigate>Nueva entrada</flux:sidebar.item>
+                            @endcan
+                        </div>
+                    </div>
+                    <div x-data="{ open: $persist(true).as('nav-exits') }" data-test="nav-exits">
+                        <flux:sidebar.item as="button" type="button" icon="arrow-up-tray" x-on:click="open = ! open" x-bind:aria-expanded="open" class="w-full">
+                            <span class="flex w-full items-center justify-between gap-2">
+                                Salidas
+                                <flux:icon name="chevron-down" class="size-4 text-zinc-400 transition-transform duration-200" x-bind:class="open ? '' : '-rotate-90'" />
+                            </span>
+                        </flux:sidebar.item>
+                        <div x-show="open" x-collapse class="ms-5 mt-0.5 grid gap-0.5 border-s border-zinc-700 ps-2">
+                            <flux:sidebar.item icon="list-bullet" :href="route('exits.index')" :current="request()->routeIs('exits.index', 'exits.show')" wire:navigate>Todas las salidas</flux:sidebar.item>
+                            @can('operate-inventory')
+                                <flux:sidebar.item icon="plus-circle" :href="route('exits.create')" :current="request()->routeIs('exits.create')" wire:navigate>Nueva salida</flux:sidebar.item>
+                            @endcan
+                        </div>
+                    </div>
                     @can('viewAny', \App\Models\Transfer::class)
-                        <flux:sidebar.item icon="arrows-right-left" :href="route('transfers.index')" :current="request()->routeIs('transfers.*')" wire:navigate>Transferencias</flux:sidebar.item>
+                        <div x-data="{ open: $persist(true).as('nav-transfers') }" data-test="nav-transfers">
+                            <flux:sidebar.item as="button" type="button" icon="arrows-right-left" x-on:click="open = ! open" x-bind:aria-expanded="open" class="w-full">
+                                <span class="flex w-full items-center justify-between gap-2">
+                                    Transferencias
+                                    <flux:icon name="chevron-down" class="size-4 text-zinc-400 transition-transform duration-200" x-bind:class="open ? '' : '-rotate-90'" />
+                                </span>
+                            </flux:sidebar.item>
+                            <div x-show="open" x-collapse class="ms-5 mt-0.5 grid gap-0.5 border-s border-zinc-700 ps-2">
+                                <flux:sidebar.item icon="list-bullet" :href="route('transfers.index')" :current="request()->routeIs('transfers.index')" wire:navigate>Todas las transferencias</flux:sidebar.item>
+                                @can('operate-inventory')
+                                    <flux:sidebar.item icon="plus-circle" :href="route('transfers.create')" :current="request()->routeIs('transfers.create')" wire:navigate>Nueva transferencia</flux:sidebar.item>
+                                @endcan
+                            </div>
+                        </div>
                     @endcan
                 </flux:sidebar.group>
 

@@ -147,7 +147,7 @@ class Transfers extends Component
     public function render(): View
     {
         $acting = $this->actingId
-            ? Transfer::query()->with('items.box:id,barcode,current_weight_kg')->find($this->actingId)
+            ? Transfer::query()->with('originChamber:id,name', 'destChamber:id,name', 'items.box:id,barcode,current_weight_kg,product_id', 'items.box.product:id,name')->find($this->actingId)
             : null;
 
         $detail = null;
@@ -156,7 +156,7 @@ class Transfers extends Component
             $detail = Transfer::query()
                 ->with([
                     'originChamber.branch:id,name', 'destChamber.branch:id,name', 'exit.user:id,name', 'receiver:id,name', 'canceller:id,name',
-                    'items.box:id,barcode,current_weight_kg', 'incidents.box:id,barcode', 'incidents.reporter:id,name', 'incidents.resolver:id,name',
+                    'items.box:id,barcode,current_weight_kg,product_id', 'items.box.product:id,name', 'incidents.box:id,barcode', 'incidents.reporter:id,name', 'incidents.resolver:id,name',
                 ])
                 ->find($this->detailId);
 

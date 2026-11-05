@@ -249,7 +249,6 @@
                 @endif
 
                 <flux:textarea wire:model="editReason" label="Motivo de la corrección" rows="2" placeholder="Qué se capturó mal y qué se corrige." required />
-                <flux:error name="editReason" />
 
                 <div class="flex justify-end gap-2">
                     <flux:modal.close><flux:button variant="ghost">Cancelar</flux:button></flux:modal.close>

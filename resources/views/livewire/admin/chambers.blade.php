@@ -114,7 +114,8 @@
     <flux:modal name="chamber-form" class="md:w-96">
         <form wire:submit="save" class="space-y-6">
             <flux:heading size="lg">{{ $editingId ? 'Editar cámara' : 'Nueva cámara' }}</flux:heading>
-            <flux:select wire:model="branch_id" label="Sucursal" placeholder="Selecciona una sucursal">
+            <flux:select wire:model="branch_id" label="Sucursal">
+                <flux:select.option value="">Selecciona una sucursal</flux:select.option>
                 @foreach ($branches as $branch)
                     <flux:select.option :value="$branch->id">{{ $branch->name }}</flux:select.option>
                 @endforeach

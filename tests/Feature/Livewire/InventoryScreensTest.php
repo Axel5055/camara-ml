@@ -8,6 +8,7 @@ use App\Livewire\Dashboard;
 use App\Livewire\Inventory\BoxHistory;
 use App\Livewire\Inventory\CreateEntry;
 use App\Livewire\Inventory\CreateExit;
+use App\Livewire\Inventory\CreateTransfer;
 use App\Livewire\Inventory\Entries;
 use App\Livewire\Inventory\Exits;
 use App\Livewire\Inventory\Stock;
@@ -516,4 +517,60 @@ it('summarizes only the chambers of the signed in user on the dashboard', functi
     Livewire::actingAs($w['centroUser'])->test(Entries::class)->assertSee('ENT-');
     Livewire::actingAs($w['norteUser'])->test(Entries::class)->assertDontSee('ENT-');
     expect(Category::query()->count())->toBeGreaterThan(0);
+});
+
+it('confirms every exit right away, even to a branch that has chambers, and never creates a transfer', function () {
+    $w = screensWorld();
+
+    Livewire::actingAs($w['centroUser'])->test(CreateExit::class)
+        ->assertDontSee('Cámara destino')
+        ->set('originChamberId', $w['c1']->id)
+        ->set('productId', $w['product']->id)
+        ->set('quantity', '1')
+        ->call('addProduct')
+        ->set('destBranchId', $w['norte']->id)
+        ->set('requester', 'Ana López')
+        ->call('save')
+        ->assertHasNoErrors();
+
+    expect(Transfer::query()->count())->toBe(0)
+        ->and(StockExit::query()->sole()->status->value)->toBe('confirmed')
+        ->and(Box::query()->where('status', BoxStatus::Dispatched)->count())->toBe(1);
+});
+
+it('creates a chamber to chamber transfer that stays in transit until received', function () {
+    $w = screensWorld();
+
+    $component = Livewire::actingAs($w['centroUser'])->test(CreateTransfer::class)
+        ->set('originChamberId', $w['c1']->id)
+        ->set('productId', $w['product']->id)
+        ->set('quantity', '2')
+        ->call('addProduct')
+        ->set('requester', 'Ana López')
+        ->call('save')
+        ->assertHasErrors(['destChamberId' => 'required']);
+
+    $component->set('destChamberId', $w['n1']->id)
+        ->call('save')
+        ->assertHasNoErrors()
+        ->assertRedirect(route('transfers.index'));
+
+    $transfer = Transfer::query()->sole();
+
+    expect($transfer->origin_chamber_id)->toBe($w['c1']->id)
+        ->and($transfer->dest_chamber_id)->toBe($w['n1']->id)
+        ->and($transfer->status->value)->toBe('in_transit')
+        ->and(Box::query()->where('status', BoxStatus::InTransit)->count())->toBe(2);
+});
+
+it('offers only other chambers as transfer destination and keeps the read-only admin out', function () {
+    $w = screensWorld();
+
+    Livewire::actingAs($w['centroUser'])->test(CreateTransfer::class)
+        ->set('originChamberId', $w['c1']->id)
+        ->assertSee('Norte · Norte 1')
+        ->assertViewHas('destChambers', fn ($chambers): bool => $chambers->pluck('id')->all() === [$w['n1']->id]);
+
+    $this->actingAs($w['centroUser'])->get(route('transfers.create'))->assertOk();
+    $this->actingAs(User::factory()->create(['role' => 'admin']))->get(route('transfers.create'))->assertForbidden();
 });

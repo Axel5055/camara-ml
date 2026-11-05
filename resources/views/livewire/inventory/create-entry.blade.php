@@ -37,15 +37,14 @@
                     <flux:heading size="lg">Datos de la entrada</flux:heading>
                 </div>
 
-                <flux:select wire:model="chamberId" label="Cámara de destino" placeholder="Selecciona una cámara">
+                <flux:select wire:model="chamberId" label="Cámara de destino">
+                    <flux:select.option value="">Selecciona una cámara</flux:select.option>
                     @foreach ($chambers as $chamber)
                         <flux:select.option :value="$chamber->id">{{ $chamber->branch->name }} · {{ $chamber->name }}</flux:select.option>
                     @endforeach
                 </flux:select>
-                <flux:error name="chamberId" />
 
                 <flux:input wire:model="occurredAt" type="datetime-local" label="Fecha y hora" />
-                <flux:error name="occurredAt" />
 
                 <flux:textarea wire:model="notes" label="Observaciones" rows="2" placeholder="Proveedor, número de remisión, etc." />
             </div>
@@ -60,16 +59,13 @@
                 <flux:error name="productId" />
 
                 <flux:input wire:model.live.debounce.400ms="boxesCount" label="Cantidad de cajas" type="number" min="1" />
-                <flux:error name="boxesCount" />
 
                 <div class="grid grid-cols-2 gap-3">
                     <div>
                         <flux:input wire:model.live.debounce.400ms="weight" label="Peso por caja (kg)" inputmode="decimal" placeholder="0.000" />
-                        <flux:error name="weight" />
                     </div>
                     <div>
                         <flux:input wire:model.live.debounce.400ms="cost" label="Costo por caja (MXN)" inputmode="decimal" placeholder="0.00" />
-                        <flux:error name="cost" />
                     </div>
                 </div>
 
@@ -86,9 +82,7 @@
                     <summary class="cursor-pointer text-sm text-zinc-500">Códigos de barras manuales (opcional)</summary>
                     <div class="mt-3 space-y-3 pb-1">
                         <flux:textarea wire:model="manual" label="Un código por línea" rows="3" />
-                        <flux:error name="manual" />
                         <flux:input wire:model="origin" label="Procedencia de las etiquetas" />
-                        <flux:error name="origin" />
                     </div>
                 </details>
 

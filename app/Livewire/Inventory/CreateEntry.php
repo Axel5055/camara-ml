@@ -55,9 +55,6 @@ class CreateEntry extends Component
     {
         $this->occurredAt = now()->format('Y-m-d\TH:i');
         $this->clientToken = (string) Str::uuid();
-
-        $chambers = $this->accessibleChambers();
-        $this->chamberId = $chambers->count() === 1 ? $chambers->first()->id : null;
     }
 
     public function addLine(BarcodeGenerator $barcodes): void
@@ -223,7 +220,7 @@ class CreateEntry extends Component
             // Same order the service uses: groups in sequence, manual labels keep their own code.
             $generated = $line['boxes_count'] - count($line['manual']);
             $preview = $generated > 0
-                ? ['first' => $barcodes->format($line['code'], $nextNumber, $today), 'last' => $barcodes->format($line['code'], $nextNumber + $generated - 1, $today), 'count' => $generated]
+                ? ['first' => $barcodes->format($line['product'], $nextNumber, $today), 'last' => $barcodes->format($line['product'], $nextNumber + $generated - 1, $today), 'count' => $generated]
                 : null;
             $nextNumber += $generated;
 

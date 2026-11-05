@@ -29,7 +29,7 @@ return [
     ],
     'numeric' => ':Attribute debe ser un número.',
     'regex' => 'El formato de :attribute no es válido.',
-    'required' => ':Attribute es obligatorio.',
+    'required' => ':Attribute es un dato obligatorio.',
     'string' => ':Attribute debe ser texto.',
     'unique' => ':Attribute ya está registrado.',
 

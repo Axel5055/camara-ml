@@ -80,7 +80,7 @@
     </div>
 
     {{-- Gráfica diaria --}}
-    <div class="rounded-xl border border-zinc-200 bg-white p-5 shadow-xs dark:border-zinc-700 dark:bg-zinc-800" data-test="daily-chart">
+    <div class="min-w-0 rounded-xl border border-zinc-200 bg-white p-5 shadow-xs dark:border-zinc-700 dark:bg-zinc-800" data-test="daily-chart">
         <div class="mb-4 flex flex-wrap items-center justify-between gap-3">
             <div>
                 <flux:heading size="lg">Entradas y salidas por día</flux:heading>
@@ -109,9 +109,9 @@
         />
     </div>
 
-    <div class="grid gap-6 lg:grid-cols-2">
+    <div class="grid grid-cols-1 gap-6 lg:grid-cols-2">
         {{-- Stock bajo --}}
-        <div class="rounded-xl border border-zinc-200 bg-white p-5 shadow-xs dark:border-zinc-700 dark:bg-zinc-800" data-test="low-stock-list">
+        <div class="min-w-0 rounded-xl border border-zinc-200 bg-white p-5 shadow-xs dark:border-zinc-700 dark:bg-zinc-800" data-test="low-stock-list">
             <div class="mb-3 flex items-center justify-between gap-2">
                 <div>
                     <flux:heading size="lg">Productos con stock bajo</flux:heading>
@@ -143,7 +143,7 @@
         </div>
 
         {{-- Existencias por categoría --}}
-        <div class="rounded-xl border border-zinc-200 bg-white p-5 shadow-xs dark:border-zinc-700 dark:bg-zinc-800" data-test="category-stock">
+        <div class="min-w-0 rounded-xl border border-zinc-200 bg-white p-5 shadow-xs dark:border-zinc-700 dark:bg-zinc-800" data-test="category-stock">
             <flux:heading size="lg">Existencias por categoría</flux:heading>
             <flux:text class="mb-4 text-sm">Cajas disponibles</flux:text>
 
@@ -314,9 +314,9 @@
         </div>
     @endif
 
-    <div class="grid gap-6 lg:grid-cols-2">
+    <div class="grid grid-cols-1 gap-6 lg:grid-cols-2">
         {{-- Últimas entradas --}}
-        <div class="rounded-xl border border-zinc-200 bg-white p-5 shadow-xs dark:border-zinc-700 dark:bg-zinc-800" data-test="recent-entries">
+        <div class="min-w-0 rounded-xl border border-zinc-200 bg-white p-5 shadow-xs dark:border-zinc-700 dark:bg-zinc-800" data-test="recent-entries">
             <div class="mb-3 flex items-center justify-between">
                 <flux:heading size="lg">Últimas entradas</flux:heading>
                 <flux:button size="sm" variant="ghost" :href="route('entries.index')" wire:navigate icon-trailing="chevron-right">Ver todas</flux:button>
@@ -343,7 +343,7 @@
         </div>
 
         {{-- Últimas salidas --}}
-        <div class="rounded-xl border border-zinc-200 bg-white p-5 shadow-xs dark:border-zinc-700 dark:bg-zinc-800" data-test="recent-exits">
+        <div class="min-w-0 rounded-xl border border-zinc-200 bg-white p-5 shadow-xs dark:border-zinc-700 dark:bg-zinc-800" data-test="recent-exits">
             <div class="mb-3 flex items-center justify-between">
                 <flux:heading size="lg">Últimas salidas</flux:heading>
                 <flux:button size="sm" variant="ghost" :href="route('exits.index')" wire:navigate icon-trailing="chevron-right">Ver todas</flux:button>

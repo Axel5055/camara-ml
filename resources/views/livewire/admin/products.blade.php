@@ -120,7 +120,8 @@
     <flux:modal name="product-form" class="md:w-96">
         <form wire:submit="save" class="space-y-6">
             <flux:heading size="lg">{{ $editingId ? 'Editar producto' : 'Nuevo producto' }}</flux:heading>
-            <flux:select wire:model="category_id" label="Categoría" placeholder="Selecciona una categoría">
+            <flux:select wire:model="category_id" label="Categoría">
+                <flux:select.option value="">Selecciona una categoría</flux:select.option>
                 @foreach ($categories as $category)
                     <flux:select.option :value="$category->id">{{ $category->name }}</flux:select.option>
                 @endforeach

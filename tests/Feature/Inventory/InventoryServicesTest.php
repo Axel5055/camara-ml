@@ -52,7 +52,7 @@ function warehouseWorld(): array
     $norteUser = User::factory()->warehouse($norte)->create();
     $norteUser->chambers()->attach([$n1->id, $n2->id]);
 
-    $product = Product::factory()->create(['code' => 'POLLO']);
+    $product = Product::factory()->create(['code' => 'POLLO', 'name' => 'Pollo entero']);
 
     return compact('centro', 'norte', 'sur', 'c1', 'n1', 'n2', 'admin', 'centroUser', 'norteUser', 'product');
 }
@@ -85,8 +85,8 @@ it('registers an entry with several groups, exact totals and one unique barcode 
     $barcodes = Box::query()->orderBy('id')->pluck('barcode');
 
     expect($barcodes)->toHaveCount(33)
-        ->and($barcodes->first())->toBe('POLLO-20261028-000001')
-        ->and($barcodes->last())->toBe('POLLO-20261028-000033')
+        ->and($barcodes->first())->toBe('POL28LOE10NTE000001')
+        ->and($barcodes->last())->toBe('POL28LOE10NTE000033')
         ->and($barcodes->unique())->toHaveCount(33)
         ->and(Box::query()->where('status', BoxStatus::Available)->where('current_chamber_id', $w['c1']->id)->count())->toBe(33)
         ->and(DB::table('box_movements')->where('type', MovementType::Entry->value)->count())->toBe(33);
@@ -104,7 +104,7 @@ it('keeps the barcode sequence global across days and grows past six digits', fu
     app(RegisterEntry::class)->handle($w['centroUser'], $w['c1'], $group);
 
     expect(Box::query()->orderBy('id')->pluck('barcode')->all())
-        ->toBe(['POLLO-20261028-000001', 'POLLO-20261029-1000000']);
+        ->toBe(['POL28LOE10NTE000001', 'POL29LOE10NTE1000000']);
 });
 
 it('accepts manual barcodes with an origin and rejects reserved, duplicated or unexplained ones', function () {
@@ -118,6 +118,7 @@ it('accepts manual barcodes with an origin and rejects reserved, duplicated or u
 
     expect(fn () => $make(['manual_barcodes' => ['ETIQ-100'], 'manual_barcode_origin' => 'Proveedor X']))->toThrow(InventoryException::class)
         ->and(fn () => $make(['manual_barcodes' => ['POLLO-20261028-000001'], 'manual_barcode_origin' => 'X']))->toThrow(InventoryException::class)
+        ->and(fn () => $make(['manual_barcodes' => ['POL28LOE10NTE000001'], 'manual_barcode_origin' => 'X']))->toThrow(InventoryException::class)
         ->and(fn () => $make(['manual_barcodes' => ['ETIQ-200']]))->toThrow(InventoryException::class);
 
     expect(Box::query()->count())->toBe(1);
