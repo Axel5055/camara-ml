@@ -191,14 +191,14 @@ it('summarizes the system on the dashboard, scoped to the chambers of the user',
         ->assertSee('Últimas salidas')
         ->assertDontSee('Valor del inventario')
         ->assertDontSee('Valor (MXN)')
-        ->assertDontSeeHtml('data-test="chamber-value"')
+        ->assertDontSeeHtml('data-test="product-value"')
         ->assertDontSee('Incidencias abiertas');
 
     $admin = Livewire::actingAs($w['admin'])->test(Dashboard::class)
         ->assertSee('Valor del inventario')
         ->assertSee('Incidencias abiertas')
         ->assertSee('Valor (MXN)')
-        ->assertSeeHtml('data-test="chamber-value"')
+        ->assertSeeHtml('data-test="product-value"')
         ->assertSee('Centro 1')
         ->assertSee('Norte 1');
 
@@ -254,14 +254,14 @@ it('filters the whole dashboard by chamber or shows everything combined', functi
     expect($one->viewData('totalBoxes'))->toBe(47);
 });
 
-it('adds a total row when several chambers are combined', function () {
+it('adds a total row to the products table only when it lists several products', function () {
     $w = widgetsWorld();
-    $c2 = Chamber::factory()->for($w['centro'])->create(['name' => 'Centro 2']);
     stockUp($w, $w['pollo'], 12, $w['c1']);
-    stockUp($w, $w['alas'], 5, $c2);
 
-    Livewire::actingAs($w['admin'])->test(Dashboard::class)->set('chamberId', null)->assertSee('Total');
-    Livewire::actingAs($w['admin'])->test(Dashboard::class)->set('chamberId', $w['c1']->id)->assertDontSee('>Total<', false);
+    Livewire::actingAs($w['admin'])->test(Dashboard::class)->assertDontSee('>Total<', false)->assertDontSee('Existencias por cámara');
+
+    stockUp($w, $w['alas'], 5, $w['c1']);
+    Livewire::actingAs($w['admin'])->test(Dashboard::class)->assertSee('Total');
 });
 
 it('never lets a warehouse user look at a chamber that is not theirs', function () {
@@ -649,4 +649,104 @@ it('shows the cancel button of a transfer only to the super administrator', func
         ->assertHasNoErrors();
 
     expect($transfer->fresh()->status)->toBe(TransferStatus::Cancelled);
+});
+
+it('shows the products of one chamber at a time, starting with a default chamber', function () {
+    $w = widgetsWorld();
+    stockUp($w, $w['pollo'], 12, $w['c1']);
+    stockUp($w, $w['alas'], 30, $w['n1']);
+
+    $first = Livewire::actingAs($w['admin'])->test(Dashboard::class)->assertSeeHtml('data-test="products-chamber-filter"');
+    expect($first->viewData('tableChamber')->id)->toBe($w['c1']->id)
+        ->and($first->viewData('productStock')->pluck('product')->all())->toBe(['Pollo entero'])
+        ->and((int) $first->viewData('productStock')[0]->boxes)->toBe(12)
+        ->and((float) $first->viewData('productStock')[0]->value)->toBe(1200.0);
+
+    $other = $first->set('tableChamberId', $w['n1']->id);
+    expect($other->viewData('productStock')->pluck('product')->all())->toBe(['Alas de pollo'])
+        ->and($other->viewData('productStock')->sum('boxes'))->toBe(30);
+
+    $tampered = Livewire::actingAs($w['centroUser'])->test(Dashboard::class)->set('tableChamberId', $w['n1']->id);
+    expect($tampered->viewData('tableChamber')->id)->toBe($w['c1']->id)
+        ->and($tampered->viewData('productStock')->pluck('product')->all())->not->toContain('Alas de pollo');
+});
+
+it('keeps the value of the products table away from warehouse users', function () {
+    $w = widgetsWorld();
+    stockUp($w, $w['pollo'], 12, $w['c1']);
+
+    Livewire::actingAs($w['admin'])->test(Dashboard::class)->assertSeeHtml('data-test="product-value"');
+    $warehouse = Livewire::actingAs($w['centroUser'])->test(Dashboard::class)->assertSee('Pollo entero')->assertDontSeeHtml('data-test="product-value"');
+    expect($warehouse->viewData('productStock')[0])->not->toHaveProperty('value');
+});
+
+it('filters the products table by category and by product name or code', function () {
+    $w = widgetsWorld();
+    stockUp($w, $w['pollo'], 12, $w['c1']);
+    stockUp($w, $w['alas'], 5, $w['c1']);
+
+    $component = Livewire::actingAs($w['admin'])->test(Dashboard::class);
+    expect($component->viewData('productStock'))->toHaveCount(2)
+        ->and($component->viewData('tableCategories'))->not->toBeEmpty();
+
+    $categoryId = $w['pollo']->category_id;
+    $byCategory = $component->set('tableCategoryId', $categoryId);
+    expect($byCategory->viewData('productStock')->pluck('category_id')->unique()->all())->toBe([$categoryId]);
+
+    $byName = Livewire::actingAs($w['admin'])->test(Dashboard::class)->set('tableSearch', 'alas');
+    expect($byName->viewData('productStock')->pluck('product')->all())->toBe(['Alas de pollo']);
+    $byName->set('tableSearch', 'zzz')->assertSee('Ningún producto coincide con los filtros.');
+
+    $byCode = Livewire::actingAs($w['admin'])->test(Dashboard::class)->set('tableSearch', strtolower($w['pollo']->code));
+    expect($byCode->viewData('productStock')->pluck('product')->all())->toContain('Pollo entero');
+
+    $stale = Livewire::actingAs($w['admin'])->test(Dashboard::class)->set('tableCategoryId', 999999);
+    expect($stale->viewData('productStock'))->toHaveCount(2);
+});
+
+it('concentrates every chamber in the products table when "all chambers" is chosen', function () {
+    $w = widgetsWorld();
+    stockUp($w, $w['pollo'], 12, $w['c1']);
+    stockUp($w, $w['alas'], 30, $w['n1']);
+
+    $all = Livewire::actingAs($w['admin'])->test(Dashboard::class)->set('tableChamberId', 0)
+        ->assertSeeHtml('data-test="chamber-summary"')
+        ->assertSeeHtml('data-test="chamber-value"')
+        ->assertSee('Todas las cámaras (concentrado)');
+    expect($all->viewData('tableAll'))->toBeTrue()
+        ->and($all->viewData('chamberSummary')->pluck('boxes')->map(fn ($boxes) => (int) $boxes)->all())->toBe([12, 30]);
+
+    $byCategory = $all->set('tableCategoryId', $w['alas']->category_id);
+    expect($byCategory->viewData('chamberSummary')->sum('boxes'))->toBe(42)
+        ->and($byCategory->viewData('tableCategoryId'))->toBe($w['alas']->category_id);
+
+    $bySearch = $all->set('tableCategoryId', null)->set('tableSearch', 'pollo entero');
+    expect($bySearch->viewData('chamberSummary')->sum('boxes'))->toBe(12);
+
+    Livewire::actingAs($w['centroUser'])->test(Dashboard::class)->set('tableChamberId', 0)
+        ->assertDontSee('Todas las cámaras (concentrado)')
+        ->assertDontSeeHtml('data-test="chamber-summary"');
+});
+
+it('draws a pie chart of the boxes of the products table and follows its filters', function () {
+    $w = widgetsWorld();
+    stockUp($w, $w['pollo'], 12, $w['c1']);
+    stockUp($w, $w['alas'], 8, $w['c1']);
+    stockUp($w, $w['alas'], 30, $w['n1']);
+
+    Livewire::actingAs($w['admin'])->test(Dashboard::class)
+        ->assertSeeHtml('data-test="chamber-pie"')
+        ->assertSee('Cajas por producto')
+        ->assertSeeHtml('Pollo entero: 12 cajas (60.0%)')
+        ->assertSeeHtml('Alas de pollo: 8 cajas (40.0%)')
+        ->set('tableSearch', 'alas')
+        ->assertDontSeeHtml('Pollo entero: 12 cajas')
+        ->assertSeeHtml('Alas de pollo: 8 cajas (100.0%)')
+        ->set('tableSearch', '')
+        ->set('tableChamberId', 0)
+        ->assertSee('Cajas por cámara')
+        ->assertSeeHtml('Centro 1: 20 cajas (40.0%)')
+        ->assertSeeHtml('Norte 1: 30 cajas (60.0%)');
+
+    Livewire::actingAs($w['admin'])->test(Dashboard::class)->set('tableSearch', 'zzz')->assertSee('Sin datos para graficar.');
 });

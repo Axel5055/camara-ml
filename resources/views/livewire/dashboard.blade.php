@@ -166,6 +166,154 @@
         </div>
     </div>
 
+    {{-- Productos concentrados por cámara (una cámara a la vez) --}}
+    @if ($tableChamber || $tableAll)
+        <div
+            x-data="{ hover: null, picked: null, get hl() { return this.hover ?? this.picked; } }"
+            class="overflow-hidden rounded-xl border border-zinc-200 bg-white shadow-xs dark:border-zinc-700 dark:bg-zinc-800"
+            data-test="chamber-products"
+        >
+            <div class="flex flex-wrap items-center gap-3 border-b border-zinc-200 p-5 dark:border-zinc-700">
+                <div class="flex size-10 shrink-0 items-center justify-center rounded-lg bg-accent/10 text-accent-content">
+                    <flux:icon name="archive-box" class="size-5" />
+                </div>
+                <div class="min-w-0 flex-1">
+                    <flux:heading size="lg">Productos por cámara</flux:heading>
+                    @if ($tableAll)
+                        <flux:text class="text-sm">Concentrado de todas tus cámaras — {{ number_format($chamberSummary->count()) }} {{ $chamberSummary->count() === 1 ? 'cámara' : 'cámaras' }}</flux:text>
+                    @else
+                        <flux:text class="text-sm">{{ $tableChamber->branch->name }} · {{ $tableChamber->name }} — {{ number_format($productStock->count()) }} {{ $productStock->count() === 1 ? 'producto' : 'productos' }}</flux:text>
+                    @endif
+                </div>
+            </div>
+
+            <div class="grid gap-3 border-b border-zinc-200 bg-zinc-50 p-4 sm:grid-cols-3 dark:border-zinc-700 dark:bg-zinc-900/30">
+                <flux:select wire:model.live="tableChamberId" data-test="products-chamber-filter" aria-label="Cámara">
+                    @if ($allChambers->count() > 1)
+                        <flux:select.option value="0" :selected="$tableAll">Todas las cámaras (concentrado)</flux:select.option>
+                    @endif
+                    @foreach ($allChambers as $option)
+                        <flux:select.option :value="$option->id" :selected="$option->id === $tableChamber?->id">{{ $option->branch->name }} · {{ $option->name }}</flux:select.option>
+                    @endforeach
+                </flux:select>
+                <flux:select wire:model.live="tableCategoryId" data-test="products-category-filter" aria-label="Categoría">
+                    <flux:select.option value="">Todas las categorías</flux:select.option>
+                    @foreach ($tableCategories as $id => $name)
+                        <flux:select.option :value="$id" :selected="$id === $tableCategoryId">{{ $name }}</flux:select.option>
+                    @endforeach
+                </flux:select>
+                <flux:input wire:model.live.debounce.300ms="tableSearch" icon="magnifying-glass" placeholder="Buscar producto o código" clearable data-test="products-search" />
+            </div>
+
+            <div class="grid lg:grid-cols-5">
+            <div class="min-w-0 lg:col-span-3">
+            @if ($tableAll)
+                <div class="p-2" data-test="chamber-summary">
+                    <flux:table container:class="overflow-x-auto">
+                        <flux:table.columns>
+                            <flux:table.column>Sucursal</flux:table.column>
+                            <flux:table.column>Cámara</flux:table.column>
+                            <flux:table.column align="end">Cajas disponibles</flux:table.column>
+                            <flux:table.column align="end">Peso disponible (kg)</flux:table.column>
+                            @if ($inventoryValue !== null)
+                                <flux:table.column align="end">Valor (MXN)</flux:table.column>
+                            @endif
+                        </flux:table.columns>
+                        <flux:table.rows>
+                            @forelse ($chamberSummary as $row)
+                                <flux:table.row :key="'cs-'.$loop->index" x-on:pointerenter="$event.pointerType === 'mouse' && (hover = @js($row->chamber))" x-on:pointerleave="hover = null" x-on:click="picked = picked === @js($row->chamber) ? null : @js($row->chamber)" x-bind:class="hl === @js($row->chamber) && 'bg-zinc-100 dark:bg-zinc-700/60'" class="cursor-pointer touch-manipulation transition-colors" data-test="summary-row">
+                                    <flux:table.cell class="text-zinc-500">{{ $row->branch }}</flux:table.cell>
+                                    <flux:table.cell class="font-medium text-zinc-900 dark:text-white">{{ $row->chamber }}</flux:table.cell>
+                                    <flux:table.cell align="end" class="tabular-nums font-medium">{{ number_format((int) $row->boxes) }}</flux:table.cell>
+                                    <flux:table.cell align="end" class="tabular-nums">{{ number_format((float) $row->kg, 3) }}</flux:table.cell>
+                                    @if ($inventoryValue !== null)
+                                        <flux:table.cell align="end" class="tabular-nums font-medium text-zinc-900 dark:text-white" data-test="chamber-value">${{ number_format((float) $row->value, 2) }}</flux:table.cell>
+                                    @endif
+                                </flux:table.row>
+                            @empty
+                                <flux:table.row>
+                                    <flux:table.cell colspan="{{ $inventoryValue !== null ? 5 : 4 }}">
+                                        <div class="py-6 text-center text-zinc-500">No hay cajas disponibles con esos filtros.</div>
+                                    </flux:table.cell>
+                                </flux:table.row>
+                            @endforelse
+                            @if ($chamberSummary->count() > 1)
+                                <flux:table.row class="bg-zinc-50 dark:bg-zinc-900/40">
+                                    <flux:table.cell class="font-semibold" colspan="2">Total</flux:table.cell>
+                                    <flux:table.cell align="end" class="font-semibold tabular-nums">{{ number_format((int) $chamberSummary->sum('boxes')) }}</flux:table.cell>
+                                    <flux:table.cell align="end" class="font-semibold tabular-nums">{{ number_format((float) $chamberSummary->sum('kg'), 3) }}</flux:table.cell>
+                                    @if ($inventoryValue !== null)
+                                        <flux:table.cell align="end" class="font-semibold tabular-nums">${{ number_format((float) $chamberSummary->sum('value'), 2) }}</flux:table.cell>
+                                    @endif
+                                </flux:table.row>
+                            @endif
+                        </flux:table.rows>
+                    </flux:table>
+                </div>
+            @else
+            <div class="p-2">
+                <flux:table container:class="overflow-x-auto">
+                    <flux:table.columns>
+                        <flux:table.column>Producto</flux:table.column>
+                        <flux:table.column align="end">Cajas</flux:table.column>
+                        <flux:table.column align="end">Peso (kg)</flux:table.column>
+                        @if ($inventoryValue !== null)
+                            <flux:table.column align="end">Valor (MXN)</flux:table.column>
+                        @endif
+                    </flux:table.columns>
+                    <flux:table.rows>
+                        @forelse ($productStock as $row)
+                            <flux:table.row :key="'ps-'.$tableChamber->id.'-'.$row->code" x-on:pointerenter="$event.pointerType === 'mouse' && (hover = @js($row->product))" x-on:pointerleave="hover = null" x-on:click="picked = picked === @js($row->product) ? null : @js($row->product)" x-bind:class="hl === @js($row->product) && 'bg-zinc-100 dark:bg-zinc-700/60'" class="cursor-pointer touch-manipulation transition-colors" data-test="product-row">
+                                <flux:table.cell>
+                                    <div class="font-medium text-zinc-900 dark:text-white">{{ $row->product }}</div>
+                                    <div class="mt-1 flex flex-wrap items-center gap-2"><span class="font-mono text-xs text-zinc-500">{{ $row->code }}</span> <flux:badge size="sm" :color="$categoryColors[$row->category_id] ?? 'zinc'" data-test="category-badge">{{ $row->category }}</flux:badge></div>
+                                </flux:table.cell>
+                                <flux:table.cell align="end" class="tabular-nums font-medium">{{ number_format((int) $row->boxes) }}</flux:table.cell>
+                                <flux:table.cell align="end" class="tabular-nums">{{ number_format((float) $row->kg, 3) }}</flux:table.cell>
+                                @if ($inventoryValue !== null)
+                                    <flux:table.cell align="end" class="tabular-nums font-medium text-zinc-900 dark:text-white" data-test="product-value">${{ number_format((float) $row->value, 2) }}</flux:table.cell>
+                                @endif
+                            </flux:table.row>
+                        @empty
+                            <flux:table.row>
+                                <flux:table.cell colspan="{{ $inventoryValue !== null ? 4 : 3 }}">
+                                    <div class="py-6 text-center text-zinc-500">
+                                        {{ $tableHasStock ? 'Ningún producto coincide con los filtros.' : 'Esta cámara no tiene cajas disponibles.' }}
+                                    </div>
+                                </flux:table.cell>
+                            </flux:table.row>
+                        @endforelse
+                        @if ($productStock->count() > 1)
+                            <flux:table.row class="bg-zinc-50 dark:bg-zinc-900/40">
+                                <flux:table.cell class="font-semibold" colspan="1">Total</flux:table.cell>
+                                <flux:table.cell align="end" class="font-semibold tabular-nums">{{ number_format((int) $productStock->sum('boxes')) }}</flux:table.cell>
+                                <flux:table.cell align="end" class="font-semibold tabular-nums">{{ number_format((float) $productStock->sum('kg'), 3) }}</flux:table.cell>
+                                @if ($inventoryValue !== null)
+                                    <flux:table.cell align="end" class="font-semibold tabular-nums">${{ number_format((float) $productStock->sum('value'), 2) }}</flux:table.cell>
+                                @endif
+                            </flux:table.row>
+                        @endif
+                    </flux:table.rows>
+                </flux:table>
+            </div>
+            @endif
+            </div>
+
+            <div class="border-t border-zinc-200 p-5 lg:col-span-2 lg:border-l lg:border-t-0 dark:border-zinc-700" data-test="chamber-pie">
+                <flux:heading size="lg">{{ $tableAll ? 'Cajas por cámara' : 'Cajas por producto' }}</flux:heading>
+                <flux:text class="mb-4 text-sm">Distribución de las cajas disponibles según los filtros.</flux:text>
+                <x-pie-chart
+                    :shared="true"
+                    :slices="$tableAll
+                        ? $chamberSummary->map(fn ($row) => ['label' => $row->chamber, 'value' => (int) $row->boxes])->all()
+                        : $productStock->map(fn ($row) => ['label' => $row->product, 'value' => (int) $row->boxes])->all()"
+                    wire:key="pie-{{ $tableAll ? 'all' : $tableChamber->id }}-{{ $tableCategoryId }}-{{ $tableSearch }}"
+                />
+            </div>
+            </div>
+        </div>
+    @endif
+
     <div class="grid gap-6 lg:grid-cols-2">
         {{-- Últimas entradas --}}
         <div class="rounded-xl border border-zinc-200 bg-white p-5 shadow-xs dark:border-zinc-700 dark:bg-zinc-800" data-test="recent-entries">
@@ -222,48 +370,4 @@
         </div>
     </div>
 
-    {{-- Existencias por cámara --}}
-    <div class="space-y-2">
-        <flux:heading size="lg">Existencias por cámara</flux:heading>
-        <div class="overflow-hidden rounded-xl border border-zinc-200 bg-white p-2 shadow-xs dark:border-zinc-700 dark:bg-zinc-800" data-test="chamber-table">
-            <flux:table container:class="overflow-x-auto">
-                <flux:table.columns>
-                    <flux:table.column>Sucursal</flux:table.column>
-                    <flux:table.column>Cámara</flux:table.column>
-                    <flux:table.column align="end">Cajas disponibles</flux:table.column>
-                    <flux:table.column align="end">Peso disponible (kg)</flux:table.column>
-                    @if ($inventoryValue !== null)
-                        <flux:table.column align="end">Valor (MXN)</flux:table.column>
-                    @endif
-                </flux:table.columns>
-                <flux:table.rows>
-                    @forelse ($chambers as $chamber)
-                        <flux:table.row :key="$chamber->id">
-                            <flux:table.cell class="text-zinc-500">{{ $chamber->branch->name }}</flux:table.cell>
-                            <flux:table.cell class="font-medium text-zinc-900 dark:text-white">{{ $chamber->name }}</flux:table.cell>
-                            <flux:table.cell align="end" class="tabular-nums">{{ number_format((int) ($stock[$chamber->id]->boxes ?? 0)) }}</flux:table.cell>
-                            <flux:table.cell align="end" class="tabular-nums">{{ number_format((float) ($stock[$chamber->id]->kg ?? 0), 3) }}</flux:table.cell>
-                            @if ($inventoryValue !== null)
-                                <flux:table.cell align="end" class="tabular-nums font-medium text-zinc-900 dark:text-white" data-test="chamber-value">${{ number_format((float) ($stock[$chamber->id]->value ?? 0), 2) }}</flux:table.cell>
-                            @endif
-                        </flux:table.row>
-                    @empty
-                        <flux:table.row>
-                            <flux:table.cell colspan="{{ $inventoryValue !== null ? 5 : 4 }}">No tienes cámaras asignadas.</flux:table.cell>
-                        </flux:table.row>
-                    @endforelse
-                    @if ($chambers->count() > 1)
-                        <flux:table.row class="bg-zinc-50 dark:bg-zinc-900/40">
-                            <flux:table.cell class="font-semibold" colspan="2">Total</flux:table.cell>
-                            <flux:table.cell align="end" class="font-semibold tabular-nums">{{ number_format($totalBoxes) }}</flux:table.cell>
-                            <flux:table.cell align="end" class="font-semibold tabular-nums">{{ number_format((float) $totalKg, 3) }}</flux:table.cell>
-                            @if ($inventoryValue !== null)
-                                <flux:table.cell align="end" class="font-semibold tabular-nums">${{ number_format((float) $inventoryValue, 2) }}</flux:table.cell>
-                            @endif
-                        </flux:table.row>
-                    @endif
-                </flux:table.rows>
-            </flux:table>
-        </div>
-    </div>
 </section>

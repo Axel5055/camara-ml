@@ -6,6 +6,7 @@ use App\Enums\BoxStatus;
 use App\Enums\IncidentStatus;
 use App\Enums\TransferStatus;
 use App\Livewire\Concerns\InteractsWithChambers;
+use App\Models\Category;
 use App\Models\Entry;
 use App\Models\Incident;
 use App\Models\StockExit;
@@ -36,6 +37,19 @@ class Dashboard extends Component
     /** Chamber to look at; empty means every chamber the user can see, combined. */
     #[Url]
     public ?int $chamberId = null;
+
+    /** Chamber of the products table; always one chamber, never all of them. */
+    public ?int $tableChamberId = null;
+
+    /** Category filter of the products table; empty means every category. */
+    public ?int $tableCategoryId = null;
+
+    public string $tableSearch = '';
+
+    public function updatedTableChamberId(): void
+    {
+        $this->tableCategoryId = null;
+    }
 
     public function updatedDays(): void
     {
@@ -99,6 +113,20 @@ class Dashboard extends Component
         return ['labels' => $labels, 'entries' => $entrySeries, 'exits' => $exitSeries];
     }
 
+    /**
+     * A different badge color for each category, in a stable order (by id) so the same category always looks the same.
+     *
+     * @return array<int, string>
+     */
+    private function categoryColors(): array
+    {
+        $palette = ['sky', 'emerald', 'amber', 'violet', 'rose', 'orange', 'indigo', 'lime', 'pink', 'cyan', 'fuchsia', 'yellow', 'blue', 'red'];
+
+        return Category::query()->orderBy('id')->pluck('id')->values()
+            ->mapWithKeys(fn (int $id, int $index): array => [$id => $palette[$index % count($palette)]])
+            ->all();
+    }
+
     public function render(LowStockAlerts $lowStock): View
     {
         $user = Auth::user();
@@ -113,7 +141,7 @@ class Dashboard extends Component
 
         $stockByChamber = $this->limit(
             DB::table('boxes')
-                ->selectRaw('current_chamber_id, count(*) as boxes, coalesce(sum(current_weight_kg), 0) as kg'.($showCosts ? ', coalesce(sum(unit_cost_mxn * current_weight_kg / initial_weight_kg), 0) as value' : ''))
+                ->selectRaw('current_chamber_id, count(*) as boxes, coalesce(sum(current_weight_kg), 0) as kg')
                 ->where('status', BoxStatus::Available->value)
                 ->groupBy('current_chamber_id'),
             'current_chamber_id',
@@ -147,11 +175,68 @@ class Dashboard extends Component
             )->value('value')
             : null;
 
+        $tableAll = $this->tableChamberId === 0 && $allChambers->count() > 1;
+        $tableChamber = $tableAll ? null : (($this->tableChamberId ? $allChambers->firstWhere('id', $this->tableChamberId) : null)
+            ?? $selected
+            ?? $allChambers->first());
+        $this->tableChamberId = $tableAll ? 0 : $tableChamber?->id;
+        $needle = mb_strtolower(trim($this->tableSearch));
+
+        $chamberSummary = collect();
+        if ($tableAll) {
+            $availableProducts = fn () => DB::table('boxes')
+                ->join('products', 'products.id', '=', 'boxes.product_id')
+                ->where('boxes.status', BoxStatus::Available->value)
+                ->whereIn('boxes.current_chamber_id', $allChambers->modelKeys());
+
+            $allCategories = $availableProducts()
+                ->join('categories as pc', 'pc.id', '=', 'products.category_id')
+                ->distinct()->orderBy('pc.name')->pluck('pc.name', 'pc.id');
+            $allCategoryId = $allCategories->has($this->tableCategoryId) ? $this->tableCategoryId : null;
+
+            $chamberSummary = $availableProducts()
+                ->join('chambers', 'chambers.id', '=', 'boxes.current_chamber_id')
+                ->join('branches', 'branches.id', '=', 'chambers.branch_id')
+                ->when($allCategoryId, fn (Builder $query) => $query->where('products.category_id', $allCategoryId))
+                ->when($needle !== '', fn (Builder $query) => $query->whereRaw("lower(concat(products.name, ' ', products.code)) like ?", ['%'.$needle.'%']))
+                ->groupBy('chambers.id', 'chambers.name', 'branches.name')
+                ->orderBy('branches.name')->orderBy('chambers.name')
+                ->selectRaw('branches.name as branch, chambers.name as chamber, count(*) as boxes, coalesce(sum(boxes.current_weight_kg), 0) as kg'.($showCosts ? ', coalesce(sum(boxes.unit_cost_mxn * boxes.current_weight_kg / boxes.initial_weight_kg), 0) as value' : ''))
+                ->get();
+        }
+
+        $productStock = $tableChamber
+            ? DB::table('boxes')
+                ->join('products', 'products.id', '=', 'boxes.product_id')
+                ->join('categories as pc', 'pc.id', '=', 'products.category_id')
+                ->where('boxes.status', BoxStatus::Available->value)
+                ->where('boxes.current_chamber_id', $tableChamber->id)
+                ->groupBy('products.id', 'products.name', 'products.code', 'pc.id', 'pc.name')
+                ->orderBy('products.name')
+                ->selectRaw('products.name as product, products.code, pc.id as category_id, pc.name as category, count(*) as boxes, coalesce(sum(boxes.current_weight_kg), 0) as kg'.($showCosts ? ', coalesce(sum(boxes.unit_cost_mxn * boxes.current_weight_kg / boxes.initial_weight_kg), 0) as value' : ''))
+                ->get()
+            : collect();
+
+        $tableCategories = $tableAll ? $allCategories : $productStock->unique('category_id')->sortBy('category')->pluck('category', 'category_id');
+        $tableCategoryId = $tableCategories->has($this->tableCategoryId) ? $this->tableCategoryId : null;
+        $shownStock = $productStock
+            ->when($tableCategoryId, fn ($rows) => $rows->where('category_id', $tableCategoryId))
+            ->when($needle !== '', fn ($rows) => $rows->filter(fn ($row) => str_contains(mb_strtolower($row->product.' '.$row->code), $needle)))
+            ->values();
+
         $low = $lowStock->for($user)->when($selected, fn ($rows) => $rows->where('chamber_id', $selected->id))->values();
         $series = $this->dailySeries($visible);
 
         return view('livewire.dashboard', [
             'chambers' => $chambers,
+            'tableChamber' => $tableChamber,
+            'tableAll' => $tableAll,
+            'categoryColors' => $this->categoryColors(),
+            'chamberSummary' => $chamberSummary,
+            'productStock' => $shownStock,
+            'tableCategories' => $tableCategories,
+            'tableCategoryId' => $tableCategoryId,
+            'tableHasStock' => $productStock->isNotEmpty(),
             'allChambers' => $allChambers,
             'selected' => $selected,
             'stock' => $stockByChamber,
