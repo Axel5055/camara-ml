@@ -10,8 +10,8 @@
 
     @foreach ($groups as $group)
         <div class="group">
-            <div class="name">{{ $group['product'] }}</div>
-            <div class="row"><span>{{ number_format($group['boxes']) }} cajas x {{ $group['weightPerBox'] }} kg</span><span>{{ $group['kg'] }} kg</span></div>
+            <div class="name">{{ $group->product }}</div>
+            <div class="row"><span>{{ number_format($group->boxes) }} {{ $group->boxes == 1 ? 'caja' : 'cajas' }}</span><span>{{ number_format((float) $group->kg, 3) }} kg</span></div>
         </div>
     @endforeach
 

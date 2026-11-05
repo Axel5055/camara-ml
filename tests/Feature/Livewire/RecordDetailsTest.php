@@ -244,15 +244,15 @@ it('also filters the boxes of an entry and of an exit by product', function () {
         ->assertDontSee($res->barcode);
 });
 
-it('prints a ticket of an entry with boxes and kilograms per group and never the costs', function () {
+it('prints a ticket of an entry with boxes and kilograms per product and never the costs', function () {
     $w = detailsWorld();
 
     foreach (['admin', 'centroUser'] as $who) {
         $this->actingAs($w[$who])->get(route('entries.ticket', $w['entry']))
             ->assertOk()
             ->assertSee($w['entry']->reference)
-            ->assertSee('3 cajas x 20.000 kg')
-            ->assertSee('60.000 kg')
+            ->assertSee('4 cajas')
+            ->assertSee('82.000 kg')
             ->assertSee('Cajas')
             ->assertDontSee('123.45')
             ->assertDontSee('150.00')

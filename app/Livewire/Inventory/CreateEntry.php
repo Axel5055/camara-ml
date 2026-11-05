@@ -15,6 +15,7 @@ use Flux\Flux;
 use Illuminate\Contracts\View\View;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Str;
 use Livewire\Attributes\Title;
 use Livewire\Component;
@@ -236,6 +237,7 @@ class CreateEntry extends Component
             'products' => Product::query()->where('is_active', true)->orderBy('name')->get(['id', 'name', 'code']),
             'summaries' => $summaries,
             'totals' => ['boxes' => $totalBoxes, 'weight' => $totalWeight, 'cost' => $totalCost],
+            'showCosts' => Gate::allows('view-costs'),
         ]);
     }
 }

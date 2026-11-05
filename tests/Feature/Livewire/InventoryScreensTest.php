@@ -224,8 +224,8 @@ it('captures several groups in the list and registers the entry', function () {
         ->set('weight', '12.5')
         ->set('cost', '60')
         ->call('addLine')
-        ->assertSee('Importe')
-        ->assertSee('$160.00')
+        ->assertDontSee('Importe')
+        ->assertDontSee('$160.00')
         ->assertSee('32.500')
         ->call('save')
         ->assertHasNoErrors()
@@ -584,4 +584,19 @@ it('keeps the entries, exits and transfers submenus always open for warehouse us
 
     $this->actingAs($w['admin'])->get(route('dashboard'))->assertOk()
         ->assertSee('$persist(true).as(', false);
+});
+
+it('shows the computed amounts of a new entry only to users who may see costs', function () {
+    $w = screensWorld();
+
+    $capture = fn (User $user) => Livewire::actingAs($user)->test(CreateEntry::class)
+        ->set('chamberId', $w['c1']->id)
+        ->set('productId', $w['product']->id)
+        ->set('boxesCount', '2')
+        ->set('weight', '10')
+        ->set('cost', '50')
+        ->call('addLine');
+
+    $capture($w['centroUser'])->assertDontSee('Importe')->assertDontSee('$100.00')->assertSee('$50.00')->assertSee('20.000');
+    $capture($w['admin'])->assertSee('Importe')->assertSee('$100.00');
 });

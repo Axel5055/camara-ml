@@ -119,7 +119,7 @@ it('previews the totals of the group being captured before it is added', functio
         ->set('boxesCount', '4')->set('weight', '12.5')->set('cost', '80')
         ->assertSeeHtml('data-test="entry-draft"')
         ->assertSee('50.000 kg')
-        ->assertSee('$320.00');
+        ->assertDontSee('$320.00');
 });
 
 it('shows the route of the exit being captured', function () {

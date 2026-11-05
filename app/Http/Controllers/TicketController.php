@@ -18,12 +18,13 @@ class TicketController extends Controller
     {
         Gate::authorize('view', $entry);
 
-        $groups = $entry->items()->with('product:id,name')->orderBy('id')->get()->map(fn ($item): array => [
-            'product' => $item->product->name,
-            'boxes' => $item->boxes_count,
-            'weightPerBox' => $item->weight_per_box_kg,
-            'kg' => $item->total_weight_kg,
-        ]);
+        $groups = DB::table('entry_items')
+            ->join('products', 'products.id', '=', 'entry_items.product_id')
+            ->where('entry_items.entry_id', $entry->id)
+            ->groupBy('products.id', 'products.name')
+            ->orderBy('products.name')
+            ->selectRaw('products.name as product, sum(entry_items.boxes_count) as boxes, sum(entry_items.total_weight_kg) as kg')
+            ->get();
 
         $chamber = $entry->chamber()->with('branch:id,name')->firstOrFail();
 

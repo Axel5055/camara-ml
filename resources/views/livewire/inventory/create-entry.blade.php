@@ -10,11 +10,14 @@
             ['key' => 'groups', 'icon' => 'rectangle-stack', 'color' => 'indigo', 'label' => 'Grupos', 'value' => number_format(count($summaries))],
             ['key' => 'boxes', 'icon' => 'archive-box', 'color' => 'sky', 'label' => 'Cajas', 'value' => number_format($totals['boxes'])],
             ['key' => 'kg', 'icon' => 'scale', 'color' => 'amber', 'label' => 'Peso total', 'value' => number_format((float) $totals['weight'], 3).' kg'],
-            ['key' => 'cost', 'icon' => 'banknotes', 'color' => 'emerald', 'label' => 'Importe (MXN)', 'value' => '$'.number_format((float) $totals['cost'], 2)],
         ];
+
+        if ($showCosts) {
+            $cards[] = ['key' => 'cost', 'icon' => 'banknotes', 'color' => 'emerald', 'label' => 'Importe (MXN)', 'value' => '$'.number_format((float) $totals['cost'], 2)];
+        }
     @endphp
 
-    <div class="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+    <div class="grid gap-4 sm:grid-cols-2 {{ $showCosts ? 'xl:grid-cols-4' : 'xl:grid-cols-3' }}">
         @foreach ($cards as $card)
             <div class="flex items-center gap-4 rounded-xl border border-zinc-200 bg-white p-4 shadow-xs dark:border-zinc-700 dark:bg-zinc-800" data-test="entry-new-{{ $card['key'] }}">
                 <div class="flex size-12 shrink-0 items-center justify-center rounded-xl bg-{{ $card['color'] }}-500/10 text-{{ $card['color'] }}-600 dark:text-{{ $card['color'] }}-300">
@@ -74,7 +77,9 @@
                         <span class="text-zinc-500">Este grupo:</span>
                         <span class="font-medium tabular-nums">{{ number_format($draft['boxes']) }} cajas</span>
                         <span class="font-medium tabular-nums">{{ number_format((float) $draft['weight'], 3) }} kg</span>
-                        <span class="font-medium tabular-nums">${{ number_format((float) $draft['cost'], 2) }}</span>
+                        @if ($showCosts)
+                            <span class="font-medium tabular-nums">${{ number_format((float) $draft['cost'], 2) }}</span>
+                        @endif
                     </div>
                 @endif
 
@@ -108,7 +113,9 @@
                         <flux:table.column align="end">Peso por caja</flux:table.column>
                         <flux:table.column align="end">Costo por caja</flux:table.column>
                         <flux:table.column align="end">Peso total</flux:table.column>
-                        <flux:table.column align="end">Importe</flux:table.column>
+                        @if ($showCosts)
+                            <flux:table.column align="end">Importe</flux:table.column>
+                        @endif
                         <flux:table.column></flux:table.column>
                     </flux:table.columns>
                     <flux:table.rows>
@@ -145,14 +152,16 @@
                                 <flux:table.cell align="end" class="tabular-nums">{{ $line['weight'] }} kg</flux:table.cell>
                                 <flux:table.cell align="end" class="tabular-nums">${{ number_format((float) $line['cost'], 2) }}</flux:table.cell>
                                 <flux:table.cell align="end" class="tabular-nums">{{ $line['total_weight'] }} kg</flux:table.cell>
-                                <flux:table.cell align="end" class="tabular-nums font-medium text-zinc-900 dark:text-white">${{ number_format((float) $line['total_cost'], 2) }}</flux:table.cell>
+                                @if ($showCosts)
+                                    <flux:table.cell align="end" class="tabular-nums font-medium text-zinc-900 dark:text-white">${{ number_format((float) $line['total_cost'], 2) }}</flux:table.cell>
+                                @endif
                                 <flux:table.cell align="end">
                                     <flux:button size="sm" variant="ghost" icon="trash" wire:click="removeLine({{ $index }})">Quitar</flux:button>
                                 </flux:table.cell>
                             </flux:table.row>
                         @empty
                             <flux:table.row>
-                                <flux:table.cell colspan="7" class="py-12 text-center text-zinc-500">
+                                <flux:table.cell :colspan="$showCosts ? 7 : 6" class="py-12 text-center text-zinc-500">
                                     <flux:icon name="archive-box-arrow-down" class="mx-auto mb-2 size-8 text-zinc-300 dark:text-zinc-600" />
                                     Aún no hay cajas en la entrada.<br>
                                     Elige un producto, captura cantidad, peso y costo, y presiona "Agregar cajas".
