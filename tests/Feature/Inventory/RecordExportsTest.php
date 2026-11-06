@@ -83,11 +83,11 @@ it('downloads an entry as an Excel file with every box and the amounts for admin
     expect($flat)->toContain("'=cmd|calc");
 });
 
-it('hides amounts from warehouse users in the Excel and PDF of an entry', function () {
+it('shows only the price per box, never an amount, to warehouse users in the Excel and PDF of an entry', function () {
     $w = exportsWorld();
 
     $xlsx = readXlsx($this->actingAs($w['centroUser'])->get(route('entries.export', [$w['entry'], 'xlsx']))->assertOk());
-    expect(json_encode($xlsx, JSON_UNESCAPED_UNICODE))->not->toContain('123.45')->not->toContain('Importe')->toContain($w['boxes'][0]->barcode);
+    expect(json_encode($xlsx, JSON_UNESCAPED_UNICODE))->toContain('Precio por caja')->toContain('123.45')->not->toContain('Importe')->not->toContain('370.35')->toContain($w['boxes'][0]->barcode);
 
     $pdf = $this->get(route('entries.export', [$w['entry'], 'pdf']))->assertOk()->assertDownload('entrada-'.$w['entry']->reference.'.pdf');
     expect($pdf->streamedContent())->toStartWith('%PDF');
@@ -113,7 +113,7 @@ it('hides the historic cost from warehouse users in an exit export', function ()
 
     $sheets = readXlsx($this->actingAs($w['centroUser'])->get(route('exits.export', [$w['exit'], 'xlsx']))->assertOk());
 
-    expect(json_encode($sheets, JSON_UNESCAPED_UNICODE))->not->toContain('246.9')->not->toContain('Costo histórico')->toContain('Ana López');
+    expect(json_encode($sheets, JSON_UNESCAPED_UNICODE))->not->toContain('246.9')->not->toContain('Costo histórico')->toContain('Precio por caja')->toContain('123.45')->toContain('Ana López');
 });
 
 it('does not let users download records outside their chambers and rejects unknown formats', function () {

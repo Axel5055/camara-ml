@@ -27,7 +27,7 @@ class EntryReport
             ['label' => 'Categoría', 'type' => 'text'],
             ['label' => 'Cajas', 'type' => 'int'],
             ['label' => 'Peso por caja (kg)', 'type' => 'weight'],
-            ...($showCosts ? [['label' => 'Costo por caja (MXN)', 'type' => 'money']] : []),
+            ['label' => 'Precio por caja (MXN)', 'type' => 'money'],
             ['label' => 'Peso total (kg)', 'type' => 'weight'],
             ...($showCosts ? [['label' => 'Importe (MXN)', 'type' => 'money']] : []),
         ];
@@ -37,7 +37,7 @@ class EntryReport
             $item->product->category->name,
             $item->boxes_count,
             $item->weight_per_box_kg,
-            ...($showCosts ? [$item->unit_cost_mxn] : []),
+            $item->unit_cost_mxn,
             $item->total_weight_kg,
             ...($showCosts ? [$item->total_cost_mxn] : []),
         ])->all();
@@ -77,6 +77,7 @@ class EntryReport
                         ['label' => 'Producto', 'type' => 'text'],
                         ['label' => 'Peso inicial (kg)', 'type' => 'weight'],
                         ['label' => 'Peso actual (kg)', 'type' => 'weight'],
+                        ['label' => 'Precio por caja (MXN)', 'type' => 'money'],
                         ['label' => 'Ubicación actual', 'type' => 'text'],
                         ['label' => 'Estado', 'type' => 'text'],
                     ],
@@ -86,6 +87,7 @@ class EntryReport
                         $box->product->name,
                         $box->initial_weight_kg,
                         $box->current_weight_kg,
+                        $box->unit_cost_mxn,
                         $box->current_chamber_id === null ? '—' : $box->currentChamber->name,
                         $box->status->label(),
                     ]),
