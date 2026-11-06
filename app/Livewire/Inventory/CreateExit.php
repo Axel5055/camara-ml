@@ -2,6 +2,7 @@
 
 namespace App\Livewire\Inventory;
 
+use App\Livewire\Concerns\ChoosesTicketCopies;
 use App\Livewire\Concerns\InteractsWithChambers;
 use App\Livewire\Concerns\ReportsInventoryErrors;
 use App\Models\Box;
@@ -23,7 +24,7 @@ use Livewire\Component;
 #[Title('Nueva salida')]
 class CreateExit extends Component
 {
-    use InteractsWithChambers, ReportsInventoryErrors;
+    use ChoosesTicketCopies, InteractsWithChambers, ReportsInventoryErrors;
 
     /** Barcodes listed per line before the list is cut short. */
     private const BARCODES_PER_LINE = 100;
@@ -351,8 +352,8 @@ class CreateExit extends Component
 
         if ($done && $exit !== null) {
             session()->flash('print_ticket', $this->isTransfer()
-                ? route('transfers.ticket', ['transfer' => $exit->transfer()->value('id'), 'auto' => 1])
-                : route('exits.ticket', ['exit' => $exit, 'auto' => 1]));
+                ? route('transfers.ticket', ['transfer' => $exit->transfer()->value('id'), 'auto' => 1, 'copies' => $this->ticketCopies()])
+                : route('exits.ticket', ['exit' => $exit, 'auto' => 1, 'copies' => $this->ticketCopies()]));
             Flux::toast(text: $this->isTransfer() ? 'Transferencia enviada.' : 'Salida registrada.', variant: 'success');
             $this->redirectRoute($this->isTransfer() ? 'transfers.index' : 'exits.index', navigate: true);
         }

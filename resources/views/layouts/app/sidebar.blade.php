@@ -61,6 +61,10 @@
                     @endcan
                 </flux:sidebar.group>
 
+                <flux:sidebar.group heading="Equipo" class="grid">
+                    <flux:sidebar.item icon="printer" :href="route('printers')" :current="request()->routeIs('printers')" wire:navigate>Impresoras</flux:sidebar.item>
+                </flux:sidebar.group>
+
                 @can('view-catalogs')
                     <flux:sidebar.group heading="Administración" class="grid">
                         <flux:sidebar.item icon="building-storefront" :href="route('admin.branches')" :current="request()->routeIs('admin.branches')" wire:navigate>Sucursales</flux:sidebar.item>
@@ -157,7 +161,13 @@
 
         <div
             x-data="{
-                printTicket(url) {
+                open: false,
+                status: 'printing',
+                kind: '',
+                printer: '',
+                url: '',
+                timer: null,
+                printWithBrowser(url) {
                     const frame = document.createElement('iframe')
                     frame.setAttribute('aria-hidden', 'true')
                     frame.style.cssText = 'position:fixed;right:0;bottom:0;width:0;height:0;border:0'
@@ -165,10 +175,73 @@
                     document.body.appendChild(frame)
                     setTimeout(() => frame.remove(), 120000)
                 },
+                printTicket(url) {
+                    this.printer = window.ticketPrinter?.get() ?? ''
+
+                    if (! this.printer) {
+                        return this.printWithBrowser(url)
+                    }
+
+                    clearTimeout(this.timer)
+                    this.url = url
+                    this.status = 'printing'
+                    this.kind = ''
+                    this.open = true
+
+                    window.ticketPrinter.print(url).then(() => {
+                        this.status = 'done'
+                        this.timer = setTimeout(() => this.open = false, 2500)
+                    }).catch((error) => {
+                        this.status = 'error'
+                        this.kind = error?.kind ?? 'printer'
+                    })
+                },
+                fallback() {
+                    this.open = false
+                    this.printWithBrowser(this.url)
+                },
             }"
             x-on:print-ticket.window="printTicket($event.detail.url)"
             @if (session('print_ticket')) x-init="$nextTick(() => printTicket(@js(session('print_ticket'))))" @endif
-        ></div>
+        >
+            <div x-show="open" x-cloak x-transition.opacity class="fixed inset-0 z-50 flex items-center justify-center bg-zinc-900/60 p-4" role="dialog" aria-modal="true" data-test="print-status">
+                <div class="w-full max-w-sm space-y-4 rounded-2xl bg-white p-6 text-center shadow-xl dark:bg-zinc-800">
+                    <div x-show="status === 'printing'" class="space-y-3" data-test="print-status-printing">
+                        <div class="mx-auto flex size-14 items-center justify-center rounded-full bg-indigo-500/10 text-indigo-600 dark:text-indigo-300">
+                            <flux:icon.loading class="size-7" />
+                        </div>
+                        <div class="text-lg font-semibold text-zinc-900 dark:text-white">Imprimiendo ticket…</div>
+                        <p class="text-sm text-zinc-500">Enviando a <span class="font-medium" x-text="printer"></span></p>
+                    </div>
+
+                    <div x-show="status === 'done'" x-cloak class="space-y-3" data-test="print-status-done">
+                        <div class="mx-auto flex size-14 items-center justify-center rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-300">
+                            <flux:icon.check-circle class="size-8" />
+                        </div>
+                        <div class="text-lg font-semibold text-zinc-900 dark:text-white">Ticket impreso correctamente</div>
+                    </div>
+
+                    <div x-show="status === 'error'" x-cloak class="space-y-4" data-test="print-status-error">
+                        <div class="mx-auto flex size-14 items-center justify-center rounded-full bg-red-500/10 text-red-600 dark:text-red-300">
+                            <flux:icon.exclamation-triangle class="size-8" />
+                        </div>
+                        <div class="text-lg font-semibold text-zinc-900 dark:text-white">No se pudo imprimir el ticket</div>
+                        <p class="text-sm text-zinc-600 dark:text-zinc-300">
+                            <template x-if="kind === 'connection'"><span>No hay conexión con QZ Tray. Verifica que esté abierto en esta computadora (icono en la barra de tareas de Windows).</span></template>
+                            <template x-if="kind === 'ticket'"><span>No se pudo cargar el ticket. Revisa tu conexión a internet e inténtalo de nuevo.</span></template>
+                            <template x-if="kind !== 'connection' && kind !== 'ticket'"><span>No se detectó la impresora <strong x-text="printer"></strong>. Verifica que esté encendida y conectada: por USB, o en la misma red (Wi‑Fi o cable) que esta computadora.</span></template>
+                        </p>
+                        <div class="flex flex-col gap-2">
+                            <flux:button variant="primary" icon="arrow-path" x-on:click="printTicket(url)" data-test="print-status-retry">Reintentar</flux:button>
+                            <flux:button icon="printer" x-on:click="fallback()" data-test="print-status-browser">Imprimir con el navegador</flux:button>
+                            <flux:button variant="ghost" x-on:click="open = false" data-test="print-status-close">Cerrar</flux:button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <script src="{{ asset('js/ticket-printer.js') }}?v={{ filemtime(public_path('js/ticket-printer.js')) }}"></script>
 
         @fluxScripts
     </body>

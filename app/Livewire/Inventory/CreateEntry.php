@@ -3,6 +3,7 @@
 namespace App\Livewire\Inventory;
 
 use App\Exceptions\InventoryException;
+use App\Livewire\Concerns\ChoosesTicketCopies;
 use App\Livewire\Concerns\InteractsWithChambers;
 use App\Livewire\Concerns\ReportsInventoryErrors;
 use App\Models\Chamber;
@@ -23,7 +24,7 @@ use Livewire\Component;
 #[Title('Nueva entrada')]
 class CreateEntry extends Component
 {
-    use InteractsWithChambers, ReportsInventoryErrors;
+    use ChoosesTicketCopies, InteractsWithChambers, ReportsInventoryErrors;
 
     public ?int $chamberId = null;
 
@@ -201,7 +202,7 @@ class CreateEntry extends Component
         Flux::modal('confirm-save')->close();
 
         if ($done && $entry !== null) {
-            session()->flash('print_ticket', route('entries.ticket', ['entry' => $entry, 'auto' => 1]));
+            session()->flash('print_ticket', route('entries.ticket', ['entry' => $entry, 'auto' => 1, 'copies' => $this->ticketCopies()]));
             Flux::toast(text: 'Entrada registrada.', variant: 'success');
             $this->redirectRoute('entries.index', navigate: true);
         }

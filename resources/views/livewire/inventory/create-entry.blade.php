@@ -221,6 +221,8 @@
 
             <flux:text class="text-sm">Al confirmar se crearán las cajas con sus códigos de barras y se imprimirá el ticket. Si algún dato está mal, regresa y corrígelo antes de registrar.</flux:text>
 
+            <flux:input type="number" min="1" max="10" step="1" inputmode="numeric" wire:model="ticketCopies" label="Copias del ticket a imprimir" data-test="ticket-copies" />
+
             <div class="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
                 <flux:modal.close><flux:button variant="ghost" type="button" class="w-full sm:w-auto">Revisar de nuevo</flux:button></flux:modal.close>
                 <flux:button variant="primary" icon="check" wire:click="save" wire:loading.attr="disabled" wire:target="save" class="w-full sm:w-auto">Sí, registrar entrada</flux:button>

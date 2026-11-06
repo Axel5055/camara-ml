@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\AppVersionController;
+use App\Http\Controllers\QzSigningController;
 use App\Http\Controllers\RecordExportController;
 use App\Http\Controllers\TicketController;
 use App\Livewire\Admin\Adjustments;
@@ -23,6 +24,7 @@ use App\Livewire\Inventory\Exits;
 use App\Livewire\Inventory\Stock;
 use App\Livewire\Inventory\TransferDetail;
 use App\Livewire\Inventory\Transfers;
+use App\Livewire\Printers;
 use App\Livewire\Reports\EntriesReport;
 use App\Livewire\Reports\ExitsReport;
 use App\Livewire\Reports\InventoryReport;
@@ -37,6 +39,10 @@ Route::get('app-version', AppVersionController::class)->name('app-version');
 Route::middleware(['auth', 'active', 'verified'])->group(function () {
     // Every signed-in role: the panel and the stock and entry/exit records (scoped to what each role may see).
     Route::livewire('dashboard', Dashboard::class)->name('dashboard');
+
+    Route::livewire('impresoras', Printers::class)->name('printers');
+    Route::get('impresoras/certificado', [QzSigningController::class, 'certificate'])->name('qz.certificate');
+    Route::post('impresoras/firmar', [QzSigningController::class, 'sign'])->name('qz.sign');
 
     Route::livewire('inventario/existencias', Stock::class)->name('stock');
     Route::livewire('inventario/cajas/{box}', BoxHistory::class)->name('boxes.show');

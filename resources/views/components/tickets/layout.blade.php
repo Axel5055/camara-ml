@@ -34,9 +34,11 @@
 
     <hr class="rule">
     <div class="center small">Ticket sin valor fiscal</div>
-    <div class="actions"><button type="button" onclick="window.print()">Imprimir</button></div>
+    @unless (request()->boolean('raw'))
+        <div class="actions"><button type="button" onclick="window.print()">Imprimir</button></div>
+    @endunless
 
-    @if (request()->boolean('auto'))
+    @if (request()->boolean('auto') && ! request()->boolean('raw'))
         <script>window.addEventListener('load', () => setTimeout(() => window.print(), 150));</script>
     @endif
 </body>

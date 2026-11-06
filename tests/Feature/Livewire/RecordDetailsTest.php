@@ -276,6 +276,10 @@ it('prints a ticket of an entry with boxes and kilograms per product and never t
     $this->actingAs($w['centroUser'])->get(route('entries.ticket', [$w['entry'], 'auto' => 1]))
         ->assertSee('setTimeout', false);
 
+    $this->actingAs($w['centroUser'])->get(route('entries.ticket', [$w['entry'], 'auto' => 1, 'raw' => 1]))
+        ->assertDontSee('setTimeout', false)
+        ->assertDontSee('window.print()', false);
+
     $this->actingAs($w['norteUser'])->get(route('entries.ticket', $w['entry']))->assertForbidden();
 });
 
@@ -302,10 +306,11 @@ it('queues the ticket to print right after registering an entry or an exit', fun
         ->set('chamberId', $w['c1']->id)
         ->set('productId', $w['product']->id)->set('boxesCount', '2')->set('weight', '10')->set('cost', '50')
         ->call('addLine')
+        ->set('ticketCopies', '3')
         ->call('save')
         ->assertHasNoErrors();
 
-    expect(session('print_ticket'))->toContain('/ticket')->toContain('auto=1');
+    expect(session('print_ticket'))->toContain('/ticket')->toContain('auto=1')->toContain('copies=3');
 
     $single = Product::factory()->create(['code' => 'RES', 'name' => 'Res']);
     app(RegisterEntry::class)->handle($w['centroUser'], $w['c1'], [
@@ -319,10 +324,11 @@ it('queues the ticket to print right after registering an entry or an exit', fun
         ->call('addProduct')
         ->set('destBranchId', $w['sur']->id)
         ->set('requester', 'Ana')
+        ->set('ticketCopies', '99')
         ->call('save')
         ->assertHasNoErrors();
 
-    expect(session('print_ticket'))->toContain('/salidas/')->toContain('/ticket');
+    expect(session('print_ticket'))->toContain('/salidas/')->toContain('/ticket')->toContain('copies=10');
 });
 
 it('lets the super administrator correct a transfer in transit: requester, destination, date and boxes', function () {
@@ -431,11 +437,12 @@ it('prints a ticket of a transfer right after creating it, without any money', f
         ->call('confirmVariants')
         ->set('destChamberId', $w['n1']->id)
         ->set('requester', 'Ana')
+        ->set('ticketCopies', '')
         ->call('save')
         ->assertHasNoErrors();
 
     $transfer = Transfer::query()->sole();
-    expect(session('print_ticket'))->toContain('/transferencias/'.$transfer->id.'/ticket')->toContain('auto=1');
+    expect(session('print_ticket'))->toContain('/transferencias/'.$transfer->id.'/ticket')->toContain('auto=1')->toContain('copies=1');
 
     $this->actingAs($w['centroUser'])->get(route('transfers.ticket', $transfer))
         ->assertOk()
