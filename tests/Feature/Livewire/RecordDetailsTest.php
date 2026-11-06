@@ -61,7 +61,7 @@ it('shows the amounts of an entry only to administrators', function () {
     $w = detailsWorld();
 
     Livewire::actingAs($w['admin'])->test(EntryDetail::class, ['entry' => $w['entry']])->assertSee('123.45')->assertSee('Importe');
-    Livewire::actingAs($w['centroUser'])->test(EntryDetail::class, ['entry' => $w['entry']])->assertDontSee('123.45')->assertDontSee('Importe');
+    Livewire::actingAs($w['centroUser'])->test(EntryDetail::class, ['entry' => $w['entry']])->assertSee('Costo por caja')->assertSee('123.45')->assertDontSee('Importe')->assertDontSee('370.35');
 });
 
 it('does not show an entry to users of other chambers', function () {
@@ -107,7 +107,8 @@ it('shows the reversal of an exit and hides costs from warehouse users', functio
 
     Livewire::actingAs($w['centroUser'])->test(ExitDetail::class, ['exit' => $exit])
         ->assertSee('Captura equivocada')
-        ->assertDontSee('123.45')
+        ->assertSee('Precio por caja')
+        ->assertSee('123.45')
         ->assertDontSee('Costo histórico');
 });
 

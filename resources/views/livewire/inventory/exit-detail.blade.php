@@ -118,6 +118,7 @@
                     <flux:table.column>Producto</flux:table.column>
                     <flux:table.column align="end">Cajas</flux:table.column>
                     <flux:table.column align="end">Peso</flux:table.column>
+                    <flux:table.column align="end">Precio por caja</flux:table.column>
                     @if ($showCosts)
                         <flux:table.column align="end">Costo histórico</flux:table.column>
                     @endif
@@ -128,6 +129,7 @@
                             <flux:table.cell class="font-medium">{{ $row->product }}</flux:table.cell>
                             <flux:table.cell align="end" class="tabular-nums">{{ number_format($row->boxes) }}</flux:table.cell>
                             <flux:table.cell align="end" class="tabular-nums">{{ number_format((float) $row->kg, 3) }} kg</flux:table.cell>
+                            <flux:table.cell align="end" class="whitespace-nowrap tabular-nums">${{ number_format((float) $row->min_unit_cost, 2) }}@if ((float) $row->min_unit_cost !== (float) $row->max_unit_cost) – ${{ number_format((float) $row->max_unit_cost, 2) }}@endif</flux:table.cell>
                             @if ($showCosts)
                                 <flux:table.cell align="end" class="font-medium tabular-nums">${{ number_format((float) $row->cost, 2) }}</flux:table.cell>
                             @endif
@@ -153,6 +155,7 @@
                     <flux:table.column>Tipo</flux:table.column>
                     <flux:table.column align="end">Peso que salió</flux:table.column>
                     <flux:table.column align="end">Peso restante en la caja</flux:table.column>
+                    <flux:table.column align="end">Precio por caja</flux:table.column>
                     @if ($showCosts)
                         <flux:table.column align="end">Costo histórico</flux:table.column>
                     @endif
@@ -167,6 +170,7 @@
                             <flux:table.cell><flux:badge size="sm" :color="$item->kind->value === 'full' ? 'blue' : 'amber'">{{ $item->kind->value === 'full' ? 'Caja completa' : 'Retiro parcial' }}</flux:badge></flux:table.cell>
                             <flux:table.cell align="end" class="tabular-nums">{{ $item->weight_out_kg }} kg</flux:table.cell>
                             <flux:table.cell align="end" class="tabular-nums">{{ $item->kind->value === 'full' ? '—' : $item->weight_after_kg.' kg' }}</flux:table.cell>
+                            <flux:table.cell align="end" class="tabular-nums">${{ number_format((float) $item->unit_cost_snapshot_mxn, 2) }}</flux:table.cell>
                             @if ($showCosts)
                                 <flux:table.cell align="end" class="tabular-nums">${{ number_format((float) $item->cost_out_mxn, 2) }}</flux:table.cell>
                             @endif

@@ -67,6 +67,8 @@ class Entries extends Component
         return view('livewire.inventory.entries', [
             'entries' => $this->filteredEntries()
                 ->select($showCosts ? [...$columns, 'total_cost_mxn'] : $columns)
+                ->withMin('items as min_unit_cost', 'unit_cost_mxn')
+                ->withMax('items as max_unit_cost', 'unit_cost_mxn')
                 ->with(['chamber:id,name,branch_id', 'chamber.branch:id,name', 'user:id,name'])
                 ->orderByDesc('occurred_at')->orderByDesc('id')
                 ->paginate(20),

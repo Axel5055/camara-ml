@@ -86,9 +86,7 @@
                     <flux:table.column>Producto</flux:table.column>
                     <flux:table.column align="end">Cajas</flux:table.column>
                     <flux:table.column align="end">Peso por caja</flux:table.column>
-                    @if ($showCosts)
-                        <flux:table.column align="end">Costo por caja</flux:table.column>
-                    @endif
+                    <flux:table.column align="end">Costo por caja</flux:table.column>
                     <flux:table.column align="end">Peso total</flux:table.column>
                     @if ($showCosts)
                         <flux:table.column align="end">Importe</flux:table.column>
@@ -100,9 +98,7 @@
                             <flux:table.cell><div class="font-medium">{{ $item->product->name }}</div><div class="text-xs text-zinc-500">{{ $item->product->category->name }}</div></flux:table.cell>
                             <flux:table.cell align="end" class="tabular-nums">{{ number_format($item->boxes_count) }}</flux:table.cell>
                             <flux:table.cell align="end" class="tabular-nums">{{ $item->weight_per_box_kg }} kg</flux:table.cell>
-                            @if ($showCosts)
-                                <flux:table.cell align="end" class="tabular-nums">${{ number_format((float) $item->unit_cost_mxn, 2) }}</flux:table.cell>
-                            @endif
+                            <flux:table.cell align="end" class="tabular-nums">${{ number_format((float) $item->unit_cost_mxn, 2) }}</flux:table.cell>
                             <flux:table.cell align="end" class="tabular-nums">{{ $item->total_weight_kg }} kg</flux:table.cell>
                             @if ($showCosts)
                                 <flux:table.cell align="end" class="font-medium tabular-nums">${{ number_format((float) $item->total_cost_mxn, 2) }}</flux:table.cell>

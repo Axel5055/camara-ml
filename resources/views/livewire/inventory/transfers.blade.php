@@ -79,6 +79,7 @@
                 <flux:table.column>Enviada</flux:table.column>
                 <flux:table.column>Origen → destino</flux:table.column>
                 <flux:table.column align="end">Cajas</flux:table.column>
+                <flux:table.column align="end">Precio por caja</flux:table.column>
                 <flux:table.column>Estado</flux:table.column>
                 <flux:table.column></flux:table.column>
             </flux:table.columns>
@@ -102,6 +103,9 @@
                             <div class="text-xs text-zinc-500">{{ $transfer->originChamber->branch->name }} → {{ $transfer->destChamber->branch->name }}</div>
                         </flux:table.cell>
                         <flux:table.cell align="end" class="tabular-nums font-medium text-zinc-900 dark:text-white">{{ number_format($transfer->items_count) }}</flux:table.cell>
+                        <flux:table.cell align="end" class="whitespace-nowrap tabular-nums" data-test="transfer-unit-cost">
+                            ${{ number_format((float) $transfer->min_unit_cost, 2) }}@if ((float) $transfer->min_unit_cost !== (float) $transfer->max_unit_cost) – ${{ number_format((float) $transfer->max_unit_cost, 2) }}@endif
+                        </flux:table.cell>
                         <flux:table.cell>
                             <div class="flex flex-wrap gap-1">
                                 <flux:badge size="sm" :color="$transfer->status->color()">{{ $transfer->status->label() }}</flux:badge>
@@ -124,7 +128,7 @@
                     </flux:table.row>
                 @empty
                     <flux:table.row>
-                        <flux:table.cell colspan="6" class="py-10 text-center text-zinc-500">No hay transferencias que coincidan con los filtros.</flux:table.cell>
+                        <flux:table.cell colspan="7" class="py-10 text-center text-zinc-500">No hay transferencias que coincidan con los filtros.</flux:table.cell>
                     </flux:table.row>
                 @endforelse
             </flux:table.rows>
@@ -437,6 +441,7 @@
                                     <flux:badge size="sm" :color="$itemColor" class="shrink-0">{{ $itemLabel }}</flux:badge>
                                 </div>
                                 <div class="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-zinc-500">
+                                    <span>Precio por caja <span class="font-medium tabular-nums text-zinc-700 dark:text-zinc-300">${{ number_format((float) $item->box->unit_cost_mxn, 2) }}</span></span>
                                     <span>Esperado <span class="font-medium tabular-nums text-zinc-700 dark:text-zinc-300">{{ $kg($item->expected_weight_kg) }} kg</span></span>
                                     <span>Recibido <span class="font-medium tabular-nums text-zinc-700 dark:text-zinc-300">{{ $item->received_weight_kg !== null ? $kg($item->received_weight_kg).' kg' : '—' }}</span></span>
                                     @if ($itemDiff !== null && $itemDiff != 0)

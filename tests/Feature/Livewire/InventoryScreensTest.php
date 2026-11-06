@@ -575,12 +575,16 @@ it('offers only other chambers as transfer destination and keeps the read-only a
     $this->actingAs(User::factory()->create(['role' => 'admin']))->get(route('transfers.create'))->assertForbidden();
 });
 
-it('keeps the entries, exits and transfers submenus always open for warehouse users', function () {
+it('keeps the entries, exits and transfers submenus always open for warehouse and read-only users', function () {
     $w = screensWorld();
 
     $html = $this->actingAs($w['centroUser'])->get(route('dashboard'))->assertOk()->getContent();
 
     expect(substr_count($html, 'x-data=\'{ open: true }\''))->toBe(3);
+
+    $readOnly = User::factory()->create(['role' => 'admin']);
+    $readOnlyHtml = $this->actingAs($readOnly)->get(route('dashboard'))->getContent();
+    expect(substr_count($readOnlyHtml, 'open: true'))->toBe(3);
 
     $this->actingAs($w['admin'])->get(route('dashboard'))->assertOk()
         ->assertSee('$persist(true).as(', false);
@@ -599,4 +603,20 @@ it('shows the computed amounts of a new entry only to users who may see costs', 
 
     $capture($w['centroUser'])->assertDontSee('Importe')->assertDontSee('$100.00')->assertSee('$50.00')->assertSee('20.000');
     $capture($w['admin'])->assertSee('Importe')->assertSee('$100.00');
+});
+
+it('lists the price per box of entries, exits and transfers for warehouse users without any money total', function () {
+    $w = screensWorld();
+    [$first, $second] = $w['boxes']->all();
+
+    app(RegisterExit::class)->handle($w['centroUser'], $w['c1'], $w['sur'], null, 'Ana', [$first->id]);
+    app(RegisterExit::class)->handle($w['centroUser'], $w['c1'], $w['norte'], $w['n1'], 'Luis', [$second->id]);
+
+    Livewire::actingAs($w['centroUser'])->test(Entries::class)
+        ->assertSeeHtml('data-test="entry-unit-cost"')->assertSee('$123.45')->assertDontSee('Importe');
+    Livewire::actingAs($w['centroUser'])->test(Exits::class)
+        ->assertSeeHtml('data-test="exit-unit-cost"')->assertSee('$123.45')->assertDontSee('Costo histórico');
+    Livewire::actingAs($w['centroUser'])->test(Transfers::class)
+        ->assertSeeHtml('data-test="transfer-unit-cost"')->assertSee('$123.45')
+        ->call('showDetail', Transfer::query()->sole()->id)->assertSee('Precio por caja')->assertDontSee('Costo histórico');
 });

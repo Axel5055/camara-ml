@@ -107,6 +107,8 @@ class Exits extends Component
         return view('livewire.inventory.exits', [
             'exits' => $this->filteredExits()
                 ->select($showCosts ? [...$columns, 'total_cost_mxn'] : $columns)
+                ->withMin(['items as min_unit_cost' => fn (Builder $query) => $query->where('is_active', true)], 'unit_cost_snapshot_mxn')
+                ->withMax(['items as max_unit_cost' => fn (Builder $query) => $query->where('is_active', true)], 'unit_cost_snapshot_mxn')
                 ->with(['originChamber:id,name', 'destBranch:id,name', 'destChamber:id,name', 'user:id,name', 'transfer:id,exit_id,status'])
                 ->orderByDesc('occurred_at')->orderByDesc('id')
                 ->paginate(20),

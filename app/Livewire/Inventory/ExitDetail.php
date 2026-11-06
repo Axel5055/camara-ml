@@ -163,7 +163,7 @@ class ExitDetail extends Component
             ->when($isConfirmed, fn ($query) => $query->where('exit_items.is_active', true))
             ->groupBy('products.id', 'products.name')
             ->orderBy('products.name')
-            ->selectRaw('products.name as product, count(*) as boxes, sum(exit_items.weight_out_kg) as kg, sum(exit_items.cost_out_mxn) as cost')
+            ->selectRaw('products.name as product, count(*) as boxes, sum(exit_items.weight_out_kg) as kg, sum(exit_items.cost_out_mxn) as cost, min(exit_items.unit_cost_snapshot_mxn) as min_unit_cost, max(exit_items.unit_cost_snapshot_mxn) as max_unit_cost')
             ->get();
 
         $canEdit = Gate::allows('update', $this->stockExit) && $isConfirmed;

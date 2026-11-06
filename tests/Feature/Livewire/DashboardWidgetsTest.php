@@ -342,7 +342,7 @@ it('summarises and filters the entries list', function () {
     expect((int) $component->viewData('summary')->entries)->toBe(0);
     $component->assertSee('No hay entradas que coincidan');
 
-    $storekeeper = Livewire::actingAs($w['centroUser'])->test(Entries::class)->assertDontSee('Importe')->assertDontSee('Norte 1');
+    $storekeeper = Livewire::actingAs($w['centroUser'])->test(Entries::class)->assertDontSee('Importe')->assertSeeHtml('data-test="entry-unit-cost"')->assertSee('Precio por caja')->assertDontSee('Norte 1');
     expect((int) $storekeeper->viewData('summary')->boxes)->toBe(3);
 });
 

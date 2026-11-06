@@ -12,6 +12,7 @@ use Flux\Flux;
 use Illuminate\Contracts\View\View;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
 use Livewire\Attributes\Title;
 use Livewire\Attributes\Url;
@@ -147,7 +148,7 @@ class Transfers extends Component
     public function render(): View
     {
         $acting = $this->actingId
-            ? Transfer::query()->with('originChamber:id,name', 'destChamber:id,name', 'items.box:id,barcode,current_weight_kg,product_id', 'items.box.product:id,name')->find($this->actingId)
+            ? Transfer::query()->with('originChamber:id,name', 'destChamber:id,name', 'items.box:id,barcode,current_weight_kg,product_id,unit_cost_mxn', 'items.box.product:id,name')->find($this->actingId)
             : null;
 
         $detail = null;
@@ -156,7 +157,7 @@ class Transfers extends Component
             $detail = Transfer::query()
                 ->with([
                     'originChamber.branch:id,name', 'destChamber.branch:id,name', 'exit.user:id,name', 'receiver:id,name', 'canceller:id,name',
-                    'items.box:id,barcode,current_weight_kg,product_id', 'items.box.product:id,name', 'incidents.box:id,barcode', 'incidents.reporter:id,name', 'incidents.resolver:id,name',
+                    'items.box:id,barcode,current_weight_kg,product_id,unit_cost_mxn', 'items.box.product:id,name', 'incidents.box:id,barcode', 'incidents.reporter:id,name', 'incidents.resolver:id,name',
                 ])
                 ->find($this->detailId);
 
@@ -173,6 +174,13 @@ class Transfers extends Component
         return view('livewire.inventory.transfers', [
             'transfers' => $this->visibleTransfers()
                 ->with(['originChamber:id,name,branch_id', 'originChamber.branch:id,name', 'destChamber:id,name,branch_id', 'destChamber.branch:id,name', 'exit:id,reference,requester_name'])
+                ->select('transfers.*')
+                ->addSelect([
+                    'min_unit_cost' => DB::table('transfer_items')->join('boxes', 'boxes.id', '=', 'transfer_items.box_id')
+                        ->whereColumn('transfer_items.transfer_id', 'transfers.id')->selectRaw('min(boxes.unit_cost_mxn)'),
+                    'max_unit_cost' => DB::table('transfer_items')->join('boxes', 'boxes.id', '=', 'transfer_items.box_id')
+                        ->whereColumn('transfer_items.transfer_id', 'transfers.id')->selectRaw('max(boxes.unit_cost_mxn)'),
+                ])
                 ->withCount('items')
                 ->withCount('incidents')
                 ->withCount(['incidents as open_incidents_count' => fn (Builder $query) => $query->where('status', 'open')])

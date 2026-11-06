@@ -77,6 +77,7 @@
                 <flux:table.column>Cámara</flux:table.column>
                 <flux:table.column align="end">Cajas</flux:table.column>
                 <flux:table.column align="end">Peso (kg)</flux:table.column>
+                <flux:table.column align="end">Precio por caja</flux:table.column>
                 @if ($showCosts)
                     <flux:table.column align="end">Importe (MXN)</flux:table.column>
                 @endif
@@ -102,6 +103,9 @@
                         </flux:table.cell>
                         <flux:table.cell align="end" class="tabular-nums font-medium text-zinc-900 dark:text-white">{{ number_format($entry->total_boxes) }}</flux:table.cell>
                         <flux:table.cell align="end" class="tabular-nums">{{ $entry->total_weight_kg }}</flux:table.cell>
+                        <flux:table.cell align="end" class="whitespace-nowrap tabular-nums" data-test="entry-unit-cost">
+                            ${{ number_format((float) $entry->min_unit_cost, 2) }}@if ((float) $entry->min_unit_cost !== (float) $entry->max_unit_cost) – ${{ number_format((float) $entry->max_unit_cost, 2) }}@endif
+                        </flux:table.cell>
                         @if ($showCosts)
                             <flux:table.cell align="end" class="tabular-nums font-medium text-zinc-900 dark:text-white">${{ number_format((float) $entry->total_cost_mxn, 2) }}</flux:table.cell>
                         @endif
@@ -112,7 +116,7 @@
                     </flux:table.row>
                 @empty
                     <flux:table.row>
-                        <flux:table.cell colspan="{{ $showCosts ? 8 : 7 }}" class="py-10 text-center text-zinc-500">No hay entradas que coincidan con los filtros.</flux:table.cell>
+                        <flux:table.cell colspan="{{ $showCosts ? 9 : 8 }}" class="py-10 text-center text-zinc-500">No hay entradas que coincidan con los filtros.</flux:table.cell>
                     </flux:table.row>
                 @endforelse
             </flux:table.rows>
