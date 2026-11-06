@@ -37,7 +37,7 @@ function exportsWorld(): array
     $exit = app(RegisterExit::class)->handle($centroUser, $c1, $sur, null, 'Ana López', [$boxes[0]->id, $boxes[1]->id]);
     $partial = app(WithdrawPartial::class)->handle($centroUser, $boxes[2], '5', $sur, 'Luis');
 
-    return compact('centro', 'norte', 'sur', 'c1', 'admin', 'centroUser', 'norteUser', 'product', 'entry', 'boxes', 'exit', 'partial');
+    return compact('centro', 'norte', 'sur', 'c1', 'n1', 'admin', 'centroUser', 'norteUser', 'product', 'entry', 'boxes', 'exit', 'partial');
 }
 
 /**
@@ -114,6 +114,21 @@ it('hides the historic cost from warehouse users in an exit export', function ()
     $sheets = readXlsx($this->actingAs($w['centroUser'])->get(route('exits.export', [$w['exit'], 'xlsx']))->assertOk());
 
     expect(json_encode($sheets, JSON_UNESCAPED_UNICODE))->not->toContain('246.9')->not->toContain('Costo histórico')->toContain('Precio por caja')->toContain('123.45')->toContain('Ana López');
+});
+
+it('downloads a transfer with the price per box and no money total for anyone', function () {
+    $w = exportsWorld();
+    app(RegisterEntry::class)->handle($w['centroUser'], $w['c1'], [['product_id' => $w['product']->id, 'boxes_count' => 1, 'weight_per_box_kg' => '10', 'unit_cost_mxn' => '123.45']]);
+    $transfer = app(RegisterExit::class)->handle($w['centroUser'], $w['c1'], $w['norte'], $w['n1'], 'Luis', [Box::query()->latest('id')->firstOrFail()->id])->transfer;
+
+    foreach (['centroUser', 'norteUser'] as $who) {
+        $sheets = readXlsx($this->actingAs($w[$who])->get(route('transfers.export', [$transfer, 'xlsx']))->assertOk());
+
+        expect(json_encode($sheets, JSON_UNESCAPED_UNICODE))->toContain('Precio por caja')->toContain('123.45')->toContain($transfer->reference)->not->toContain('Costo histórico');
+    }
+
+    $this->actingAs($w['centroUser'])->get(route('transfers.export', [$transfer, 'pdf']))->assertOk();
+    $this->actingAs($w['centroUser'])->get(route('transfers.export', [$transfer, 'csv']))->assertNotFound();
 });
 
 it('does not let users download records outside their chambers and rejects unknown formats', function () {

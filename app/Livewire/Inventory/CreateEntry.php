@@ -138,7 +138,10 @@ class CreateEntry extends Component
         $this->resetErrorBag();
     }
 
-    public function save(RegisterEntry $registerEntry): void
+    /**
+     * Validates the captured data; shared by the confirmation step and the final save.
+     */
+    private function formIsValid(): bool
     {
         $this->validate([
             'chamberId' => ['required', 'exists:chambers,id'],
@@ -148,6 +151,27 @@ class CreateEntry extends Component
 
         if ($this->lines === []) {
             $this->addError('operation', 'Agrega al menos un grupo de cajas a la entrada.');
+
+            return false;
+        }
+
+        return true;
+    }
+
+    /**
+     * First step of registering: validate and ask the user for a final confirmation.
+     */
+    public function askConfirm(): void
+    {
+        if ($this->formIsValid()) {
+            Flux::modal('confirm-save')->show();
+        }
+    }
+
+    public function save(RegisterEntry $registerEntry): void
+    {
+        if (! $this->formIsValid()) {
+            Flux::modal('confirm-save')->close();
 
             return;
         }
@@ -173,6 +197,8 @@ class CreateEntry extends Component
                 $this->clientToken,
             );
         });
+
+        Flux::modal('confirm-save')->close();
 
         if ($done && $entry !== null) {
             session()->flash('print_ticket', route('entries.ticket', ['entry' => $entry, 'auto' => 1]));

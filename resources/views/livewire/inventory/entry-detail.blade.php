@@ -4,12 +4,27 @@
             @if ($canEdit)
                 <flux:button variant="primary" icon="pencil-square" wire:click="openEdit" data-test="entry-edit">Corregir</flux:button>
             @endif
+            @if ($canReverse)
+                <flux:button variant="danger" icon="x-circle" wire:click="openReverse" data-test="entry-reverse">Cancelar entrada</flux:button>
+            @endif
             <flux:button icon="printer" x-on:click="$dispatch('print-ticket', { url: @js(route('entries.ticket', [$entry, 'auto' => 1])) })" data-test="entry-print">Ticket</flux:button>
             <flux:button :href="route('entries.export', [$entry, 'pdf'])" icon="document-arrow-down">PDF</flux:button>
             <flux:button :href="route('entries.export', [$entry, 'xlsx'])" icon="table-cells">Excel</flux:button>
             <flux:button :href="route('entries.index')" wire:navigate icon="arrow-left">Entradas</flux:button>
         </div>
     </x-page-header>
+
+    @if ($entry->status === \App\Enums\DocumentStatus::Reversed)
+        <div class="flex items-start gap-3 rounded-xl border border-red-300/60 bg-red-50 p-4 text-sm text-red-700 dark:border-red-500/30 dark:bg-red-500/10 dark:text-red-300" data-test="entry-reversed">
+            <flux:icon name="x-circle" class="mt-0.5 size-5 shrink-0" />
+            <div>
+                <div class="font-medium">Entrada cancelada</div>
+                @if ($reversal)
+                    Cancelada el {{ $reversal->created_at->format('d/m/Y H:i') }}{{ $reversal->user ? ' por '.$reversal->user->name : '' }}. Motivo: {{ $reversal->new_values['reason'] ?? '' }}
+                @endif
+            </div>
+        </div>
+    @endif
 
     @if ($corrections->isNotEmpty())
         <div class="rounded-xl border border-amber-300/60 bg-amber-50 p-4 text-sm dark:border-amber-500/30 dark:bg-amber-500/10" data-test="entry-corrections">
@@ -156,41 +171,148 @@
         </div>
     </div>
 
+    @if ($canReverse)
+        <flux:modal name="reverse-entry" class="w-[calc(100vw-2rem)] md:w-[28rem]">
+            <form wire:submit="reverse" class="space-y-5" data-test="entry-reverse-form">
+                <div class="flex items-start gap-3">
+                    <div class="flex size-10 shrink-0 items-center justify-center rounded-lg bg-red-500/10 text-red-600 dark:text-red-300">
+                        <flux:icon name="x-circle" class="size-5" />
+                    </div>
+                    <div class="min-w-0">
+                        <flux:heading size="lg">Cancelar entrada {{ $entry->reference }}</flux:heading>
+                        <flux:text class="text-sm">Las {{ number_format($entry->total_boxes) }} cajas salen del inventario y la entrada queda marcada como cancelada. Solo es posible si ninguna caja se ha movido; el registro se conserva en el historial.</flux:text>
+                    </div>
+                </div>
+                <flux:error name="operation" />
+                <flux:textarea wire:model="reverseReason" label="Motivo" rows="3" placeholder="Por qué se cancela esta entrada." required />
+                <div class="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+                    <flux:modal.close><flux:button variant="ghost" type="button" class="w-full sm:w-auto">Volver</flux:button></flux:modal.close>
+                    <flux:button type="submit" variant="danger" icon="x-circle" class="w-full sm:w-auto">Cancelar entrada</flux:button>
+                </div>
+            </form>
+        </flux:modal>
+    @endif
+
     @if ($canEdit)
-        <flux:modal name="edit-entry" class="md:w-[44rem]">
-            <form wire:submit="saveEdit" class="space-y-5" data-test="entry-edit-form">
-                <div>
-                    <flux:heading size="lg">Corregir entrada {{ $entry->reference }}</flux:heading>
-                    <flux:text class="mt-1">Cambia la fecha, las observaciones o los datos de cada grupo. El peso, el costo y la cantidad de cajas solo se pueden cambiar mientras las cajas del grupo sigan intactas en la cámara (sin salidas, transferencias ni ajustes). Si quitas cajas se dan de baja como anuladas; si agregas, se generan códigos nuevos.</flux:text>
+        <flux:modal name="edit-entry" class="w-[calc(100vw-2rem)] md:w-[46rem]">
+            <form
+                wire:submit="saveEdit"
+                class="space-y-5"
+                data-test="entry-edit-form"
+                x-data="{
+                    orig: @js($items->mapWithKeys(fn ($item) => [$item->id => ['boxes' => (int) $item->boxes_count, 'weight' => (float) $item->weight_per_box_kg, 'cost' => (float) $item->unit_cost_mxn]])->all()),
+                    boxes(id) { return parseInt($wire.editItems?.[id]?.boxes_count) || 0; },
+                    weight(id) { const n = parseFloat($wire.editItems?.[id]?.weight_per_box_kg); return isNaN(n) ? 0 : n; },
+                    cost(id) { const n = parseFloat($wire.editItems?.[id]?.unit_cost_mxn); return isNaN(n) ? 0 : n; },
+                    amount(id) { return Math.round(this.boxes(id) * this.cost(id) * 100) / 100; },
+                    get totalAmount() { return Math.round(Object.keys(this.orig).reduce((sum, id) => sum + this.amount(id), 0) * 100) / 100; },
+                    get origAmount() { return Math.round(Object.values(this.orig).reduce((sum, row) => sum + row.boxes * row.cost, 0) * 100) / 100; },
+                    money(value) { return new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN' }).format(value); },
+                    delta(id) { return this.boxes(id) - this.orig[id].boxes; },
+                    kg(id) { return Math.round(this.boxes(id) * this.weight(id) * 1000) / 1000; },
+                    get totalBoxes() { return Object.keys(this.orig).reduce((sum, id) => sum + this.boxes(id), 0); },
+                    get totalKg() { return Math.round(Object.keys(this.orig).reduce((sum, id) => sum + this.kg(id), 0) * 1000) / 1000; },
+                    get origBoxes() { return Object.values(this.orig).reduce((sum, row) => sum + row.boxes, 0); },
+                    get origKg() { return Math.round(Object.values(this.orig).reduce((sum, row) => sum + row.boxes * row.weight, 0) * 1000) / 1000; },
+                    fmt(value) { return new Intl.NumberFormat('es-MX', { maximumFractionDigits: 3 }).format(value); },
+                    signed(value) { return (value > 0 ? '+' : '') + this.fmt(value); },
+                }"
+            >
+                <div class="flex items-start gap-3">
+                    <div class="flex size-10 shrink-0 items-center justify-center rounded-lg bg-accent/10 text-accent-content">
+                        <flux:icon name="pencil-square" class="size-5" />
+                    </div>
+                    <div class="min-w-0">
+                        <flux:heading size="lg">Corregir entrada {{ $entry->reference }}</flux:heading>
+                        <flux:text class="text-sm">Ajusta los datos capturados y explica el motivo de la corrección.</flux:text>
+                    </div>
+                </div>
+
+                <div class="flex items-start gap-2 rounded-lg bg-sky-50 p-3 text-sm text-sky-800 dark:bg-sky-950/40 dark:text-sky-200">
+                    <flux:icon name="information-circle" class="mt-0.5 size-4 shrink-0" />
+                    <div class="space-y-1">
+                        <div>El peso, el costo y la cantidad de cajas solo se pueden cambiar mientras las cajas del grupo sigan intactas en la cámara (sin salidas, transferencias ni ajustes).</div>
+                        <div>Si quitas cajas se dan de baja como anuladas; si agregas, se generan códigos nuevos.</div>
+                    </div>
                 </div>
 
                 <flux:error name="operation" />
 
-                <div class="grid gap-4 sm:grid-cols-2">
-                    <flux:input wire:model="editDate" type="datetime-local" label="Fecha y hora" />
-                    <flux:input wire:model="editNotes" label="Observaciones" />
-                </div>
-
-                <div class="space-y-3">
-                    @foreach ($items as $item)
-                        <div class="rounded-lg border border-zinc-200 p-3 dark:border-zinc-700" wire:key="edit-item-{{ $item->id }}">
-                            <div class="mb-2 text-sm font-medium text-zinc-900 dark:text-white">{{ $item->product->name }}</div>
-                            <div class="grid gap-3 sm:grid-cols-3">
-                                <flux:input wire:model="editItems.{{ $item->id }}.boxes_count" type="number" min="1" label="Cajas" />
-                                <flux:input wire:model="editItems.{{ $item->id }}.weight_per_box_kg" inputmode="decimal" label="Peso por caja (kg)" />
-                                @if ($showCosts)
-                                    <flux:input wire:model="editItems.{{ $item->id }}.unit_cost_mxn" inputmode="decimal" label="Costo por caja (MXN)" />
-                                @endif
-                            </div>
+                <div class="max-h-[55vh] space-y-5 -mx-1.5 overflow-y-auto p-1.5">
+                    <div class="space-y-3">
+                        <div class="flex items-center gap-2 text-sm font-medium text-zinc-900 dark:text-white">
+                            <span class="flex size-6 items-center justify-center rounded-full bg-accent/10 text-xs font-semibold text-accent-content">1</span>
+                            Datos generales
                         </div>
-                    @endforeach
+                        <div class="grid gap-4 sm:grid-cols-2">
+                            <flux:input wire:model="editDate" type="datetime-local" label="Fecha y hora" />
+                            <flux:input wire:model="editNotes" label="Observaciones" />
+                        </div>
+                    </div>
+
+                    <div class="space-y-3">
+                        <div class="flex items-center gap-2 text-sm font-medium text-zinc-900 dark:text-white">
+                            <span class="flex size-6 items-center justify-center rounded-full bg-accent/10 text-xs font-semibold text-accent-content">2</span>
+                            Grupos de la entrada
+                        </div>
+
+                        @foreach ($items as $item)
+                            <div class="rounded-xl border border-zinc-200 p-4 dark:border-zinc-700" wire:key="edit-item-{{ $item->id }}">
+                                <div class="mb-3 flex flex-wrap items-center justify-between gap-2">
+                                    <div class="min-w-0">
+                                        <div class="truncate font-medium text-zinc-900 dark:text-white">{{ $item->product->name }}</div>
+                                        <div class="text-xs text-zinc-500">{{ $item->product->category->name }} · actualmente {{ number_format($item->boxes_count) }} cajas de {{ rtrim(rtrim(number_format((float) $item->weight_per_box_kg, 3, '.', ','), '0'), '.') }} kg</div>
+                                    </div>
+                                    <div class="flex flex-wrap items-center gap-1.5">
+                                        <span x-show="delta({{ $item->id }}) !== 0" x-cloak class="rounded-md px-2 py-0.5 text-xs font-medium"
+                                            :class="delta({{ $item->id }}) > 0 ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300' : 'bg-red-100 text-red-700 dark:bg-red-950/60 dark:text-red-300'"
+                                            x-text="signed(delta({{ $item->id }})) + ' cajas'"></span>
+                                        <span class="rounded-md bg-zinc-100 px-2 py-0.5 text-xs font-medium tabular-nums text-zinc-700 dark:bg-zinc-700 dark:text-zinc-200" x-text="fmt(kg({{ $item->id }})) + ' kg'"></span>
+                                    </div>
+                                </div>
+                                <div class="grid gap-3 sm:grid-cols-3">
+                                    <flux:input wire:model="editItems.{{ $item->id }}.boxes_count" type="number" min="1" label="Cajas" />
+                                    <flux:input wire:model="editItems.{{ $item->id }}.weight_per_box_kg" inputmode="decimal" label="Peso por caja (kg)" />
+                                    @if ($showCosts)
+                                        <flux:input wire:model="editItems.{{ $item->id }}.unit_cost_mxn" inputmode="decimal" label="Costo por caja (MXN)" />
+                                    @endif
+                                </div>
+                            </div>
+                        @endforeach
+                    </div>
+
+                    <div class="grid grid-cols-2 gap-3 text-center {{ $showCosts ? 'sm:grid-cols-3' : '' }}" data-test="edit-entry-totals">
+                        <div class="rounded-lg border border-zinc-200 p-3 dark:border-zinc-700">
+                            <div class="text-xs uppercase tracking-wide text-zinc-500">Cajas</div>
+                            <div class="text-xl font-semibold tabular-nums" x-text="fmt(totalBoxes)"></div>
+                            <div class="text-xs text-zinc-500">antes <span x-text="fmt(origBoxes)"></span></div>
+                        </div>
+                        <div class="rounded-lg border border-zinc-200 p-3 dark:border-zinc-700">
+                            <div class="text-xs uppercase tracking-wide text-zinc-500">Peso total</div>
+                            <div class="text-xl font-semibold tabular-nums"><span x-text="fmt(totalKg)"></span> kg</div>
+                            <div class="text-xs text-zinc-500">antes <span x-text="fmt(origKg)"></span> kg</div>
+                        </div>
+                        @if ($showCosts)
+                            <div class="col-span-2 rounded-lg border border-zinc-200 p-3 sm:col-span-1 dark:border-zinc-700" data-test="edit-entry-amount">
+                                <div class="text-xs uppercase tracking-wide text-zinc-500">Importe</div>
+                                <div class="text-xl font-semibold tabular-nums" x-text="money(totalAmount)"></div>
+                                <div class="text-xs text-zinc-500">antes <span x-text="money(origAmount)"></span></div>
+                            </div>
+                        @endif
+                    </div>
+
+                    <div class="space-y-3">
+                        <div class="flex items-center gap-2 text-sm font-medium text-zinc-900 dark:text-white">
+                            <span class="flex size-6 items-center justify-center rounded-full bg-accent/10 text-xs font-semibold text-accent-content">3</span>
+                            Motivo de la corrección
+                        </div>
+                        <flux:textarea wire:model="editReason" rows="2" placeholder="Qué se capturó mal y qué se corrige." required />
+                    </div>
                 </div>
 
-                <flux:textarea wire:model="editReason" label="Motivo de la corrección" rows="2" placeholder="Qué se capturó mal y qué se corrige." required />
-
-                <div class="flex justify-end gap-2">
-                    <flux:modal.close><flux:button variant="ghost">Cancelar</flux:button></flux:modal.close>
-                    <flux:button type="submit" variant="primary">Guardar corrección</flux:button>
+                <div class="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+                    <flux:modal.close><flux:button variant="ghost" type="button" class="w-full sm:w-auto">Cancelar</flux:button></flux:modal.close>
+                    <flux:button type="submit" variant="primary" icon="check" class="w-full sm:w-auto">Guardar corrección</flux:button>
                 </div>
             </form>
         </flux:modal>

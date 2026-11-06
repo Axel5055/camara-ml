@@ -10,8 +10,10 @@ use App\Livewire\Inventory\CreateEntry;
 use App\Livewire\Inventory\CreateExit;
 use App\Livewire\Inventory\CreateTransfer;
 use App\Livewire\Inventory\Entries;
+use App\Livewire\Inventory\ExitDetail;
 use App\Livewire\Inventory\Exits;
 use App\Livewire\Inventory\Stock;
+use App\Livewire\Inventory\TransferDetail;
 use App\Livewire\Inventory\Transfers;
 use App\Models\Box;
 use App\Models\Branch;
@@ -470,18 +472,24 @@ it('lets only the super administrator cancel a transfer in transit', function ()
     expect($box->fresh()->status)->toBe(BoxStatus::Available);
 });
 
-it('lets only administrators reverse an exit from the exits screen', function () {
+it('lets only administrators reverse an exit from its detail page and not from the list', function () {
     $w = screensWorld();
     $box = $w['boxes'][0];
     $exit = app(RegisterExit::class)->handle($w['centroUser'], $w['c1'], $w['sur'], null, 'Ana', [$box->id]);
 
-    Livewire::actingAs($w['centroUser'])->test(Exits::class)->call('askReverse', $exit->id)->assertForbidden();
+    Livewire::actingAs($w['admin'])->test(Exits::class)->assertDontSee('askReverse', false);
+    Livewire::actingAs($w['centroUser'])->test(ExitDetail::class, ['exit' => $exit])->assertDontSeeHtml('data-test="exit-reverse"')->call('openReverse')->assertForbidden();
 
-    Livewire::actingAs($w['admin'])->test(Exits::class)
-        ->call('askReverse', $exit->id)
-        ->set('reason', 'Captura equivocada')
+    Livewire::actingAs($w['admin'])->test(ExitDetail::class, ['exit' => $exit])
+        ->assertSeeHtml('data-test="exit-reverse"')
+        ->call('openReverse')
         ->call('reverse')
-        ->assertHasNoErrors();
+        ->assertHasErrors('reverseReason')
+        ->set('reverseReason', 'Captura equivocada')
+        ->call('reverse')
+        ->assertHasNoErrors()
+        ->assertSee('Salida revertida')
+        ->assertDontSeeHtml('data-test="exit-reverse"');
 
     expect($box->fresh()->status)->toBe(BoxStatus::Available)
         ->and(StockExit::query()->find($exit->id)->status->value)->toBe('reversed');
@@ -617,6 +625,102 @@ it('lists the price per box of entries, exits and transfers for warehouse users 
     Livewire::actingAs($w['centroUser'])->test(Exits::class)
         ->assertSeeHtml('data-test="exit-unit-cost"')->assertSee('$123.45')->assertDontSee('Costo histórico');
     Livewire::actingAs($w['centroUser'])->test(Transfers::class)
-        ->assertSeeHtml('data-test="transfer-unit-cost"')->assertSee('$123.45')
-        ->call('showDetail', Transfer::query()->sole()->id)->assertSee('Precio por caja')->assertDontSee('Costo histórico');
+        ->assertSeeHtml('data-test="transfer-unit-cost"')->assertSee('$123.45');
+    Livewire::actingAs($w['centroUser'])->test(TransferDetail::class, ['transfer' => Transfer::query()->sole()])
+        ->assertSee('Precio por caja')->assertSee('$123.45')->assertDontSee('Costo histórico');
+});
+
+it('asks for a final confirmation before receiving and warns about missing boxes and weight differences', function () {
+    $w = screensWorld();
+    [$first, $second, $third] = $w['boxes']->all();
+
+    app(RegisterExit::class)->handle($w['centroUser'], $w['c1'], $w['norte'], $w['n1'], 'Norte', [$first->id, $second->id, $third->id]);
+    $transfer = Transfer::query()->firstOrFail();
+
+    $component = Livewire::actingAs($w['norteUser'])->test(Transfers::class)->call('askReceive', $transfer->id);
+
+    $component->call('askConfirmReceive')
+        ->assertSet('confirmSummary.total', 3)
+        ->assertSet('confirmSummary.arrived', 3)
+        ->assertSet('confirmSummary.missing', 0)
+        ->assertSet('confirmSummary.differences', [])
+        ->assertSeeHtml('data-test="confirm-receive-ok"');
+
+    expect($transfer->fresh()->status->value)->toBe('in_transit');
+
+    $component->set('received', [$first->id, $second->id])
+        ->set('weights', [$first->id => '19.5'])
+        ->call('askConfirmReceive')
+        ->assertSet('confirmSummary.arrived', 2)
+        ->assertSet('confirmSummary.missing', 1)
+        ->assertSet('confirmSummary.differences.0.barcode', $first->barcode)
+        ->assertSet('confirmSummary.differences.0.actual', '19.5')
+        ->assertSeeHtml('data-test="confirm-receive-warning"')
+        ->call('receive')
+        ->assertHasNoErrors();
+
+    expect($transfer->fresh()->status->value)->toBe('received');
+});
+
+it('does not let users outside the destination ask for the receive confirmation', function () {
+    $w = screensWorld();
+
+    app(RegisterExit::class)->handle($w['centroUser'], $w['c1'], $w['norte'], $w['n1'], 'Norte', [$w['boxes'][0]->id]);
+    $transfer = Transfer::query()->firstOrFail();
+
+    Livewire::actingAs($w['centroUser'])->test(Transfers::class)->set('actingId', $transfer->id)->call('askConfirmReceive')->assertForbidden();
+});
+
+it('validates and asks for confirmation before registering an entry, an exit and a transfer without saving anything yet', function () {
+    $w = screensWorld();
+    $boxesBefore = Box::query()->count();
+
+    Livewire::actingAs($w['centroUser'])->test(CreateEntry::class)
+        ->call('askConfirm')
+        ->assertHasErrors(['chamberId' => 'required'])
+        ->set('chamberId', $w['c1']->id)
+        ->call('askConfirm')
+        ->assertHasErrors('operation')
+        ->set('productId', $w['product']->id)
+        ->set('boxesCount', '2')
+        ->set('weight', '10')
+        ->set('cost', '50')
+        ->call('addLine')
+        ->call('askConfirm')
+        ->assertHasNoErrors()
+        ->assertSeeHtml('data-test="confirm-save"')
+        ->assertSee('Sí, registrar entrada');
+
+    expect(Box::query()->count())->toBe($boxesBefore);
+
+    $exit = Livewire::actingAs($w['centroUser'])->test(CreateExit::class)
+        ->set('originChamberId', $w['c1']->id)
+        ->set('productId', $w['product']->id)
+        ->set('quantity', '1')
+        ->call('addProduct')
+        ->call('askConfirm')
+        ->assertHasErrors(['destBranchId' => 'required', 'requester' => 'required'])
+        ->set('destBranchId', $w['sur']->id)
+        ->set('requester', 'Ana')
+        ->call('askConfirm')
+        ->assertHasNoErrors()
+        ->assertSee('Sí, registrar salida');
+
+    $transfer = Livewire::actingAs($w['centroUser'])->test(CreateTransfer::class)
+        ->set('originChamberId', $w['c1']->id)
+        ->set('productId', $w['product']->id)
+        ->set('quantity', '1')
+        ->call('addProduct')
+        ->set('requester', 'Ana')
+        ->call('askConfirm')
+        ->assertHasErrors(['destChamberId' => 'required'])
+        ->set('destChamberId', $w['n1']->id)
+        ->call('askConfirm')
+        ->assertHasNoErrors()
+        ->assertSee('Sí, enviar transferencia');
+
+    expect(StockExit::query()->count())->toBe(0)->and(Transfer::query()->count())->toBe(0);
+
+    $transfer->call('save')->assertRedirect(route('transfers.index'));
+    expect(Transfer::query()->count())->toBe(1);
 });

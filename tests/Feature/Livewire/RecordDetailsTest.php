@@ -1,21 +1,31 @@
 <?php
 
+use App\Enums\BoxStatus;
+use App\Enums\TransferStatus;
+use App\Exceptions\InventoryException;
 use App\Livewire\Inventory\BoxHistory;
 use App\Livewire\Inventory\CreateEntry;
 use App\Livewire\Inventory\CreateExit;
+use App\Livewire\Inventory\CreateTransfer;
 use App\Livewire\Inventory\EntryDetail;
 use App\Livewire\Inventory\ExitDetail;
 use App\Livewire\Inventory\Stock;
+use App\Livewire\Inventory\TransferDetail;
 use App\Models\Box;
 use App\Models\Branch;
 use App\Models\Chamber;
 use App\Models\Entry;
 use App\Models\Product;
+use App\Models\Transfer;
 use App\Models\User;
+use App\Services\Inventory\CorrectTransfer;
+use App\Services\Inventory\ReceiveTransfer;
 use App\Services\Inventory\RegisterEntry;
 use App\Services\Inventory\RegisterExit;
+use App\Services\Inventory\ReverseEntry;
 use App\Services\Inventory\ReverseExit;
 use App\Services\Inventory\WithdrawPartial;
+use Illuminate\Auth\Access\AuthorizationException;
 use Livewire\Livewire;
 
 /**
@@ -180,7 +190,10 @@ it('lets the super administrator correct an exit: header, removing and adding bo
         ->call('openEdit')
         ->set('addBarcode', 'NO-EXISTE')->call('addBox')->assertHasErrors(['addBarcode'])
         ->set('addBarcode', $boxes[2]->barcode)->call('addBox')->assertHasNoErrors()
+        ->assertSeeHtml('data-test="exit-edit-adding"')
         ->set('removeIds', [$boxes[0]->id])
+        ->assertSeeHtml('data-test="exit-edit-removing"')
+        ->assertSeeHtml('data-test="exit-edit-totals"')
         ->set('editRequester', 'Luis')
         ->set('editReason', 'Se entregó otra caja')
         ->call('saveEdit')
@@ -310,6 +323,166 @@ it('queues the ticket to print right after registering an entry or an exit', fun
         ->assertHasNoErrors();
 
     expect(session('print_ticket'))->toContain('/salidas/')->toContain('/ticket');
+});
+
+it('lets the super administrator correct a transfer in transit: requester, destination, date and boxes', function () {
+    $w = detailsWorld();
+    $other = Chamber::factory()->for($w['norte'])->create(['name' => 'Norte 2']);
+    $boxes = $w['boxes'];
+    $transfer = app(RegisterExit::class)->handle($w['centroUser'], $w['c1'], $w['norte'], $w['n1'], 'Luis', [$boxes[0]->id, $boxes[1]->id])->transfer;
+
+    Livewire::actingAs($w['admin'])->test(TransferDetail::class, ['transfer' => $transfer])
+        ->assertSeeHtml('data-test="transfer-edit"')
+        ->call('openEdit')
+        ->set('editRequester', 'María')
+        ->set('editDestChamberId', (string) $other->id)
+        ->set('removeIds', [$boxes[1]->id])
+        ->set('addBarcode', $boxes[2]->barcode)
+        ->call('addBox')
+        ->set('editReason', 'Se capturó mal el destino')
+        ->call('saveEdit')
+        ->assertHasNoErrors()
+        ->assertSee('Esta transferencia fue corregida 1 vez');
+
+    $transfer->refresh();
+    $exit = $transfer->exit;
+
+    expect($transfer->dest_chamber_id)->toBe($other->id)
+        ->and($exit->requester_name)->toBe('María')
+        ->and($exit->dest_chamber_id)->toBe($other->id)
+        ->and($exit->total_boxes)->toBe(2)
+        ->and($transfer->items()->pluck('box_id')->sort()->values()->all())->toBe([$boxes[0]->id, $boxes[2]->id])
+        ->and($boxes[1]->fresh()->status)->toBe(BoxStatus::Available)
+        ->and($boxes[1]->fresh()->current_chamber_id)->toBe($w['c1']->id)
+        ->and($boxes[2]->fresh()->status)->toBe(BoxStatus::InTransit);
+
+    $this->actingAs($w['admin'])->get(route('transfers.ticket', $transfer))->assertOk()->assertSee('2 cajas');
+
+    $destUser = User::factory()->warehouse($w['norte'])->create();
+    $destUser->chambers()->attach($other);
+    app(ReceiveTransfer::class)->handle($destUser, $transfer->fresh(), [$boxes[0]->id, $boxes[2]->id]);
+
+    expect($transfer->fresh()->status)->toBe(TransferStatus::Received)
+        ->and($transfer->incidents()->count())->toBe(0)
+        ->and($boxes[0]->fresh()->current_chamber_id)->toBe($other->id);
+});
+
+it('only lets a received transfer change its requester and notes, and keeps others from correcting', function () {
+    $w = detailsWorld();
+    $transfer = app(RegisterExit::class)->handle($w['centroUser'], $w['c1'], $w['norte'], $w['n1'], 'Luis', [$w['boxes'][0]->id])->transfer;
+    app(ReceiveTransfer::class)->handle($w['norteUser'], $transfer, [$w['boxes'][0]->id]);
+
+    $correct = app(CorrectTransfer::class);
+
+    expect(fn () => $correct->handle($w['centroUser'], $transfer->fresh(), 'Error de captura', 'Ana'))->toThrow(AuthorizationException::class)
+        ->and(fn () => $correct->handle($w['admin'], $transfer->fresh(), 'Error de captura', 'Ana', null, null, null, [$w['boxes'][0]->id]))->toThrow(InventoryException::class)
+        ->and(fn () => $correct->handle($w['admin'], $transfer->fresh(), 'x', 'Ana'))->toThrow(InventoryException::class);
+
+    $correct->handle($w['admin'], $transfer->fresh(), 'Error de captura', 'Ana', 'Nota nueva');
+    expect($transfer->exit->fresh()->requester_name)->toBe('Ana')->and($transfer->exit->fresh()->notes)->toBe('Nota nueva');
+
+    Livewire::actingAs($w['norteUser'])->test(TransferDetail::class, ['transfer' => $transfer])->assertDontSeeHtml('data-test="transfer-edit"')->call('openEdit')->assertForbidden();
+});
+
+it('lets the super administrator cancel an entry that nobody has touched and keeps others out', function () {
+    $w = detailsWorld();
+
+    Livewire::actingAs($w['centroUser'])->test(EntryDetail::class, ['entry' => $w['entry']])->assertDontSeeHtml('data-test="entry-reverse"')->call('openReverse')->assertForbidden();
+
+    Livewire::actingAs($w['admin'])->test(EntryDetail::class, ['entry' => $w['entry']])
+        ->assertSeeHtml('data-test="entry-reverse"')
+        ->call('openReverse')
+        ->set('reverseReason', 'x')
+        ->call('reverse')
+        ->assertHasErrors('reverseReason')
+        ->set('reverseReason', 'Se registró en la cámara equivocada')
+        ->call('reverse')
+        ->assertHasNoErrors()
+        ->assertSee('Entrada cancelada')
+        ->assertDontSeeHtml('data-test="entry-reverse"')
+        ->assertDontSeeHtml('data-test="entry-edit"');
+
+    expect($w['entry']->fresh()->status->value)->toBe('reversed')
+        ->and(Box::query()->where('status', BoxStatus::Available->value)->count())->toBe(0)
+        ->and(Box::query()->whereNotNull('voided_at')->count())->toBe(4)
+        ->and(app(ReverseEntry::class))->toBeInstanceOf(ReverseEntry::class);
+
+    expect(fn () => app(ReverseEntry::class)->handle($w['admin'], $w['entry']->fresh(), 'Otra vez cancelada'))->toThrow(InventoryException::class);
+});
+
+it('does not cancel an entry once any of its boxes has moved', function () {
+    $w = detailsWorld();
+    app(RegisterExit::class)->handle($w['centroUser'], $w['c1'], $w['sur'], null, 'Ana', [$w['boxes'][0]->id]);
+
+    expect(fn () => app(ReverseEntry::class)->handle($w['admin'], $w['entry']->fresh(), 'Intento de cancelar'))->toThrow(InventoryException::class)
+        ->and(fn () => app(ReverseEntry::class)->handle($w['centroUser'], $w['entry']->fresh(), 'Intento de cancelar'))->toThrow(AuthorizationException::class)
+        ->and($w['entry']->fresh()->status->value)->toBe('confirmed');
+});
+
+it('prints a ticket of a transfer right after creating it, without any money', function () {
+    $w = detailsWorld();
+
+    Livewire::actingAs($w['centroUser'])->test(CreateTransfer::class)
+        ->set('originChamberId', $w['c1']->id)
+        ->set('productId', $w['product']->id)
+        ->set('quantity', '2')
+        ->call('addProduct')
+        ->set('variantQuantities', [0 => '2', 1 => '0'])
+        ->call('confirmVariants')
+        ->set('destChamberId', $w['n1']->id)
+        ->set('requester', 'Ana')
+        ->call('save')
+        ->assertHasNoErrors();
+
+    $transfer = Transfer::query()->sole();
+    expect(session('print_ticket'))->toContain('/transferencias/'.$transfer->id.'/ticket')->toContain('auto=1');
+
+    $this->actingAs($w['centroUser'])->get(route('transfers.ticket', $transfer))
+        ->assertOk()
+        ->assertSee($transfer->reference)
+        ->assertSee('Pollo')
+        ->assertSee('2 cajas')
+        ->assertSee('Norte 1')
+        ->assertSee('Ana')
+        ->assertDontSee('123.45');
+
+    $this->actingAs($w['admin'])->get(route('transfers.ticket', $transfer))->assertOk();
+});
+
+it('shows the transfer detail page with its boxes, the price per box and the print button', function () {
+    $w = detailsWorld();
+    $transfer = app(RegisterExit::class)->handle($w['centroUser'], $w['c1'], $w['norte'], $w['n1'], 'Luis', [$w['boxes'][0]->id, $w['boxes'][1]->id])->transfer;
+
+    $this->actingAs($w['norteUser'])->get(route('transfers.show', $transfer))->assertOk()->assertSee($transfer->reference);
+
+    Livewire::actingAs($w['centroUser'])->test(TransferDetail::class, ['transfer' => $transfer])
+        ->assertSeeHtml('data-test="transfer-print"')
+        ->assertSeeHtml('data-test="transfer-boxes-table"')
+        ->assertSee($w['boxes'][0]->barcode)
+        ->assertSee('123.45')
+        ->assertDontSee('Costo histórico')
+        ->assertDontSeeHtml('data-test="transfer-receive"')
+        ->set('search', $w['boxes'][1]->barcode)
+        ->assertDontSee($w['boxes'][0]->barcode);
+
+    Livewire::actingAs($w['norteUser'])->test(TransferDetail::class, ['transfer' => $transfer])->assertSeeHtml('data-test="transfer-receive"')->assertDontSeeHtml('data-test="transfer-cancel"');
+    Livewire::actingAs($w['admin'])->test(TransferDetail::class, ['transfer' => $transfer])->assertSee('Costo histórico')->assertSeeHtml('data-test="transfer-cancel"');
+});
+
+it('receives and cancels a transfer from its detail page', function () {
+    $w = detailsWorld();
+    $transfer = app(RegisterExit::class)->handle($w['centroUser'], $w['c1'], $w['norte'], $w['n1'], 'Luis', [$w['boxes'][0]->id])->transfer;
+
+    Livewire::actingAs($w['centroUser'])->test(TransferDetail::class, ['transfer' => $transfer])->call('askReceive', $transfer->id)->assertForbidden();
+
+    Livewire::actingAs($w['norteUser'])->test(TransferDetail::class, ['transfer' => $transfer])
+        ->call('askReceive', $transfer->id)
+        ->call('askConfirmReceive')
+        ->call('receive')
+        ->assertHasNoErrors()
+        ->assertSee('Recibida completa y sin incidencias');
+
+    expect($transfer->fresh()->status)->toBe(TransferStatus::Received);
 });
 
 it('shows the print button on the detail of an entry and of an exit', function () {

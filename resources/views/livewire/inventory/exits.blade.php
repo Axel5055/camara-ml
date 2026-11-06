@@ -131,9 +131,6 @@
                         <flux:table.cell align="end">
                             <div class="flex justify-end gap-1">
                                 <flux:button size="sm" variant="ghost" icon-trailing="chevron-right" :href="route('exits.show', $exit)" wire:navigate>Detalle</flux:button>
-                                @if ($isSuperAdmin && $exit->status->value === 'confirmed')
-                                    <flux:button size="sm" variant="ghost" icon="arrow-uturn-left" wire:click="askReverse({{ $exit->id }})">Revertir</flux:button>
-                                @endif
                             </div>
                         </flux:table.cell>
                     </flux:table.row>
@@ -145,17 +142,4 @@
             </flux:table.rows>
         </flux:table>
     </div>
-
-    <flux:modal name="reverse-exit" class="md:w-96">
-        <form wire:submit="reverse" class="space-y-6">
-            <flux:heading size="lg">Revertir salida</flux:heading>
-            <flux:text>Las cajas vuelven a la cámara de origen. El movimiento original se conserva en el historial.</flux:text>
-            <flux:error name="operation" />
-            <flux:textarea wire:model="reason" label="Motivo" rows="3" required />
-            <div class="flex justify-end gap-2">
-                <flux:modal.close><flux:button variant="ghost">Cancelar</flux:button></flux:modal.close>
-                <flux:button type="submit" variant="danger">Revertir</flux:button>
-            </div>
-        </form>
-    </flux:modal>
 </section>

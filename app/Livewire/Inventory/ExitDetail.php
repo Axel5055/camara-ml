@@ -13,6 +13,7 @@ use App\Models\ExitItem;
 use App\Models\StockExit;
 use App\Models\User;
 use App\Services\Inventory\CorrectExit;
+use App\Services\Inventory\ReverseExit;
 use Flux\Flux;
 use Illuminate\Contracts\View\View;
 use Illuminate\Support\Facades\Auth;
@@ -42,6 +43,8 @@ class ExitDetail extends Component
 
     public string $editReason = '';
 
+    public string $reverseReason = '';
+
     public string $addBarcode = '';
 
     /** @var array<int, int|string> */
@@ -60,6 +63,31 @@ class ExitDetail extends Component
     public function updatingSearch(): void
     {
         $this->resetPage();
+    }
+
+    public function openReverse(): void
+    {
+        Gate::authorize('reverse', $this->stockExit);
+
+        $this->reverseReason = '';
+        $this->resetErrorBag();
+        Flux::modal('reverse-exit')->show();
+    }
+
+    public function reverse(ReverseExit $reverseExit): void
+    {
+        Gate::authorize('reverse', $this->stockExit);
+
+        $this->validate(['reverseReason' => ['required', 'string', 'min:5', 'max:500']], attributes: ['reverseReason' => 'motivo']);
+
+        $done = $this->attempt(fn () => $reverseExit->handle(Auth::user(), $this->stockExit, $this->reverseReason));
+
+        if ($done) {
+            $this->stockExit->refresh();
+            $this->resetPage();
+            Flux::modal('reverse-exit')->close();
+            Flux::toast(text: 'Salida revertida.', variant: 'success');
+        }
     }
 
     public function openEdit(): void
@@ -181,7 +209,7 @@ class ExitDetail extends Component
                 'editableItems' => $activeItems,
                 'canEditBoxes' => $transfer === null && ! $activeItems->contains(fn (ExitItem $item): bool => $item->kind === ExitItemKind::Partial),
                 'branches' => Branch::query()->where('is_active', true)->orWhere('id', $this->stockExit->dest_branch_id)->orderBy('name')->get(['id', 'name']),
-                'pendingBoxes' => Box::query()->with('product:id,name')->whereIn('id', array_map('intval', $this->addIds))->get(['id', 'barcode', 'product_id']),
+                'pendingBoxes' => Box::query()->with('product:id,name')->whereIn('id', array_map('intval', $this->addIds))->get(['id', 'barcode', 'product_id', 'initial_weight_kg', 'current_weight_kg', 'unit_cost_mxn']),
             ];
         }
 
@@ -203,6 +231,7 @@ class ExitDetail extends Component
                 ->paginate(25),
             'showCosts' => $showCosts,
             'canEdit' => $canEdit,
+            'canReverse' => $isConfirmed && Gate::allows('reverse', $this->stockExit),
             'corrections' => AuditLog::query()
                 ->where('event', 'exit.corrected')
                 ->where('auditable_type', $this->stockExit->getMorphClass())

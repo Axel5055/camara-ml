@@ -185,11 +185,46 @@
                 </div>
                 <div class="flex items-center gap-2">
                     <flux:button :href="route('entries.index')" wire:navigate variant="ghost">Cancelar</flux:button>
-                    <flux:button variant="primary" icon="check" wire:click="save" wire:loading.attr="disabled" wire:target="save" :disabled="$totals['boxes'] === 0">
+                    <flux:button variant="primary" icon="check" wire:click="askConfirm" wire:loading.attr="disabled" wire:target="askConfirm" :disabled="$totals['boxes'] === 0">
                         Registrar entrada
                     </flux:button>
                 </div>
             </div>
         </div>
     </div>
+
+    <flux:modal name="confirm-save" class="w-[calc(100vw-2rem)] md:w-[30rem]" data-test="confirm-save">
+        @php
+            $confirmChamber = $chambers->firstWhere('id', $chamberId);
+        @endphp
+
+        <div class="space-y-5">
+            <div class="flex items-start gap-3">
+                <div class="flex size-10 shrink-0 items-center justify-center rounded-lg bg-accent/10 text-accent-content">
+                    <flux:icon name="arrow-down-tray" class="size-5" />
+                </div>
+                <div class="min-w-0">
+                    <flux:heading size="lg">¿Registrar la entrada?</flux:heading>
+                    <flux:text class="text-sm">Revisa que los datos sean correctos antes de continuar.</flux:text>
+                </div>
+            </div>
+
+            <dl class="divide-y divide-zinc-200 rounded-lg border border-zinc-200 text-sm dark:divide-zinc-700 dark:border-zinc-700">
+                <div class="flex justify-between gap-4 px-3 py-2"><dt class="text-zinc-500">Cámara</dt><dd class="text-right font-medium">{{ $confirmChamber ? $confirmChamber->branch->name.' · '.$confirmChamber->name : '—' }}</dd></div>
+                <div class="flex justify-between gap-4 px-3 py-2"><dt class="text-zinc-500">Grupos</dt><dd class="font-medium tabular-nums">{{ number_format(count($summaries)) }}</dd></div>
+                <div class="flex justify-between gap-4 px-3 py-2"><dt class="text-zinc-500">Cajas</dt><dd class="font-medium tabular-nums">{{ number_format($totals['boxes']) }}</dd></div>
+                <div class="flex justify-between gap-4 px-3 py-2"><dt class="text-zinc-500">Peso total</dt><dd class="font-medium tabular-nums">{{ number_format((float) $totals['weight'], 3) }} kg</dd></div>
+                @if ($showCosts)
+                    <div class="flex justify-between gap-4 px-3 py-2"><dt class="text-zinc-500">Importe</dt><dd class="font-medium tabular-nums">${{ number_format((float) $totals['cost'], 2) }}</dd></div>
+                @endif
+            </dl>
+
+            <flux:text class="text-sm">Al confirmar se crearán las cajas con sus códigos de barras y se imprimirá el ticket. Si algún dato está mal, regresa y corrígelo antes de registrar.</flux:text>
+
+            <div class="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+                <flux:modal.close><flux:button variant="ghost" type="button" class="w-full sm:w-auto">Revisar de nuevo</flux:button></flux:modal.close>
+                <flux:button variant="primary" icon="check" wire:click="save" wire:loading.attr="disabled" wire:target="save" class="w-full sm:w-auto">Sí, registrar entrada</flux:button>
+            </div>
+        </div>
+    </flux:modal>
 </section>

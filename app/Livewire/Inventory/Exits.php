@@ -4,13 +4,9 @@ namespace App\Livewire\Inventory;
 
 use App\Enums\DocumentStatus;
 use App\Livewire\Concerns\InteractsWithChambers;
-use App\Livewire\Concerns\ReportsInventoryErrors;
 use App\Models\StockExit;
-use App\Services\Inventory\ReverseExit;
-use Flux\Flux;
 use Illuminate\Contracts\View\View;
 use Illuminate\Database\Eloquent\Builder;
-use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Gate;
 use Livewire\Attributes\Title;
 use Livewire\Component;
@@ -19,7 +15,7 @@ use Livewire\WithPagination;
 #[Title('Salidas')]
 class Exits extends Component
 {
-    use InteractsWithChambers, ReportsInventoryErrors, WithPagination;
+    use InteractsWithChambers, WithPagination;
 
     public ?int $chamberId = null;
 
@@ -31,10 +27,6 @@ class Exits extends Component
     public ?string $from = null;
 
     public ?string $to = null;
-
-    public ?int $reversingId = null;
-
-    public string $reason = '';
 
     public function updated(string $property): void
     {
@@ -71,29 +63,6 @@ class Exits extends Component
             ->when($this->to, fn (Builder $query, string $to) => $query->where('occurred_at', '<=', $to.' 23:59:59'));
     }
 
-    public function askReverse(int $id): void
-    {
-        Gate::authorize('reverse', StockExit::query()->findOrFail($id));
-
-        $this->reversingId = $id;
-        $this->reason = '';
-        $this->resetErrorBag();
-        Flux::modal('reverse-exit')->show();
-    }
-
-    public function reverse(ReverseExit $reverseExit): void
-    {
-        $exit = StockExit::query()->findOrFail($this->reversingId);
-        Gate::authorize('reverse', $exit);
-
-        $done = $this->attempt(fn () => $reverseExit->handle(Auth::user(), $exit, $this->reason));
-
-        if ($done) {
-            Flux::modal('reverse-exit')->close();
-            Flux::toast(text: 'Salida revertida.', variant: 'success');
-        }
-    }
-
     public function render(): View
     {
         $showCosts = Gate::allows('view-costs');
@@ -115,7 +84,6 @@ class Exits extends Component
             'summary' => $summary,
             'chambers' => $this->accessibleChambers(),
             'showCosts' => $showCosts,
-            'isSuperAdmin' => Auth::user()->isSuperAdmin(),
             'hasFilters' => $this->chamberId || trim($this->search) !== '' || $this->type !== 'all' || $this->from || $this->to,
         ]);
     }

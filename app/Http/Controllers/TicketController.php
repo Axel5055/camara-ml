@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\Entry;
 use App\Models\ExitItem;
 use App\Models\StockExit;
+use App\Models\Transfer;
 use Illuminate\Contracts\View\View;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
@@ -60,6 +61,32 @@ class TicketController extends Controller
             'destChamber' => $exit->destChamber()->value('name'),
             'registeredBy' => $exit->user()->value('name'),
             'hasPartial' => ExitItem::query()->where('exit_id', $exit->id)->where('is_active', true)->where('kind', 'partial')->exists(),
+        ]);
+    }
+
+    public function transfer(Transfer $transfer): View
+    {
+        Gate::authorize('view', $transfer);
+
+        $groups = DB::table('transfer_items')
+            ->join('boxes', 'boxes.id', '=', 'transfer_items.box_id')
+            ->join('products', 'products.id', '=', 'boxes.product_id')
+            ->where('transfer_items.transfer_id', $transfer->id)
+            ->whereNull('transfer_items.removed_at')
+            ->groupBy('products.id', 'products.name')
+            ->orderBy('products.name')
+            ->selectRaw('products.name as product, count(*) as boxes, sum(transfer_items.expected_weight_kg) as kg')
+            ->get();
+
+        $exit = $transfer->exit()->firstOrFail();
+
+        return view('tickets.transfer', [
+            'transfer' => $transfer,
+            'exit' => $exit,
+            'groups' => $groups,
+            'origin' => $transfer->originChamber()->with('branch:id,name')->firstOrFail(),
+            'dest' => $transfer->destChamber()->with('branch:id,name')->firstOrFail(),
+            'registeredBy' => $exit->user()->value('name'),
         ]);
     }
 }

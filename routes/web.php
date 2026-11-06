@@ -21,6 +21,7 @@ use App\Livewire\Inventory\EntryDetail;
 use App\Livewire\Inventory\ExitDetail;
 use App\Livewire\Inventory\Exits;
 use App\Livewire\Inventory\Stock;
+use App\Livewire\Inventory\TransferDetail;
 use App\Livewire\Inventory\Transfers;
 use App\Livewire\Reports\EntriesReport;
 use App\Livewire\Reports\ExitsReport;
@@ -50,6 +51,9 @@ Route::middleware(['auth', 'active', 'verified'])->group(function () {
 
     // Transfers: operated by warehouse users and super administrators; the read-only administrator can only list them.
     Route::livewire('inventario/transferencias', Transfers::class)->name('transfers.index')->can('viewAny', Transfer::class);
+    Route::livewire('inventario/transferencias/{transfer}', TransferDetail::class)->name('transfers.show');
+    Route::get('inventario/transferencias/{transfer}/ticket', [TicketController::class, 'transfer'])->name('transfers.ticket');
+    Route::get('inventario/transferencias/{transfer}/descargar/{format}', [RecordExportController::class, 'transfer'])->whereIn('format', ['pdf', 'xlsx'])->name('transfers.export');
 
     Route::livewire('inventario/entradas', Entries::class)->name('entries.index');
     Route::livewire('inventario/entradas/{entry}', EntryDetail::class)->name('entries.show');

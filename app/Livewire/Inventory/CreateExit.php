@@ -287,7 +287,10 @@ class CreateExit extends Component
         $this->resetErrorBag();
     }
 
-    public function save(RegisterExit $registerExit): void
+    /**
+     * Validates the captured data; shared by the confirmation step and the final save.
+     */
+    private function formIsValid(): bool
     {
         $this->validate([
             'originChamberId' => ['required', 'exists:chambers,id'],
@@ -297,7 +300,28 @@ class CreateExit extends Component
         ]);
 
         if ($this->lines === []) {
-            $this->addError('operation', 'Agrega al menos una caja a la salida.');
+            $this->addError('operation', $this->isTransfer() ? 'Agrega al menos una caja a la transferencia.' : 'Agrega al menos una caja a la salida.');
+
+            return false;
+        }
+
+        return true;
+    }
+
+    /**
+     * First step of registering: validate and ask the user for a final confirmation.
+     */
+    public function askConfirm(): void
+    {
+        if ($this->formIsValid()) {
+            Flux::modal('confirm-save')->show();
+        }
+    }
+
+    public function save(RegisterExit $registerExit): void
+    {
+        if (! $this->formIsValid()) {
+            Flux::modal('confirm-save')->close();
 
             return;
         }
@@ -323,8 +347,12 @@ class CreateExit extends Component
             );
         });
 
+        Flux::modal('confirm-save')->close();
+
         if ($done && $exit !== null) {
-            session()->flash('print_ticket', route('exits.ticket', ['exit' => $exit, 'auto' => 1]));
+            session()->flash('print_ticket', $this->isTransfer()
+                ? route('transfers.ticket', ['transfer' => $exit->transfer()->value('id'), 'auto' => 1])
+                : route('exits.ticket', ['exit' => $exit, 'auto' => 1]));
             Flux::toast(text: $this->isTransfer() ? 'Transferencia enviada.' : 'Salida registrada.', variant: 'success');
             $this->redirectRoute($this->isTransfer() ? 'transfers.index' : 'exits.index', navigate: true);
         }

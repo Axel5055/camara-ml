@@ -178,7 +178,7 @@
                 </div>
                 <div class="flex items-center gap-2">
                     <flux:button :href="route($isTransfer ? 'transfers.index' : 'exits.index')" wire:navigate variant="ghost">Cancelar</flux:button>
-                    <flux:button variant="primary" icon="check" wire:click="save" wire:loading.attr="disabled" wire:target="save" :disabled="$totals['boxes'] === 0">
+                    <flux:button variant="primary" icon="check" wire:click="askConfirm" wire:loading.attr="disabled" wire:target="askConfirm" :disabled="$totals['boxes'] === 0">
                         {{ $isTransfer ? 'Enviar transferencia' : 'Crear salida' }}
                     </flux:button>
                 </div>
@@ -215,7 +215,7 @@
 
             <flux:error name="variants" />
 
-            <div class="max-h-[50vh] space-y-3 overflow-y-auto pe-1">
+            <div class="max-h-[50vh] space-y-3 -mx-1.5 overflow-y-auto p-1.5">
                 @foreach ($variants as $index => $variant)
                     <div class="rounded-xl border border-zinc-200 p-4 dark:border-zinc-700 {{ (int) ($variantQuantities[$index] ?? 0) > 0 ? 'bg-accent/5 border-accent/40' : '' }}" wire:key="variant-{{ $index }}" data-test="variant-card">
                         <div class="grid grid-cols-2 gap-4">
@@ -245,5 +245,47 @@
                 <flux:button type="submit" variant="primary" icon="plus">Agregar a {{ $word }}</flux:button>
             </div>
         </form>
+    </flux:modal>
+
+    <flux:modal name="confirm-save" class="w-[calc(100vw-2rem)] md:w-[30rem]" data-test="confirm-save">
+        <div class="space-y-5">
+            <div class="flex items-start gap-3">
+                <div class="flex size-10 shrink-0 items-center justify-center rounded-lg bg-accent/10 text-accent-content">
+                    <flux:icon name="{{ $isTransfer ? 'arrows-right-left' : 'arrow-up-tray' }}" class="size-5" />
+                </div>
+                <div class="min-w-0">
+                    <flux:heading size="lg">{{ $isTransfer ? '¿Enviar la transferencia?' : '¿Registrar la salida?' }}</flux:heading>
+                    <flux:text class="text-sm">Revisa que los datos sean correctos antes de continuar.</flux:text>
+                </div>
+            </div>
+
+            <dl class="divide-y divide-zinc-200 rounded-lg border border-zinc-200 text-sm dark:divide-zinc-700 dark:border-zinc-700">
+                <div class="flex justify-between gap-4 px-3 py-2"><dt class="text-zinc-500">Origen</dt><dd class="text-right font-medium">{{ $originName ?? '—' }}</dd></div>
+                <div class="flex justify-between gap-4 px-3 py-2"><dt class="text-zinc-500">Destino</dt><dd class="text-right font-medium">{{ $destName ?? '—' }}</dd></div>
+                <div class="flex justify-between gap-4 px-3 py-2"><dt class="text-zinc-500">Solicitante</dt><dd class="text-right font-medium">{{ $requester !== '' ? $requester : '—' }}</dd></div>
+                <div class="flex justify-between gap-4 px-3 py-2"><dt class="text-zinc-500">Cajas</dt><dd class="font-medium tabular-nums">{{ number_format($totals['boxes']) }}</dd></div>
+                <div class="flex justify-between gap-4 px-3 py-2"><dt class="text-zinc-500">Peso total</dt><dd class="font-medium tabular-nums">{{ number_format((float) $totals['weight'], 3) }} kg</dd></div>
+                @if ($showCosts)
+                    <div class="flex justify-between gap-4 px-3 py-2"><dt class="text-zinc-500">Costo histórico</dt><dd class="font-medium tabular-nums">${{ number_format((float) $totals['cost'], 2) }}</dd></div>
+                @endif
+            </dl>
+
+            @if ($isTransfer)
+                <div class="rounded-lg bg-amber-50 p-3 text-sm text-amber-800 dark:bg-amber-950/40 dark:text-amber-200">
+                    Las cajas saldrán de la cámara de origen y quedarán en tránsito hasta que la cámara destino confirme la recepción.
+                </div>
+            @else
+                <div class="rounded-lg bg-amber-50 p-3 text-sm text-amber-800 dark:bg-amber-950/40 dark:text-amber-200">
+                    La salida se confirma al instante: las cajas dejan las existencias de la cámara de origen.
+                </div>
+            @endif
+
+            <flux:text class="text-sm">Se imprimirá el ticket. Si algún dato está mal, regresa y corrígelo antes de continuar.</flux:text>
+
+            <div class="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+                <flux:modal.close><flux:button variant="ghost" type="button" class="w-full sm:w-auto">Revisar de nuevo</flux:button></flux:modal.close>
+                <flux:button variant="primary" icon="check" wire:click="save" wire:loading.attr="disabled" wire:target="save" class="w-full sm:w-auto">{{ $isTransfer ? 'Sí, enviar transferencia' : 'Sí, registrar salida' }}</flux:button>
+            </div>
+        </div>
     </flux:modal>
 </section>

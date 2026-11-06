@@ -9,7 +9,7 @@ use App\Livewire\Admin\Products;
 use App\Livewire\Admin\Users;
 use App\Livewire\Dashboard;
 use App\Livewire\Inventory\BoxHistory;
-use App\Livewire\Inventory\Exits;
+use App\Livewire\Inventory\ExitDetail;
 use App\Livewire\Inventory\Transfers;
 use App\Models\AuditLog;
 use App\Models\Box;
@@ -126,8 +126,10 @@ it('hides the create buttons and the reversal from the administrator', function 
 
     $this->actingAs($w['superAdmin']);
     $this->get(route('entries.index'))->assertSee('Nueva entrada');
-    $this->get(route('exits.index'))->assertSee('Nueva salida')->assertSee('Revertir');
+    $this->get(route('exits.index'))->assertSee('Nueva salida')->assertDontSee('Revertir');
+    $this->get(route('exits.show', $w['exit']))->assertSee('Revertir');
     $this->get(route('admin.products'))->assertSee('wire:click="create"', false);
+    $this->actingAs($w['admin'])->get(route('exits.show', $w['exit']))->assertDontSee('Revertir');
 });
 
 it('shows each role only its own menu', function () {
@@ -160,7 +162,7 @@ it('blocks every write action of the catalogs on the server', function () {
 it('blocks reversing exits and withdrawing boxes for the administrator', function () {
     $w = readOnlyWorld();
 
-    Livewire::actingAs($w['admin'])->test(Exits::class)->call('askReverse', $w['exit']->id)->assertForbidden();
+    Livewire::actingAs($w['admin'])->test(ExitDetail::class, ['exit' => $w['exit']])->call('openReverse')->assertForbidden();
 
     $component = Livewire::actingAs($w['admin'])->test(BoxHistory::class, ['box' => $w['boxes'][1]]);
     $component->assertDontSee('Retiro parcial');
@@ -262,7 +264,7 @@ it('lets the administrator list every transfer but not receive or cancel any', f
     expect($component->viewData('transfers')->total())->toBe(1);
     $component->assertDontSee('askReceive', false)->assertDontSee('askCancel', false);
     $component->call('askReceive', $transfer->id)->assertForbidden();
-    Livewire::actingAs($w['admin'])->test(Transfers::class)->call('showDetail', $transfer->id)->assertOk()->assertSee('Salida')->assertSee('En tránsito desde hace');
+    $this->actingAs($w['admin'])->get(route('transfers.show', $transfer))->assertOk()->assertSee('Salida')->assertSee('En tránsito desde hace')->assertDontSee('askReceive', false)->assertDontSee('askCancel', false);
 
     $gate = Gate::forUser($w['admin']);
     expect($gate->allows('view', $transfer))->toBeTrue()

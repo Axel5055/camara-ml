@@ -18,6 +18,16 @@ class TransferPolicy
         return $user->canAccessChamber($transfer->originChamber) || $user->canAccessChamber($transfer->destChamber);
     }
 
+    /**
+     * Only a super administrator corrects a transfer: boxes, destination and date while it is in transit,
+     * requester and notes also once received.
+     */
+    public function correct(User $user, Transfer $transfer): bool
+    {
+        return $user->isSuperAdmin()
+            && in_array($transfer->status, [TransferStatus::InTransit, TransferStatus::Received], true);
+    }
+
     public function receive(User $user, Transfer $transfer): bool
     {
         return $transfer->status === TransferStatus::InTransit && $user->canAccessChamber($transfer->destChamber);

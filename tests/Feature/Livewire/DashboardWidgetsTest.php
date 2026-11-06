@@ -14,6 +14,7 @@ use App\Livewire\Dashboard;
 use App\Livewire\Inventory\Entries;
 use App\Livewire\Inventory\Exits;
 use App\Livewire\Inventory\Stock;
+use App\Livewire\Inventory\TransferDetail;
 use App\Livewire\Inventory\Transfers;
 use App\Livewire\NotificationsBell;
 use App\Models\Box;
@@ -573,7 +574,7 @@ it('notifies the destination of incoming transfers and the origin of its pending
         ->and(Livewire::actingAs($w['centroUser'])->test(NotificationsBell::class)->viewData('transfers'))->toHaveCount(0);
 });
 
-it('stores the reception comments and shows the whole story of a transfer in the detail modal', function () {
+it('stores the reception comments and shows the whole story of a transfer in the detail page', function () {
     $w = widgetsWorld();
     stockUp($w, $w['pollo'], 4);
     $boxIds = Box::query()->orderBy('id')->pluck('id')->all();
@@ -581,8 +582,7 @@ it('stores the reception comments and shows the whole story of a transfer in the
     $transfer = $exit->transfer;
     $itemIds = $transfer->items()->pluck('box_id')->all();
 
-    Livewire::actingAs($w['norteUser'])->test(Transfers::class)
-        ->call('showDetail', $transfer->id)
+    Livewire::actingAs($w['norteUser'])->test(TransferDetail::class, ['transfer' => $transfer])
         ->assertSee('En tránsito desde hace')
         ->call('askReceive', $transfer->id)
         ->set('received', [$itemIds[0], $itemIds[1]])
@@ -593,18 +593,17 @@ it('stores the reception comments and shows the whole story of a transfer in the
 
     expect($transfer->fresh()->receive_notes)->toBe('La caja tres no venía en el camión');
 
-    $detail = Livewire::actingAs($w['admin'])->test(Transfers::class)
-        ->call('showDetail', $transfer->id)
+    $detail = Livewire::actingAs($w['admin'])->test(TransferDetail::class, ['transfer' => $transfer])
         ->assertSee('Recibida con 2 incidencias')
         ->assertSee('La caja tres no venía en el camión')
         ->assertSee('Diferencia de peso')
         ->assertSee('Faltante')
         ->assertSee('Peso esperado 10.000 kg, recibido 9.500 kg');
-    expect($detail->viewData('detail')->incidents)->toHaveCount(2);
+    expect($detail->viewData('incidents'))->toHaveCount(2);
 
     $complete = app(RegisterExit::class)->handle($w['centroUser'], $w['c1'], $w['norte'], $w['n1'], 'Ana', [$boxIds[3]])->transfer;
     app(ReceiveTransfer::class)->handle($w['norteUser'], $complete, [$boxIds[3]]);
-    Livewire::actingAs($w['norteUser'])->test(Transfers::class)->call('showDetail', $complete->id)->assertSee('Recibida completa y sin incidencias');
+    Livewire::actingAs($w['norteUser'])->test(TransferDetail::class, ['transfer' => $complete])->assertSee('Recibida completa y sin incidencias');
 
     Livewire::actingAs($w['norteUser'])->test(Transfers::class)->assertSee('2 incidencias');
 });
@@ -618,7 +617,9 @@ it('keeps the transfer detail from users whose chambers are not involved', funct
     $surUser = User::factory()->warehouse($w['sur'])->create();
     $surUser->chambers()->attach($sur);
 
-    Livewire::actingAs($surUser)->test(Transfers::class)->call('showDetail', $transfer->id)->assertForbidden();
+    Livewire::actingAs($surUser)->test(TransferDetail::class, ['transfer' => $transfer])->assertForbidden();
+    $this->actingAs($surUser)->get(route('transfers.ticket', $transfer))->assertForbidden();
+    $this->actingAs($surUser)->get(route('transfers.export', [$transfer, 'pdf']))->assertForbidden();
 });
 
 it('shows the cancel button of a transfer only to the super administrator', function () {

@@ -31,6 +31,14 @@ class EntryPolicy
         return false;
     }
 
+    /**
+     * Cancelling a confirmed entry. Only super administrators (granted globally).
+     */
+    public function reverse(User $user, Entry $entry): bool
+    {
+        return false;
+    }
+
     public function delete(User $user, Entry $entry): bool
     {
         return false;
