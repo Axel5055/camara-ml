@@ -59,6 +59,7 @@ class CreateEntry extends Component
     {
         $this->occurredAt = now()->format('Y-m-d\TH:i');
         $this->clientToken = (string) Str::uuid();
+        $this->chamberId = $this->onlyChamberId();
     }
 
     public function addLine(BarcodeGenerator $barcodes): void

@@ -25,6 +25,21 @@ trait InteractsWithChambers
     }
 
     /**
+     * The chamber to preselect in a form: the only one assigned to the user. With several (or all of them, as
+     * administrators have) the user chooses.
+     */
+    protected function onlyChamberId(): ?int
+    {
+        if (Auth::user()->seesAllChambers()) {
+            return null;
+        }
+
+        $chambers = $this->accessibleChambers();
+
+        return $chambers->count() === 1 ? $chambers->first()->id : null;
+    }
+
+    /**
      * Ids of every chamber the user may see, or null when they may see all of them.
      *
      * @return array<int, int>|null

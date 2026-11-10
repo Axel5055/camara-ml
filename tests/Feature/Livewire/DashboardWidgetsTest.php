@@ -302,7 +302,15 @@ it('shows the total value on the stock screen and recalculates it with the filte
         ->set('chamberId', $w['n1']->id)
         ->assertSee('$200.00');
 
-    Livewire::actingAs($w['centroUser'])->test(Stock::class)->assertSee('$300.00');
+    Livewire::actingAs($w['centroUser'])->test(Stock::class)
+        ->assertDontSeeHtml('data-test="stock-value"')
+        ->assertDontSee('Valor total')
+        ->assertDontSee('$300.00')
+        ->assertSee('$100.00');
+
+    Livewire::actingAs($w['centroUser'])->test(Stock::class)->set('view', 'summary')
+        ->assertDontSee('Valor total')
+        ->assertDontSee('$300.00');
 });
 
 it('searches the stock by barcode or by product name', function () {

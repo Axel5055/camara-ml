@@ -71,6 +71,7 @@ class CreateExit extends Component
     {
         $this->occurredAt = now()->format('Y-m-d\TH:i');
         $this->clientToken = (string) Str::uuid();
+        $this->originChamberId = $this->onlyChamberId();
     }
 
     public function updatedOriginChamberId(): void

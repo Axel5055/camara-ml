@@ -102,7 +102,7 @@
     <flux:modal name="category-form" class="md:w-96">
         <form wire:submit="save" class="space-y-6">
             <flux:heading size="lg">{{ $editingId ? 'Editar categoría' : 'Nueva categoría' }}</flux:heading>
-            <flux:input wire:model="name" label="Nombre" required />
+            <flux:input wire:model="name" label="Nombre" class="uppercase" required />
             <flux:switch wire:model="is_active" label="Activa" />
             <div class="flex justify-end gap-2">
                 <flux:modal.close><flux:button variant="ghost">Cancelar</flux:button></flux:modal.close>

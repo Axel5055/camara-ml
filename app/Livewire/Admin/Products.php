@@ -9,6 +9,7 @@ use Flux\Flux;
 use Illuminate\Contracts\View\View;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Facades\Gate;
+use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 use Livewire\Attributes\Title;
 use Livewire\Component;
@@ -39,6 +40,35 @@ class Products extends Component
     public bool $is_active = true;
 
     public bool $codeLocked = false;
+
+    /**
+     * The code of a new product follows its name: the same first nine letters the barcodes are built with.
+     * When another product already has it, a number is appended.
+     */
+    private function suggestCode(string $name): string
+    {
+        $letters = substr((string) preg_replace('/[^A-Z]/', '', strtoupper(Str::ascii($name))), 0, 9);
+
+        if ($letters === '') {
+            return '';
+        }
+
+        $base = str_pad($letters, 2, 'X');
+        $code = $base;
+
+        for ($suffix = 2; Product::query()->where('code', $code)->exists(); $suffix++) {
+            $code = $base.$suffix;
+        }
+
+        return $code;
+    }
+
+    public function updatedName(): void
+    {
+        if ($this->editingId === null) {
+            $this->code = $this->suggestCode($this->name);
+        }
+    }
 
     public function updated(string $property): void
     {
@@ -101,13 +131,23 @@ class Products extends Component
         $product = $this->editingId ? Product::query()->findOrFail($this->editingId) : new Product;
         Gate::authorize($product->exists ? 'update' : 'create', $product->exists ? $product : Product::class);
 
+        $this->name = mb_strtoupper(trim($this->name));
+
+        if (! $product->exists) {
+            $this->code = $this->suggestCode($this->name);
+        }
+
         $validated = $this->validate([
             'category_id' => ['required', Rule::exists('categories', 'id')],
             'code' => ['required', 'regex:/^[A-Za-z0-9]{2,30}$/', Rule::unique('products', 'code')->ignore($product->id)],
             'name' => ['required', 'string', 'max:255'],
             'description' => ['nullable', 'string', 'max:2000'],
             'is_active' => ['boolean'],
-        ]);
+        ], ['code.required' => 'El nombre debe tener al menos una letra para generar el código.']);
+
+        if (! Gate::allows('update', Product::class)) {
+            $validated['is_active'] = true;
+        }
 
         $validated['code'] = strtoupper($validated['code']);
         $validated['description'] = $validated['description'] ?: null;
@@ -140,7 +180,8 @@ class Products extends Component
             ->first();
 
         return view('livewire.admin.products', [
-            'canManage' => Gate::allows('create', Product::class),
+            'canCreate' => Gate::allows('create', Product::class),
+            'canManage' => Gate::allows('update', Product::class),
             'products' => $this->searchedProducts()
                 ->with('category')
                 ->withCount(['boxes as stocked_boxes_count' => fn (Builder $query) => $query->where('status', 'available')])

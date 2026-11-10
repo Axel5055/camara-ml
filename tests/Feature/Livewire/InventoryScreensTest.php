@@ -60,7 +60,7 @@ it('requires sign in and keeps administration away from warehouse users', functi
     $this->get(route('admin.users'))->assertRedirect(route('login'));
 
     $this->actingAs($w['centroUser']);
-    foreach (['admin.branches', 'admin.chambers', 'admin.categories', 'admin.products', 'admin.users'] as $name) {
+    foreach (['admin.branches', 'admin.chambers', 'admin.categories', 'admin.users'] as $name) {
         $this->get(route($name))->assertForbidden();
     }
 });
@@ -721,6 +721,7 @@ it('validates and asks for confirmation before registering an entry, an exit and
     $boxesBefore = Box::query()->count();
 
     Livewire::actingAs($w['centroUser'])->test(CreateEntry::class)
+        ->set('chamberId', null)
         ->call('askConfirm')
         ->assertHasErrors(['chamberId' => 'required'])
         ->set('chamberId', $w['c1']->id)

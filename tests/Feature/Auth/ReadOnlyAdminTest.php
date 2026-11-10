@@ -97,7 +97,7 @@ it('keeps the administrator out of every route that registers or manages anythin
 it('keeps warehouse users out of the catalogs and super administrators in everywhere', function () {
     $w = readOnlyWorld();
 
-    $this->actingAs($w['centroUser'])->get(route('admin.products'))->assertForbidden();
+    $this->actingAs($w['centroUser'])->get(route('admin.categories'))->assertForbidden();
 
     $this->actingAs($w['superAdmin']);
     foreach (['entries.create', 'exits.create', 'transfers.index', 'admin.users', 'admin.branches', 'reports.inventory', 'admin.audit'] as $name) {

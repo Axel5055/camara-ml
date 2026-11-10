@@ -1,7 +1,7 @@
 <section class="w-full space-y-6">
     <x-page-header icon="shopping-bag" title="Productos" description="Catálogo de productos y sus códigos.">
-        @if ($canManage)
-            <flux:button variant="primary" icon="plus" wire:click="create">Nuevo producto</flux:button>
+        @if ($canCreate)
+            <flux:button variant="primary" icon="plus" wire:click="create" data-test="product-create">Nuevo producto</flux:button>
         @endif
     </x-page-header>
 
@@ -126,10 +126,21 @@
                     <flux:select.option :value="$category->id">{{ $category->name }}</flux:select.option>
                 @endforeach
             </flux:select>
-            <flux:input wire:model="code" label="Código (prefijo del código de barras)" :disabled="$codeLocked" required />
-            <flux:input wire:model="name" label="Nombre" required />
+            <flux:input wire:model.live.debounce.300ms="name" label="Nombre" class="uppercase" required data-test="product-name" />
+            @if ($editingId)
+                <flux:input wire:model="code" label="Código (prefijo del código de barras)" :disabled="$codeLocked" required />
+            @else
+                <flux:field>
+                    <flux:label>Código (prefijo del código de barras)</flux:label>
+                    <flux:input wire:model="code" readonly placeholder="Se genera con el nombre" class="font-mono" data-test="product-code" />
+                    <flux:description>Se sugiere solo a partir del nombre y no se puede editar.</flux:description>
+                    <flux:error name="code" />
+                </flux:field>
+            @endif
             <flux:textarea wire:model="description" label="Información adicional" rows="2" />
-            <flux:switch wire:model="is_active" label="Activo" />
+            @if ($canManage)
+                <flux:switch wire:model="is_active" label="Activo" />
+            @endif
             <div class="flex justify-end gap-2">
                 <flux:modal.close><flux:button variant="ghost">Cancelar</flux:button></flux:modal.close>
                 <flux:button type="submit" variant="primary">Guardar</flux:button>

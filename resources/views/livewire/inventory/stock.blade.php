@@ -1,12 +1,12 @@
 <section class="w-full space-y-6">
-    <x-page-header icon="archive-box" title="Existencias" description="Consulta las cajas disponibles, su peso y su valor." />
+    <x-page-header icon="archive-box" title="Existencias" :description="$showCosts ? 'Consulta las cajas disponibles, su peso y su valor.' : 'Consulta las cajas disponibles, su peso y su precio por caja.'" />
 
     <div class="inline-flex rounded-lg border border-zinc-200 bg-white p-1 shadow-xs dark:border-zinc-700 dark:bg-zinc-800" data-test="stock-view-toggle">
         <flux:button size="sm" :variant="$isSummary ? 'ghost' : 'primary'" icon="queue-list" wire:click="showView('boxes')">Por caja</flux:button>
         <flux:button size="sm" :variant="$isSummary ? 'primary' : 'ghost'" icon="building-storefront" wire:click="showView('summary')" data-test="stock-view-summary">Concentrado por cámara</flux:button>
     </div>
 
-    <div class="grid gap-4 lg:grid-cols-3">
+    <div class="grid gap-4 {{ $showCosts ? 'lg:grid-cols-3' : 'lg:grid-cols-2' }}">
         <div class="flex items-center gap-4 rounded-xl border border-zinc-200 bg-white p-4 shadow-xs dark:border-zinc-700 dark:bg-zinc-800" data-test="stock-boxes">
             <div class="flex size-12 shrink-0 items-center justify-center rounded-xl bg-indigo-500/10 text-indigo-600 dark:text-indigo-300">
                 <flux:icon.archive-box class="size-6" />
@@ -27,16 +27,18 @@
             </div>
         </div>
 
-        <div class="flex items-center gap-4 rounded-xl border border-zinc-200 bg-white p-4 shadow-xs dark:border-zinc-700 dark:bg-zinc-800" data-test="stock-value">
-            <div class="flex size-12 shrink-0 items-center justify-center rounded-xl bg-emerald-500/10 text-emerald-600 dark:text-emerald-300">
-                <flux:icon.banknotes class="size-6" />
+        @if ($showCosts)
+            <div class="flex items-center gap-4 rounded-xl border border-zinc-200 bg-white p-4 shadow-xs dark:border-zinc-700 dark:bg-zinc-800" data-test="stock-value">
+                <div class="flex size-12 shrink-0 items-center justify-center rounded-xl bg-emerald-500/10 text-emerald-600 dark:text-emerald-300">
+                    <flux:icon.banknotes class="size-6" />
+                </div>
+                <div class="min-w-0">
+                    <div class="text-xs font-medium uppercase tracking-wide text-zinc-500">Valor total</div>
+                    <div class="text-2xl font-semibold text-zinc-900 dark:text-white">${{ number_format((float) $summary->value, 2) }} <span class="text-sm font-normal text-zinc-500">MXN</span></div>
+                    <div class="text-xs text-zinc-500">a costo, según el peso actual</div>
+                </div>
             </div>
-            <div class="min-w-0">
-                <div class="text-xs font-medium uppercase tracking-wide text-zinc-500">Valor total</div>
-                <div class="text-2xl font-semibold text-zinc-900 dark:text-white">${{ number_format((float) $summary->value, 2) }} <span class="text-sm font-normal text-zinc-500">MXN</span></div>
-                <div class="text-xs text-zinc-500">a costo, según el peso actual</div>
-            </div>
-        </div>
+        @endif
     </div>
 
     <div class="space-y-4 rounded-xl border border-zinc-200 bg-white p-4 shadow-xs dark:border-zinc-700 dark:bg-zinc-800">

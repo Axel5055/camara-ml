@@ -2,6 +2,7 @@
 
 use App\Livewire\Inventory\CreateEntry;
 use App\Livewire\Inventory\CreateExit;
+use App\Livewire\Inventory\CreateTransfer;
 use App\Models\Box;
 use App\Models\Branch;
 use App\Models\Chamber;
@@ -154,5 +155,20 @@ it('starts the entry and exit forms without a chamber and shows each missing cha
     $html = $entry->call('save')->assertHasErrors(['chamberId' => 'required'])->html();
     expect(substr_count($html, 'La cámara es un dato obligatorio.'))->toBe(1);
 
+    Livewire::actingAs($w['user'])->test(CreateExit::class)->assertSet('originChamberId', $w['c1']->id);
+});
+
+it('preselects the only chamber assigned to a warehouse user in entries, exits and transfers', function () {
+    $w = barcodeWorld();
+
+    Livewire::actingAs($w['user'])->test(CreateEntry::class)->assertSet('chamberId', $w['c1']->id);
+    Livewire::actingAs($w['user'])->test(CreateExit::class)->assertSet('originChamberId', $w['c1']->id);
+    Livewire::actingAs($w['user'])->test(CreateTransfer::class)->assertSet('originChamberId', $w['c1']->id);
+
+    $second = Chamber::factory()->for($w['centro'])->create();
+    $w['user']->chambers()->attach($second);
+
+    Livewire::actingAs($w['user'])->test(CreateEntry::class)->assertSet('chamberId', null);
     Livewire::actingAs($w['user'])->test(CreateExit::class)->assertSet('originChamberId', null);
+    Livewire::actingAs($w['super'])->test(CreateEntry::class)->assertSet('chamberId', null);
 });

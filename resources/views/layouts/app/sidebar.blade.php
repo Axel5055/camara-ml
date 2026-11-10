@@ -15,6 +15,9 @@
                 <flux:sidebar.group heading="Inventario" class="grid">
                     <flux:sidebar.item icon="home" :href="route('dashboard')" :current="request()->routeIs('dashboard')" wire:navigate>Panel</flux:sidebar.item>
                     <flux:sidebar.item icon="archive-box" :href="route('stock')" :current="request()->routeIs('stock', 'boxes.show')" wire:navigate>Existencias</flux:sidebar.item>
+                    @if (auth()->user()->role === \App\Enums\UserRole::Warehouse)
+                        <flux:sidebar.item icon="shopping-bag" :href="route('admin.products')" :current="request()->routeIs('admin.products')" wire:navigate data-test="nav-products">Productos</flux:sidebar.item>
+                    @endif
                     <div x-data='{ open: {{ $warehouseNav ? "true" : '$persist(true).as("nav-entries")' }} }' data-test="nav-entries">
                         <flux:sidebar.item as="button" type="button" icon="arrow-down-tray" x-on:click="open = ! open" x-bind:aria-expanded="open" class="w-full">
                             <span class="flex w-full items-center justify-between gap-2">

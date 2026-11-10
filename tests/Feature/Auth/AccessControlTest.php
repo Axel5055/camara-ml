@@ -98,7 +98,7 @@ test('warehouse users cannot administer, adjust, audit or see costs', function (
     $user = $w['centroUser'];
 
     expect($user->can('create', Branch::class))->toBeFalse()
-        ->and($user->can('create', Product::class))->toBeFalse()
+        ->and($user->can('update', Product::class))->toBeFalse()
         ->and($user->can('update', $w['c1']))->toBeFalse()
         ->and($user->can('viewAny', User::class))->toBeFalse()
         ->and($user->can('create', User::class))->toBeFalse()

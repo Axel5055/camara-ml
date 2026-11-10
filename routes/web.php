@@ -72,12 +72,14 @@ Route::middleware(['auth', 'active', 'verified'])->group(function () {
     Route::livewire('inventario/salidas/{exit}', ExitDetail::class)->name('exits.show');
     Route::get('inventario/salidas/{exit}/descargar/{format}', [RecordExportController::class, 'exit'])->whereIn('format', ['pdf', 'xlsx'])->name('exits.export');
 
+    // Products: warehouse users can also open them to register new ones; administrators only look.
+    Route::livewire('administracion/productos', Products::class)->name('admin.products')->middleware('can:view-products');
+
     // Catalogs: super administrators manage them, administrators can only look at them.
     Route::middleware('can:view-catalogs')->prefix('administracion')->group(function () {
         Route::livewire('sucursales', Branches::class)->name('admin.branches');
         Route::livewire('camaras', Chambers::class)->name('admin.chambers');
         Route::livewire('categorias', Categories::class)->name('admin.categories');
-        Route::livewire('productos', Products::class)->name('admin.products');
     });
 
     // Super administrators only.

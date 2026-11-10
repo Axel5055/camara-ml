@@ -82,6 +82,8 @@ class Categories extends Component
         $category = $this->editingId ? Category::query()->findOrFail($this->editingId) : new Category;
         Gate::authorize($category->exists ? 'update' : 'create', $category->exists ? $category : Category::class);
 
+        $this->name = mb_strtoupper(trim($this->name));
+
         $validated = $this->validate([
             'name' => ['required', 'string', 'max:255', Rule::unique('categories', 'name')->ignore($category->id)],
             'is_active' => ['boolean'],
