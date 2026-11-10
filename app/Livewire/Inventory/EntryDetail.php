@@ -8,6 +8,7 @@ use App\Livewire\Concerns\ReportsInventoryErrors;
 use App\Models\AuditLog;
 use App\Models\Box;
 use App\Models\Entry;
+use App\Models\EntryRequest;
 use App\Services\Inventory\CorrectEntry;
 use App\Services\Inventory\ReverseEntry;
 use Flux\Flux;
@@ -149,6 +150,7 @@ class EntryDetail extends Component
                 ->orderBy('id')
                 ->paginate(25),
             'showCosts' => Gate::allows('view-costs'),
+            'authorization' => EntryRequest::query()->where('entry_id', $this->entry->id)->with('decider:id,name')->first(),
             'canEdit' => $isConfirmed && Gate::allows('update', $this->entry),
             'canReverse' => $isConfirmed && Gate::allows('reverse', $this->entry),
             'reversal' => $isConfirmed ? null : AuditLog::query()

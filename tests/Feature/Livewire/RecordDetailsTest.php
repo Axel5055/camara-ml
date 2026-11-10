@@ -302,7 +302,7 @@ it('prints a ticket of an exit grouped by product without costs', function () {
 it('queues the ticket to print right after registering an entry or an exit', function () {
     $w = detailsWorld();
 
-    Livewire::actingAs($w['centroUser'])->test(CreateEntry::class)
+    Livewire::actingAs($w['admin'])->test(CreateEntry::class)
         ->set('chamberId', $w['c1']->id)
         ->set('productId', $w['product']->id)->set('boxesCount', '2')->set('weight', '10')->set('cost', '50')
         ->call('addLine')

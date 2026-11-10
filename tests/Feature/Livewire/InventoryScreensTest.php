@@ -211,7 +211,7 @@ it('captures several groups in the list and registers the entry', function () {
     $w = screensWorld();
     $before = Box::query()->count();
 
-    Livewire::actingAs($w['centroUser'])->test(CreateEntry::class)
+    Livewire::actingAs($w['admin'])->test(CreateEntry::class)
         ->set('chamberId', $w['c1']->id)
         ->set('productId', $w['product']->id)
         ->set('boxesCount', '2')
@@ -226,8 +226,8 @@ it('captures several groups in the list and registers the entry', function () {
         ->set('weight', '12.5')
         ->set('cost', '60')
         ->call('addLine')
-        ->assertDontSee('Importe')
-        ->assertDontSee('$160.00')
+        ->assertSee('Importe')
+        ->assertSee('$160.00')
         ->assertSee('32.500')
         ->call('save')
         ->assertHasNoErrors()
@@ -281,7 +281,7 @@ it('shows validation and business errors on the entry form', function () {
 it('accepts manual barcodes with their origin from the entry form', function () {
     $w = screensWorld();
 
-    Livewire::actingAs($w['centroUser'])->test(CreateEntry::class)
+    Livewire::actingAs($w['admin'])->test(CreateEntry::class)
         ->set('chamberId', $w['c1']->id)
         ->set('productId', $w['product']->id)->set('weight', '10')->set('cost', '10')
         ->set('manual', 'etiq-77')->set('origin', 'Proveedor X')
@@ -450,6 +450,51 @@ it('sends a transfer, then receives it from the destination chamber screen', fun
         ->assertHasNoErrors();
 
     expect($box->fresh()->current_chamber_id)->toBe($w['n1']->id);
+});
+
+it('offers to print the ticket with a number of copies when confirming the reception of a transfer', function () {
+    $w = screensWorld();
+    $box = $w['boxes'][0];
+
+    app(RegisterExit::class)->handle($w['centroUser'], $w['c1'], $w['norte'], $w['n1'], 'Norte', [$box->id]);
+    $transfer = Transfer::query()->firstOrFail();
+
+    Livewire::actingAs($w['norteUser'])->test(Transfers::class)
+        ->call('askReceive', $transfer->id)
+        ->assertSet('printReceiveTicket', false)
+        ->assertSeeHtml('data-test="receive-print"')
+        ->set('printReceiveTicket', true)
+        ->set('ticketCopies', '3')
+        ->call('receive')
+        ->assertHasNoErrors()
+        ->assertDispatched('print-ticket', url: route('transfers.ticket', ['transfer' => $transfer, 'auto' => 1, 'copies' => 3]));
+});
+
+it('shows in the menu how many transfers are waiting to be received', function () {
+    $w = screensWorld();
+    $box = $w['boxes'][0];
+
+    $this->actingAs($w['norteUser'])->get(route('dashboard'))->assertDontSeeHtml('data-test="nav-pending-transfers"');
+
+    app(RegisterExit::class)->handle($w['centroUser'], $w['c1'], $w['norte'], $w['n1'], 'Norte', [$box->id]);
+
+    $this->actingAs($w['norteUser'])->get(route('dashboard'))->assertSeeHtml('data-test="nav-pending-transfers"');
+    $this->actingAs($w['admin'])->get(route('dashboard'))->assertSeeHtml('data-test="nav-pending-transfers"');
+    $this->actingAs($w['centroUser'])->get(route('dashboard'))->assertDontSeeHtml('data-test="nav-pending-transfers"');
+});
+
+it('does not print anything when receiving a transfer unless asked to', function () {
+    $w = screensWorld();
+    $box = $w['boxes'][0];
+
+    app(RegisterExit::class)->handle($w['centroUser'], $w['c1'], $w['norte'], $w['n1'], 'Norte', [$box->id]);
+    $transfer = Transfer::query()->firstOrFail();
+
+    Livewire::actingAs($w['norteUser'])->test(Transfers::class)
+        ->call('askReceive', $transfer->id)
+        ->call('receive')
+        ->assertHasNoErrors()
+        ->assertNotDispatched('print-ticket');
 });
 
 it('lets only the super administrator cancel a transfer in transit', function () {
@@ -689,7 +734,7 @@ it('validates and asks for confirmation before registering an entry, an exit and
         ->call('askConfirm')
         ->assertHasNoErrors()
         ->assertSeeHtml('data-test="confirm-save"')
-        ->assertSee('Sí, registrar entrada');
+        ->assertSee('Sí, enviar solicitud');
 
     expect(Box::query()->count())->toBe($boxesBefore);
 

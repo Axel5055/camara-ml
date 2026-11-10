@@ -19,6 +19,7 @@ use App\Livewire\Inventory\CreateExit;
 use App\Livewire\Inventory\CreateTransfer;
 use App\Livewire\Inventory\Entries;
 use App\Livewire\Inventory\EntryDetail;
+use App\Livewire\Inventory\EntryRequests;
 use App\Livewire\Inventory\ExitDetail;
 use App\Livewire\Inventory\Exits;
 use App\Livewire\Inventory\Stock;
@@ -61,6 +62,7 @@ Route::middleware(['auth', 'active', 'verified'])->group(function () {
     Route::get('inventario/transferencias/{transfer}/ticket', [TicketController::class, 'transfer'])->name('transfers.ticket');
     Route::get('inventario/transferencias/{transfer}/descargar/{format}', [RecordExportController::class, 'transfer'])->whereIn('format', ['pdf', 'xlsx'])->name('transfers.export');
 
+    Route::livewire('inventario/entradas/solicitudes', EntryRequests::class)->name('entry-requests.index');
     Route::livewire('inventario/entradas', Entries::class)->name('entries.index');
     Route::livewire('inventario/entradas/{entry}', EntryDetail::class)->name('entries.show');
     Route::get('inventario/entradas/{entry}/descargar/{format}', [RecordExportController::class, 'entry'])->whereIn('format', ['pdf', 'xlsx'])->name('entries.export');

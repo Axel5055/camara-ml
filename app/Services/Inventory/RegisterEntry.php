@@ -157,10 +157,12 @@ class RegisterEntry extends InventoryOperation
     }
 
     /**
+     * Validates and normalizes the groups of boxes; also used to check an entry request before it is stored.
+     *
      * @param  array<int, array<string, mixed>>  $groups
      * @return list<array{product_id: int, boxes_count: int, weight_per_box_kg: string, unit_cost_mxn: string, manual_barcodes: list<string>, manual_barcode_origin: string|null}>
      */
-    private function normalizeGroups(array $groups): array
+    public function normalizeGroups(array $groups): array
     {
         if ($groups === []) {
             throw new InventoryException('La entrada necesita al menos un grupo de cajas.');

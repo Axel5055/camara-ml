@@ -126,7 +126,7 @@
                                     @if ($line['manual'] !== [])
                                         <flux:badge size="sm" color="amber" class="mt-1">{{ count($line['manual']) }} código(s) manual(es) · {{ $line['origin'] }}</flux:badge>
                                     @endif
-                                    <details class="mt-1">
+                                    <details class="mt-1" @if ($needsApproval) hidden @endif>
                                         <summary class="cursor-pointer text-xs text-zinc-500">Ver códigos de barras</summary>
                                         <div class="mt-1 space-y-0.5 font-mono text-xs">
                                             @if ($line['barcodes'])
@@ -172,7 +172,7 @@
                 </flux:table>
             </div>
 
-            @if ($summaries !== [])
+            @if ($summaries !== [] && ! $needsApproval)
                 <flux:callout icon="information-circle" color="zinc">
                     <flux:callout.text>Estos son los códigos de barras que se asignarán a las cajas. El consecutivo se confirma al registrar la entrada: si otro usuario registra antes, los números pueden recorrerse.</flux:callout.text>
                 </flux:callout>
@@ -180,13 +180,13 @@
 
             <div class="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-zinc-200 bg-white p-4 shadow-xs dark:border-zinc-700 dark:bg-zinc-800">
                 <div class="flex items-center gap-2 text-sm text-zinc-500">
-                    <flux:icon name="printer" class="size-5" />
-                    Al registrar se imprimirá el ticket de la entrada.
+                    <flux:icon name="{{ $needsApproval ? 'shield-check' : 'printer' }}" class="size-5" />
+                    {{ $needsApproval ? 'La entrada se registrará cuando un administrador la autorice.' : 'Al registrar se imprimirá el ticket de la entrada.' }}
                 </div>
                 <div class="flex items-center gap-2">
                     <flux:button :href="route('entries.index')" wire:navigate variant="ghost">Cancelar</flux:button>
                     <flux:button variant="primary" icon="check" wire:click="askConfirm" wire:loading.attr="disabled" wire:target="askConfirm" :disabled="$totals['boxes'] === 0">
-                        Registrar entrada
+                        {{ $needsApproval ? 'Solicitar autorización' : 'Registrar entrada' }}
                     </flux:button>
                 </div>
             </div>
@@ -204,7 +204,7 @@
                     <flux:icon name="arrow-down-tray" class="size-5" />
                 </div>
                 <div class="min-w-0">
-                    <flux:heading size="lg">¿Registrar la entrada?</flux:heading>
+                    <flux:heading size="lg">{{ $needsApproval ? '¿Enviar la solicitud de entrada?' : '¿Registrar la entrada?' }}</flux:heading>
                     <flux:text class="text-sm">Revisa que los datos sean correctos antes de continuar.</flux:text>
                 </div>
             </div>
@@ -219,13 +219,17 @@
                 @endif
             </dl>
 
-            <flux:text class="text-sm">Al confirmar se crearán las cajas con sus códigos de barras y se imprimirá el ticket. Si algún dato está mal, regresa y corrígelo antes de registrar.</flux:text>
+            @if ($needsApproval)
+                <flux:text class="text-sm" data-test="entry-needs-approval">Se avisará a los administradores. Las cajas y sus códigos de barras se crean hasta que la autoricen; si la rechazan, no se registra nada.</flux:text>
+            @else
+                <flux:text class="text-sm">Al confirmar se crearán las cajas con sus códigos de barras y se imprimirá el ticket. Si algún dato está mal, regresa y corrígelo antes de registrar.</flux:text>
 
-            <flux:input type="number" min="1" max="10" step="1" inputmode="numeric" wire:model="ticketCopies" label="Copias del ticket a imprimir" data-test="ticket-copies" />
+                <flux:input type="number" min="1" max="10" step="1" inputmode="numeric" wire:model="ticketCopies" label="Copias del ticket a imprimir" data-test="ticket-copies" />
+            @endif
 
             <div class="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
                 <flux:modal.close><flux:button variant="ghost" type="button" class="w-full sm:w-auto">Revisar de nuevo</flux:button></flux:modal.close>
-                <flux:button variant="primary" icon="check" wire:click="save" wire:loading.attr="disabled" wire:target="save" class="w-full sm:w-auto">Sí, registrar entrada</flux:button>
+                <flux:button variant="primary" icon="check" wire:click="save" wire:loading.attr="disabled" wire:target="save" class="w-full sm:w-auto">{{ $needsApproval ? 'Sí, enviar solicitud' : 'Sí, registrar entrada' }}</flux:button>
             </div>
         </div>
     </flux:modal>

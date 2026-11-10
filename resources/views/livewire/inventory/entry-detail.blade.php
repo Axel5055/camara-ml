@@ -26,6 +26,13 @@
         </div>
     @endif
 
+    @if ($authorization?->decider)
+        <div class="flex items-center gap-2 rounded-xl border border-emerald-300/60 bg-emerald-50 p-3 text-sm text-emerald-800 dark:border-emerald-500/30 dark:bg-emerald-500/10 dark:text-emerald-200" data-test="entry-authorized">
+            <flux:icon name="shield-check" class="size-5 shrink-0" />
+            Autorizada por {{ $authorization->decider->name }} el {{ $authorization->decided_at->format('d/m/Y H:i') }}.
+        </div>
+    @endif
+
     @if ($corrections->isNotEmpty())
         <div class="rounded-xl border border-amber-300/60 bg-amber-50 p-4 text-sm dark:border-amber-500/30 dark:bg-amber-500/10" data-test="entry-corrections">
             <div class="flex items-center gap-2 font-medium text-amber-800 dark:text-amber-200">

@@ -8,6 +8,7 @@ use App\Models\Branch;
 use App\Models\Category;
 use App\Models\Chamber;
 use App\Models\Entry;
+use App\Models\EntryRequest;
 use App\Models\Product;
 use App\Models\StockExit;
 use App\Models\Transfer;
@@ -51,7 +52,7 @@ class AppServiceProvider extends ServiceProvider
 
             return match ($user->role) {
                 // Receiving and cancelling depend on the state of the transfer, so the policy decides them.
-                UserRole::SuperAdmin => in_array($ability, ['receive', 'cancel'], true) ? null : true,
+                UserRole::SuperAdmin => in_array($ability, ['receive', 'cancel', 'decide'], true) ? null : true,
                 UserRole::Admin => $this->readOnlyAdminMay($ability, $arguments) ? true : null,
                 UserRole::Warehouse => null,
             };
@@ -78,7 +79,7 @@ class AppServiceProvider extends ServiceProvider
         $subject = $arguments[0] ?? null;
 
         return in_array(is_object($subject) ? $subject::class : $subject, [
-            Entry::class, StockExit::class, Transfer::class, Box::class, Chamber::class, Branch::class, Category::class, Product::class,
+            Entry::class, EntryRequest::class, StockExit::class, Transfer::class, Box::class, Chamber::class, Branch::class, Category::class, Product::class,
         ], true);
     }
 

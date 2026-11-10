@@ -2,6 +2,7 @@
 
 namespace App\Livewire\Inventory;
 
+use App\Enums\UserRole;
 use App\Exceptions\InventoryException;
 use App\Livewire\Concerns\ChoosesTicketCopies;
 use App\Livewire\Concerns\InteractsWithChambers;
@@ -10,6 +11,7 @@ use App\Models\Chamber;
 use App\Models\Product;
 use App\Services\Barcodes\BarcodeGenerator;
 use App\Services\Inventory\RegisterEntry;
+use App\Services\Inventory\RequestEntry;
 use App\Support\Decimal;
 use Carbon\CarbonImmutable;
 use Flux\Flux;
@@ -169,7 +171,7 @@ class CreateEntry extends Component
         }
     }
 
-    public function save(RegisterEntry $registerEntry): void
+    public function save(RegisterEntry $registerEntry, RequestEntry $requestEntry): void
     {
         if (! $this->formIsValid()) {
             Flux::modal('confirm-save')->close();
@@ -185,6 +187,12 @@ class CreateEntry extends Component
             'manual_barcodes' => $line['manual'],
             'manual_barcode_origin' => $line['origin'],
         ], $this->lines);
+
+        if ($this->needsApproval()) {
+            $this->sendRequest($requestEntry, $payload);
+
+            return;
+        }
 
         $entry = null;
 
@@ -205,6 +213,38 @@ class CreateEntry extends Component
             session()->flash('print_ticket', route('entries.ticket', ['entry' => $entry, 'auto' => 1, 'copies' => $this->ticketCopies()]));
             Flux::toast(text: 'Entrada registrada.', variant: 'success');
             $this->redirectRoute('entries.index', navigate: true);
+        }
+    }
+
+    /**
+     * Warehouse users do not register entries directly: an administrator has to authorize them first.
+     */
+    private function needsApproval(): bool
+    {
+        return Auth::user()->role === UserRole::Warehouse;
+    }
+
+    /**
+     * @param  array<int, array<string, mixed>>  $payload
+     */
+    private function sendRequest(RequestEntry $requestEntry, array $payload): void
+    {
+        $sent = $this->attempt(function () use ($requestEntry, $payload): void {
+            $requestEntry->handle(
+                Auth::user(),
+                Chamber::query()->findOrFail($this->chamberId),
+                $payload,
+                CarbonImmutable::parse($this->occurredAt),
+                $this->notes ?: null,
+                $this->clientToken,
+            );
+        });
+
+        Flux::modal('confirm-save')->close();
+
+        if ($sent) {
+            Flux::toast(text: 'Solicitud enviada. Un administrador debe autorizarla para registrar la entrada.', variant: 'success');
+            $this->redirectRoute('entry-requests.index', navigate: true);
         }
     }
 
@@ -265,6 +305,7 @@ class CreateEntry extends Component
             'summaries' => $summaries,
             'totals' => ['boxes' => $totalBoxes, 'weight' => $totalWeight, 'cost' => $totalCost],
             'showCosts' => Gate::allows('view-costs'),
+            'needsApproval' => $this->needsApproval(),
         ]);
     }
 }

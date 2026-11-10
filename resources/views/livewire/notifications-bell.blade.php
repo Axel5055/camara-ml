@@ -2,7 +2,7 @@
     wire:poll.60s
     class="relative"
     data-test="notifications-bell"
-    x-data="{ open: false, tab: '{{ $canSeeTransfers && $transfers->isNotEmpty() ? 'transfers' : 'stock' }}' }"
+    x-data="{ open: false, tab: '{{ $requestsToAttend > 0 ? 'requests' : ($canSeeTransfers && $transfers->isNotEmpty() ? 'transfers' : ($requests->isNotEmpty() ? 'requests' : 'stock')) }}' }"
     x-on:keydown.escape.window="open = false"
     x-on:click.outside="open = false"
 >
@@ -23,24 +23,53 @@
             <flux:heading size="sm">Notificaciones</flux:heading>
         </div>
 
-        @if ($canSeeTransfers)
-            <div class="flex gap-1 px-1 pb-2" role="tablist">
+        <div class="flex gap-1 px-1 pb-2" role="tablist">
+            <button type="button" role="tab" x-on:click="tab = 'requests'" x-bind:class="tab === 'requests' ? 'bg-zinc-200 text-zinc-900 dark:bg-zinc-600 dark:text-white' : 'text-zinc-500 hover:bg-zinc-100 dark:hover:bg-zinc-600/60'" class="flex flex-1 items-center justify-center gap-2 rounded-md px-3 py-1.5 text-sm font-medium" data-test="bell-tab-requests">
+                Entradas
+                @if ($requestsToAttend > 0)
+                    <span class="rounded-full bg-amber-600 px-1.5 text-[10px] font-semibold leading-4 text-white">{{ $requestsToAttend }}</span>
+                @endif
+            </button>
+            @if ($canSeeTransfers)
                 <button type="button" role="tab" x-on:click="tab = 'transfers'" x-bind:class="tab === 'transfers' ? 'bg-zinc-200 text-zinc-900 dark:bg-zinc-600 dark:text-white' : 'text-zinc-500 hover:bg-zinc-100 dark:hover:bg-zinc-600/60'" class="flex flex-1 items-center justify-center gap-2 rounded-md px-3 py-1.5 text-sm font-medium" data-test="bell-tab-transfers">
                     Transferencias
                     @if ($transfers->isNotEmpty())
                         <span class="rounded-full bg-indigo-600 px-1.5 text-[10px] font-semibold leading-4 text-white">{{ $transfers->count() }}</span>
                     @endif
                 </button>
+            @endif
                 <button type="button" role="tab" x-on:click="tab = 'stock'" x-bind:class="tab === 'stock' ? 'bg-zinc-200 text-zinc-900 dark:bg-zinc-600 dark:text-white' : 'text-zinc-500 hover:bg-zinc-100 dark:hover:bg-zinc-600/60'" class="flex flex-1 items-center justify-center gap-2 rounded-md px-3 py-1.5 text-sm font-medium" data-test="bell-tab-stock">
                     Stock bajo
                     @if ($items->isNotEmpty())
                         <span class="rounded-full bg-red-600 px-1.5 text-[10px] font-semibold leading-4 text-white">{{ $items->count() }}</span>
                     @endif
                 </button>
-            </div>
-        @endif
+        </div>
 
         <div class="my-1 h-px bg-zinc-200 dark:bg-zinc-600"></div>
+
+        <div x-show="tab === 'requests'" style="display: none;" class="max-h-80 overflow-y-auto" data-test="bell-requests">
+            <flux:text class="px-3 pt-2 text-xs">{{ $canSeeTransfers ? 'Tus solicitudes de entrada.' : 'Entradas que esperan tu autorización.' }}</flux:text>
+            @forelse ($requests as $request)
+                <a href="{{ route('entry-requests.index', ['estado' => $request->isPending() ? 'pending' : 'all']) }}" wire:navigate wire:key="bell-request-{{ $request->id }}" x-on:click="open = false" class="block rounded-md px-3 py-2 text-sm hover:bg-zinc-100 dark:hover:bg-zinc-600/60">
+                    <div class="flex w-full items-center justify-between gap-3">
+                        <div class="min-w-0">
+                            <div class="truncate font-medium text-zinc-900 dark:text-white">
+                                @if ($canSeeTransfers)
+                                    {{ $request->total_boxes }} {{ $request->total_boxes === 1 ? 'caja' : 'cajas' }} · {{ $request->chamber->name }}
+                                @else
+                                    {{ $request->user->name }} pide registrar {{ $request->total_boxes }} {{ $request->total_boxes === 1 ? 'caja' : 'cajas' }}
+                                @endif
+                            </div>
+                            <div class="truncate text-xs text-zinc-500 dark:text-zinc-300">{{ $request->chamber->name }} · {{ $request->chamber->branch->name }} · {{ $request->created_at->format('d/m/Y H:i') }}</div>
+                        </div>
+                        <flux:badge size="sm" :color="$request->status->color()">{{ $request->status->label() }}</flux:badge>
+                    </div>
+                </a>
+            @empty
+                <div class="px-3 py-6 text-center text-sm text-zinc-500">No hay solicitudes de entrada.</div>
+            @endforelse
+        </div>
 
         @if ($canSeeTransfers)
             <div x-show="tab === 'transfers'" style="display: none;" class="max-h-80 overflow-y-auto" data-test="bell-transfers">

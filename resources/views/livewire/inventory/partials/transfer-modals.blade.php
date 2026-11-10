@@ -151,6 +151,13 @@
 
             <flux:text class="text-sm">Al confirmar, las cajas que llegaron pasan a las existencias de la cámara destino y la recepción queda registrada.</flux:text>
 
+            <div class="space-y-3 rounded-lg border border-zinc-200 p-3 dark:border-zinc-700">
+                <flux:checkbox wire:model.live="printReceiveTicket" label="Imprimir ticket al confirmar" data-test="receive-print" />
+                @if ($printReceiveTicket)
+                    <flux:input type="number" min="1" max="10" step="1" inputmode="numeric" wire:model="ticketCopies" label="Copias del ticket a imprimir" data-test="receive-ticket-copies" />
+                @endif
+            </div>
+
             <div class="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
                 <flux:modal.close><flux:button variant="ghost" type="button" class="w-full sm:w-auto">Revisar de nuevo</flux:button></flux:modal.close>
                 <flux:button variant="primary" icon="check" wire:click="receive" wire:loading.attr="disabled" wire:target="receive" class="w-full sm:w-auto">Sí, confirmar recepción</flux:button>

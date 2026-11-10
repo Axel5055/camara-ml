@@ -15,9 +15,11 @@ use Illuminate\Support\Facades\Gate;
  */
 trait HandlesTransferActions
 {
-    use ReportsInventoryErrors;
+    use ChoosesTicketCopies, ReportsInventoryErrors;
 
     public ?int $actingId = null;
+
+    public bool $printReceiveTicket = false;
 
     /** @var array<int, int|string> box ids physically received */
     public array $received = [];
@@ -45,6 +47,8 @@ trait HandlesTransferActions
         $this->received = $transfer->items->pluck('box_id')->all();
         $this->weights = [];
         $this->receiveNotes = '';
+        $this->printReceiveTicket = false;
+        $this->ticketCopies = 1;
         $this->resetErrorBag();
         Flux::modal('receive-transfer')->show();
     }
@@ -102,6 +106,10 @@ trait HandlesTransferActions
         if ($done) {
             Flux::modal('receive-transfer')->close();
             Flux::toast(text: 'Transferencia recibida.', variant: 'success');
+
+            if ($this->printReceiveTicket) {
+                $this->dispatch('print-ticket', url: route('transfers.ticket', ['transfer' => $transfer, 'auto' => 1, 'copies' => $this->ticketCopies()]));
+            }
         }
     }
 
