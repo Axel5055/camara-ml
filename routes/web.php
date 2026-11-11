@@ -37,6 +37,13 @@ use Illuminate\Support\Facades\Route;
 Route::get('/', fn () => auth()->check() ? redirect()->route('dashboard') : view('welcome'))->name('home');
 Route::get('app-version', AppVersionController::class)->name('app-version');
 
+Route::middleware(['auth', 'active'])->get('bienvenida', function () {
+    return view('welcome-user', [
+        'userName' => auth()->user()->name,
+        'destination' => session('welcome_destination', route('dashboard')),
+    ]);
+})->name('welcome.user');
+
 Route::middleware(['auth', 'active', 'verified'])->group(function () {
     // Every signed-in role: the panel and the stock and entry/exit records (scoped to what each role may see).
     Route::livewire('dashboard', Dashboard::class)->name('dashboard');
