@@ -29,7 +29,7 @@ class ExitsReport extends Component
             ->join('categories', 'categories.id', '=', 'products.category_id')
             ->join('chambers as origin', 'origin.id', '=', 'exits.origin_chamber_id')
             ->join('branches as dest', 'dest.id', '=', 'exits.dest_branch_id')
-            ->leftJoin('chambers as dest_chamber', 'dest_chamber.id', '=', 'exits.dest_chamber_id')
+            ->leftJoin('chambers as dest_chamber', 'dest_chamber.id', '=', DB::raw('coalesce(exits.dest_chamber_id, exits.delivery_chamber_id)'))
             ->join('users', 'users.id', '=', 'exits.user_id')
             ->where('exits.status', 'confirmed')
             ->where('exit_items.is_active', true)

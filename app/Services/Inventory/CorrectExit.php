@@ -123,6 +123,7 @@ class CorrectExit extends InventoryOperation
                 'occurred_at' => $newDate,
                 'notes' => $newNotes,
                 'dest_branch_id' => $newBranch->id,
+                'delivery_chamber_id' => $newBranch->id === $locked->dest_branch_id ? $locked->delivery_chamber_id : null,
                 'total_boxes' => $active->count(),
                 'total_weight_kg' => $active->reduce(fn (string $sum, ExitItem $item): string => Decimal::add($sum, $item->weight_out_kg, Decimal::WEIGHT_SCALE), '0.000'),
                 'total_cost_mxn' => $active->reduce(fn (string $sum, ExitItem $item): string => Decimal::add($sum, $item->cost_out_mxn, Decimal::MONEY_SCALE), '0.00'),

@@ -319,6 +319,72 @@ it('adds boxes to an exit by quantity, oldest first, and registers it', function
         ->and($third->fresh()->status)->toBe(BoxStatus::Available);
 });
 
+it('only enables the chamber select for destination branches that have chambers', function () {
+    $w = screensWorld();
+    $norteExtra = Chamber::factory()->for($w['norte'])->create(['name' => 'Norte 2']);
+    Chamber::factory()->for($w['norte'])->create(['name' => 'Norte inactiva', 'is_active' => false]);
+
+    $component = Livewire::actingAs($w['centroUser'])->test(CreateExit::class)
+        ->set('originChamberId', $w['c1']->id)
+        ->assertSeeHtml('data-test="exit-delivery-chamber"');
+
+    expect($component->instance()->render()->getData()['deliveryChambers'])->toHaveCount(0);
+
+    $component->set('destBranchId', $w['sur']->id);
+    expect($component->instance()->render()->getData()['deliveryChambers'])->toHaveCount(0);
+
+    $component->set('destBranchId', $w['norte']->id);
+    expect($component->instance()->render()->getData()['deliveryChambers']->pluck('name')->all())->toBe(['Norte 1', 'Norte 2']);
+
+    $component->set('deliveryChamberId', $norteExtra->id)->set('destBranchId', $w['sur']->id);
+    expect($component->get('deliveryChamberId'))->toBeNull();
+});
+
+it('records the chamber of the destination branch on a direct exit without creating a transfer', function () {
+    $w = screensWorld();
+
+    Livewire::actingAs($w['centroUser'])->test(CreateExit::class)
+        ->set('originChamberId', $w['c1']->id)
+        ->set('productId', $w['product']->id)
+        ->set('quantity', '2')
+        ->call('addProduct')
+        ->set('destBranchId', $w['norte']->id)
+        ->set('deliveryChamberId', $w['n1']->id)
+        ->set('requester', 'Ana López')
+        ->call('save')
+        ->assertHasNoErrors()
+        ->assertRedirect(route('exits.index'));
+
+    $exit = StockExit::query()->firstOrFail();
+
+    expect($exit->delivery_chamber_id)->toBe($w['n1']->id)
+        ->and($exit->dest_chamber_id)->toBeNull()
+        ->and($exit->status->value)->toBe('confirmed')
+        ->and(Transfer::query()->count())->toBe(0)
+        ->and(Box::query()->where('status', BoxStatus::Dispatched)->count())->toBe(2);
+
+    $this->actingAs($w['centroUser'])->get(route('exits.index'))->assertSee('Entrega a sucursal · Cámara Norte 1');
+    $this->actingAs($w['centroUser'])->get(route('exits.show', $exit))->assertSee('Cámara Norte 1 · entrega directa');
+});
+
+it('keeps the exit direct when no chamber is chosen and rejects a chamber of another branch', function () {
+    $w = screensWorld();
+
+    $form = fn () => Livewire::actingAs($w['centroUser'])->test(CreateExit::class)
+        ->set('originChamberId', $w['c1']->id)
+        ->set('productId', $w['product']->id)
+        ->set('quantity', '1')
+        ->call('addProduct')
+        ->set('destBranchId', $w['sur']->id)
+        ->set('requester', 'Ana López');
+
+    $form()->set('deliveryChamberId', $w['n1']->id)->call('save')->assertHasErrors('deliveryChamberId');
+    expect(StockExit::query()->count())->toBe(0);
+
+    $form()->call('save')->assertHasNoErrors();
+    expect(StockExit::query()->firstOrFail()->delivery_chamber_id)->toBeNull();
+});
+
 it('warns when the requested quantity exceeds the available boxes', function () {
     $w = screensWorld();
 
@@ -628,7 +694,7 @@ it('offers only other chambers as transfer destination and keeps the read-only a
     $this->actingAs(User::factory()->create(['role' => 'admin']))->get(route('transfers.create'))->assertForbidden();
 });
 
-it('keeps the entries, exits and transfers submenus always open for warehouse and read-only users', function () {
+it('keeps the entries, exits and transfers submenus always open for warehouse users only', function () {
     $w = screensWorld();
 
     $html = $this->actingAs($w['centroUser'])->get(route('dashboard'))->assertOk()->getContent();
@@ -637,10 +703,11 @@ it('keeps the entries, exits and transfers submenus always open for warehouse an
 
     $readOnly = User::factory()->create(['role' => 'admin']);
     $readOnlyHtml = $this->actingAs($readOnly)->get(route('dashboard'))->getContent();
-    expect(substr_count($readOnlyHtml, 'open: true'))->toBe(3);
+    expect(substr_count($readOnlyHtml, 'open: true'))->toBe(0)
+        ->and(substr_count($readOnlyHtml, '(window.navOpen ??= {})'))->toBeGreaterThanOrEqual(3);
 
     $this->actingAs($w['admin'])->get(route('dashboard'))->assertOk()
-        ->assertSee('$persist(true).as(', false);
+        ->assertSee('(window.navOpen ??= {}).transfers ?? false', false);
 });
 
 it('shows the computed amounts of a new entry only to users who may see costs', function () {

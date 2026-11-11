@@ -15,6 +15,7 @@ use Carbon\CarbonImmutable;
 use Flux\Flux;
 use Illuminate\Contracts\View\View;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Str;
@@ -32,6 +33,9 @@ class CreateExit extends Component
     public ?int $originChamberId = null;
 
     public ?int $destBranchId = null;
+
+    /** Chamber of the destination branch that receives the delivery; informational only, the exit is always direct. */
+    public ?int $deliveryChamberId = null;
 
     public string $requester = '';
 
@@ -74,6 +78,11 @@ class CreateExit extends Component
         $this->originChamberId = $this->onlyChamberId();
     }
 
+    public function updatedDestBranchId(): void
+    {
+        $this->deliveryChamberId = null;
+    }
+
     public function updatedOriginChamberId(): void
     {
         $this->lines = [];
@@ -88,7 +97,36 @@ class CreateExit extends Component
      */
     protected function destinationRules(): array
     {
-        return ['destBranchId' => ['required', 'exists:branches,id']];
+        return [
+            'destBranchId' => ['required', 'exists:branches,id'],
+            'deliveryChamberId' => ['nullable', 'integer', 'exists:chambers,id'],
+        ];
+    }
+
+    /**
+     * Chambers of the destination branch that can be recorded on a direct delivery.
+     *
+     * @return Collection<int, Chamber>
+     */
+    protected function deliveryChambers(): Collection
+    {
+        if ($this->isTransfer() || $this->destBranchId === null) {
+            return new Collection;
+        }
+
+        return Chamber::query()
+            ->where('branch_id', $this->destBranchId)
+            ->where('is_active', true)
+            ->when($this->originChamberId, fn (Builder $query, int $id) => $query->where('id', '!=', $id))
+            ->orderBy('name')->get();
+    }
+
+    /**
+     * The chosen delivery chamber, only if it really is one of the offered chambers of the destination branch.
+     */
+    protected function deliveryChamber(): ?Chamber
+    {
+        return $this->deliveryChamberId === null ? null : $this->deliveryChambers()->firstWhere('id', $this->deliveryChamberId);
     }
 
     /**
@@ -111,7 +149,7 @@ class CreateExit extends Component
      */
     protected function destinationViewData(): array
     {
-        return [];
+        return ['deliveryChambers' => $this->deliveryChambers()];
     }
 
     /**
@@ -301,6 +339,12 @@ class CreateExit extends Component
             'notes' => ['nullable', 'string', 'max:2000'],
         ]);
 
+        if (! $this->isTransfer() && $this->deliveryChamberId !== null && $this->deliveryChamber() === null) {
+            $this->addError('deliveryChamberId', 'La cámara elegida no es una cámara disponible de la sucursal destino.');
+
+            return false;
+        }
+
         if ($this->lines === []) {
             $this->addError('operation', $this->isTransfer() ? 'Agrega al menos una caja a la transferencia.' : 'Agrega al menos una caja a la salida.');
 
@@ -346,6 +390,7 @@ class CreateExit extends Component
                 $occurredAt,
                 $this->notes ?: null,
                 $this->clientToken,
+                $this->deliveryChamber(),
             );
         });
 

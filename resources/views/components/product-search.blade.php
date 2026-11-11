@@ -9,12 +9,25 @@
 
 <div
     {{ $attributes }}
+    data-items="{{ json_encode($products->map(fn ($p) => ['id' => $p->id, 'name' => $p->name, 'code' => (string) ($p->code ?? '')])->values()) }}"
     x-data="{
         model: @js($model),
         items: @js($products->map(fn ($p) => ['id' => $p->id, 'name' => $p->name, 'code' => (string) ($p->code ?? '')])->values()),
         query: '',
         open: false,
         active: 0,
+        refreshing: false,
+        async refresh() {
+            if (this.refreshing) { return; }
+            this.refreshing = true;
+            try {
+                await $wire.$refresh();
+                this.items = JSON.parse(this.$root.dataset.items);
+                this.sync();
+            } finally {
+                this.refreshing = false;
+            }
+        },
         get matches() {
             const q = this.query.trim().toLowerCase();
             return this.items.filter((i) => ! q || i.name.toLowerCase().includes(q) || i.code.toLowerCase().includes(q)).slice(0, 50);
@@ -42,7 +55,9 @@
 >
     <flux:field>
         <flux:label>{{ $label }}</flux:label>
+        <div class="flex items-center gap-2">
         <flux:input
+            class="flex-1"
             x-model="query"
             x-on:input="typed()"
             x-on:focus="open = true"
@@ -55,6 +70,10 @@
             autocomplete="off"
             data-test="{{ $dataTest }}"
         />
+        <flux:button type="button" icon="arrow-path" x-on:click="refresh()" x-bind:disabled="refreshing"
+            x-bind:class="refreshing ? '[&_svg]:animate-spin' : ''"
+            title="Actualizar la lista de productos" aria-label="Actualizar la lista de productos" data-test="{{ $dataTest }}-refresh" />
+        </div>
     </flux:field>
     <ul
         x-show="open"

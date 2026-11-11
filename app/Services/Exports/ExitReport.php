@@ -18,7 +18,7 @@ class ExitReport
     {
         $origin = $exit->originChamber()->with('branch:id,name')->first();
         $transfer = $exit->transfer()->first();
-        $destChamber = $exit->destChamber()->value('name');
+        $destChamber = $exit->destChamber()->value('name') ?? $exit->deliveryChamber()->value('name');
 
         $totals = [['Cajas', (string) number_format($exit->total_boxes)], ['Peso total', number_format((float) $exit->total_weight_kg, 3).' kg']];
         if ($showCosts) {

@@ -216,7 +216,7 @@ class ExitDetail extends Component
         return view('livewire.inventory.exit-detail', [
             'originChamber' => $this->stockExit->originChamber()->with('branch:id,name')->first(),
             'destBranch' => $this->stockExit->destBranch()->first(['id', 'name']),
-            'destChamber' => $this->stockExit->destChamber()->first(['id', 'name']),
+            'destChamber' => $this->stockExit->destChamber()->first(['id', 'name']) ?? $this->stockExit->deliveryChamber()->first(['id', 'name']),
             'registeredBy' => $this->stockExit->user()->first(['id', 'name']),
             'reversedBy' => $this->stockExit->reversed_by ? User::query()->find($this->stockExit->reversed_by, ['id', 'name']) : null,
             'transfer' => $transfer,

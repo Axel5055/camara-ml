@@ -30,7 +30,8 @@ class RegisterExit extends InventoryOperation
      * Withdraw exactly the selected boxes from a chamber.
      *
      * Without a destination chamber the boxes are delivered (status "dispatched"). With one, a transfer is
-     * created and the boxes stay "in_transit" until the destination confirms the reception.
+     * created and the boxes stay "in_transit" until the destination confirms the reception. A delivery chamber is
+     * only recorded for information on direct deliveries; it never makes the exit a transfer.
      *
      * @param  array<int, int|string>  $boxIds
      */
@@ -44,6 +45,7 @@ class RegisterExit extends InventoryOperation
         ?CarbonInterface $occurredAt = null,
         ?string $notes = null,
         ?string $clientToken = null,
+        ?Chamber $deliveryChamber = null,
     ): StockExit {
         $this->authorizeChamber($user, $origin);
 
@@ -73,6 +75,20 @@ class RegisterExit extends InventoryOperation
             }
         }
 
+        if ($deliveryChamber !== null) {
+            if ($destChamber !== null) {
+                throw new InventoryException('Una transferencia no admite una cámara de entrega informativa.');
+            }
+
+            if ($deliveryChamber->branch_id !== $destBranch->id) {
+                throw new InventoryException('La cámara indicada no pertenece a la sucursal destino.');
+            }
+
+            if (! $deliveryChamber->is_active) {
+                throw new InventoryException("La cámara {$deliveryChamber->name} está inactiva.");
+            }
+        }
+
         $clientToken ??= (string) Str::uuid();
 
         if ($existing = StockExit::query()->where('client_token', $clientToken)->first()) {
@@ -83,7 +99,7 @@ class RegisterExit extends InventoryOperation
         $transferReference = $destChamber ? $this->sequences->reference('TRF', $this->sequences->next('transfer')) : null;
         $occurredAt ??= now();
 
-        return DB::transaction(function () use ($user, $origin, $destBranch, $destChamber, $requesterName, $boxIds, $occurredAt, $notes, $clientToken, $reference, $transferReference): StockExit {
+        return DB::transaction(function () use ($user, $origin, $destBranch, $destChamber, $requesterName, $boxIds, $occurredAt, $notes, $clientToken, $reference, $transferReference, $deliveryChamber): StockExit {
             $boxes = $this->lockBoxes($boxIds);
 
             $this->assertAllAvailableIn($boxes, $boxIds, $origin);
@@ -94,6 +110,7 @@ class RegisterExit extends InventoryOperation
                 'origin_chamber_id' => $origin->id,
                 'dest_branch_id' => $destBranch->id,
                 'dest_chamber_id' => $destChamber?->id,
+                'delivery_chamber_id' => $deliveryChamber?->id,
                 'user_id' => $user->id,
                 'occurred_at' => $occurredAt,
                 'total_boxes' => $boxes->count(),

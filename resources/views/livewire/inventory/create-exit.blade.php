@@ -23,7 +23,7 @@
         $originName = $chambers->firstWhere('id', $originChamberId)?->name;
         $destName = $isTransfer
             ? ($destChambers->firstWhere('id', $destChamberId) ? $destChambers->firstWhere('id', $destChamberId)->branch->name.' · '.$destChambers->firstWhere('id', $destChamberId)->name : null)
-            : $branches->firstWhere('id', $destBranchId)?->name;
+            : ($branches->firstWhere('id', $destBranchId)?->name.($deliveryChambers->firstWhere('id', $deliveryChamberId) ? ' · Cámara '.$deliveryChambers->firstWhere('id', $deliveryChamberId)->name : ''));
         $word = $isTransfer ? 'la transferencia' : 'la salida';
     @endphp
 
@@ -71,6 +71,14 @@
                         <flux:select.option value="">Selecciona una sucursal</flux:select.option>
                         @foreach ($branches as $branch)
                             <flux:select.option :value="$branch->id">{{ $branch->name }}</flux:select.option>
+                        @endforeach
+                    </flux:select>
+
+                    <flux:select wire:model.live="deliveryChamberId" label="Cámara de la sucursal" :disabled="$deliveryChambers->isEmpty()"
+                        description="Solo se habilita si la sucursal destino tiene cámaras disponibles." data-test="exit-delivery-chamber">
+                        <flux:select.option value="">Sin cámara · salida directa</flux:select.option>
+                        @foreach ($deliveryChambers as $chamber)
+                            <flux:select.option :value="$chamber->id">{{ $chamber->name }}</flux:select.option>
                         @endforeach
                     </flux:select>
                 @endif

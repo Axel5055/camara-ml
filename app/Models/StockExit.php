@@ -18,6 +18,7 @@ use Illuminate\Support\Carbon;
  * @property int $origin_chamber_id
  * @property int $dest_branch_id
  * @property int|null $dest_chamber_id
+ * @property int|null $delivery_chamber_id
  * @property int $user_id
  * @property Carbon $occurred_at
  * @property int $total_boxes
@@ -70,6 +71,16 @@ class StockExit extends Model
     public function destChamber(): BelongsTo
     {
         return $this->belongsTo(Chamber::class, 'dest_chamber_id');
+    }
+
+    /**
+     * Chamber of the destination branch that receives a direct delivery (informational, never a transfer).
+     *
+     * @return BelongsTo<Chamber, $this>
+     */
+    public function deliveryChamber(): BelongsTo
+    {
+        return $this->belongsTo(Chamber::class, 'delivery_chamber_id');
     }
 
     /**

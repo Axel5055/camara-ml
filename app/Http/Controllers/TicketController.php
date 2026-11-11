@@ -58,7 +58,7 @@ class TicketController extends Controller
             'groups' => $groups,
             'origin' => $origin,
             'destBranch' => $exit->destBranch()->value('name'),
-            'destChamber' => $exit->destChamber()->value('name'),
+            'destChamber' => $exit->destChamber()->value('name') ?? $exit->deliveryChamber()->value('name'),
             'registeredBy' => $exit->user()->value('name'),
             'hasPartial' => ExitItem::query()->where('exit_id', $exit->id)->where('is_active', true)->where('kind', 'partial')->exists(),
         ]);

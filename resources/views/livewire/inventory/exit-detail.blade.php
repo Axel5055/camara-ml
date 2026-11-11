@@ -74,7 +74,7 @@
             <div class="min-w-0 flex-1 rounded-lg bg-zinc-50 p-3 dark:bg-zinc-900/40">
                 <div class="text-xs uppercase tracking-wide text-zinc-500">Destino</div>
                 <div class="font-medium">{{ $destBranch->name }}</div>
-                <div class="text-xs text-zinc-500">{{ $destChamber ? 'Cámara '.$destChamber->name : 'Entrega directa (sin cámara)' }}</div>
+                <div class="text-xs text-zinc-500">{{ $destChamber ? 'Cámara '.$destChamber->name.($transfer ? '' : ' · entrega directa') : 'Entrega directa (sin cámara)' }}</div>
             </div>
         </div>
 
