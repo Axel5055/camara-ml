@@ -3,11 +3,15 @@
 namespace App\Livewire\Admin;
 
 use App\Livewire\Concerns\SavesAuditedModels;
+use App\Models\AuditLog;
 use App\Models\Category;
 use App\Models\Product;
+use App\Support\SimilarProductNames;
 use Flux\Flux;
 use Illuminate\Contracts\View\View;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
@@ -42,6 +46,16 @@ class Products extends Component
     public bool $codeLocked = false;
 
     /**
+     * Existing products that look like the one being created; shown in the confirmation alert.
+     *
+     * @var array<int, array{name: string, code: string, category: string, is_active: bool}>
+     */
+    public array $similar = [];
+
+    /** The user already saw the similar-name alert for the current name and chose to create it anyway. */
+    public bool $similarConfirmed = false;
+
+    /**
      * The code of a new product follows its name: the same first nine letters the barcodes are built with.
      * When another product already has it, a number is appended.
      */
@@ -65,6 +79,9 @@ class Products extends Component
 
     public function updatedName(): void
     {
+        $this->similarConfirmed = false;
+        $this->similar = [];
+
         if ($this->editingId === null) {
             $this->code = $this->suggestCode($this->name);
         }
@@ -104,7 +121,7 @@ class Products extends Component
     {
         Gate::authorize('create', Product::class);
 
-        $this->reset('editingId', 'category_id', 'code', 'name', 'description', 'codeLocked');
+        $this->reset('editingId', 'category_id', 'code', 'name', 'description', 'codeLocked', 'similar', 'similarConfirmed');
         $this->is_active = true;
         $this->resetValidation();
         Flux::modal('product-form')->show();
@@ -159,10 +176,78 @@ class Products extends Component
             return;
         }
 
-        $this->saveAudited($product, $validated, 'product');
+        if (! $product->exists && ! $this->similarConfirmed) {
+            $similar = SimilarProductNames::find($validated['name']);
 
+            if ($similar->isNotEmpty()) {
+                $this->similar = $similar->map(fn (Product $match): array => [
+                    'name' => $match->name,
+                    'code' => $match->code,
+                    'category' => $match->category->name,
+                    'is_active' => $match->is_active,
+                ])->all();
+                Flux::modal('similar-products')->show();
+
+                return;
+            }
+        }
+
+        $this->saveAudited($product, $validated, 'product');
+        $this->reset('similar', 'similarConfirmed');
+
+        Flux::modal('similar-products')->close();
         Flux::modal('product-form')->close();
         Flux::toast(text: 'Producto guardado.', variant: 'success');
+    }
+
+    public ?int $deletingId = null;
+
+    public function confirmDelete(int $id): void
+    {
+        $product = Product::query()->findOrFail($id);
+        Gate::authorize('delete', $product);
+
+        $this->deletingId = $product->id;
+        Flux::modal('product-delete')->show();
+    }
+
+    /**
+     * Super administrators can delete a product only while it has no movements in the system. Thresholds set for
+     * the product are configuration, so they go away with it; the deletion is left in the audit trail.
+     */
+    public function delete(): void
+    {
+        $product = Product::query()->findOrFail($this->deletingId);
+        Gate::authorize('delete', $product);
+
+        if ($reason = $product->deletionBlocker()) {
+            Flux::modal('product-delete')->close();
+            $this->deletingId = null;
+            Flux::toast(text: "No se puede eliminar {$product->name}: {$reason}", variant: 'danger');
+
+            return;
+        }
+
+        $old = $product->only(['category_id', 'code', 'name', 'description', 'is_active']);
+
+        DB::transaction(function () use ($product, $old): void {
+            $product->stockThresholds()->delete();
+            $product->delete();
+            AuditLog::record(Auth::user(), 'product.deleted', $product, $old, null);
+        });
+
+        $this->deletingId = null;
+        Flux::modal('product-delete')->close();
+        Flux::toast(text: 'Producto eliminado.', variant: 'success');
+    }
+
+    /**
+     * The user reviewed the similar products and still wants to create the new one.
+     */
+    public function confirmSimilar(): void
+    {
+        $this->similarConfirmed = true;
+        $this->save();
     }
 
     public function toggle(int $id): void
@@ -182,9 +267,12 @@ class Products extends Component
         return view('livewire.admin.products', [
             'canCreate' => Gate::allows('create', Product::class),
             'canManage' => Gate::allows('update', Product::class),
+            'canDelete' => Gate::allows('delete', Product::class),
+            'deletingProduct' => $this->deletingId ? Product::query()->find($this->deletingId, ['id', 'name', 'code']) : null,
             'products' => $this->searchedProducts()
                 ->with('category')
                 ->withCount(['boxes as stocked_boxes_count' => fn (Builder $query) => $query->where('status', 'available')])
+                ->withExists(['boxes as has_boxes', 'entryItems as has_entry_items'])
                 ->when($this->status === 'active', fn (Builder $query) => $query->where('is_active', true))
                 ->when($this->status === 'inactive', fn (Builder $query) => $query->where('is_active', false))
                 ->orderBy('name')
