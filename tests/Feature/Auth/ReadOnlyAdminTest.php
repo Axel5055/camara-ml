@@ -55,12 +55,12 @@ function readOnlyWorld(): array
     return compact('centro', 'norte', 'sur', 'c1', 'n1', 'superAdmin', 'admin', 'centroUser', 'norteUser', 'product', 'entry', 'exit', 'boxes');
 }
 
-it('stores the three roles', function () {
+it('stores the four roles', function () {
     foreach (UserRole::cases() as $role) {
         expect(User::factory()->create(['role' => $role])->fresh()->role)->toBe($role);
     }
 
-    expect(array_map(fn (UserRole $role): string => $role->value, UserRole::cases()))->toBe(['super_admin', 'admin', 'warehouse']);
+    expect(array_map(fn (UserRole $role): string => $role->value, UserRole::cases()))->toBe(['super_admin', 'admin', 'manager', 'warehouse']);
 });
 
 it('lets the administrator open the panel, stock, entry and exit records and the catalogs', function () {

@@ -8,6 +8,7 @@ use App\Models\Chamber;
 use Flux\Flux;
 use Illuminate\Contracts\View\View;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Validation\Rule;
 use Livewire\Attributes\Title;
@@ -56,7 +57,7 @@ class Branches extends Component
     {
         $search = trim($this->search);
 
-        return Branch::query()->when($search !== '', fn (Builder $query) => $query->where(fn (Builder $query) => $query
+        return Branch::query()->visibleTo(Auth::user())->when($search !== '', fn (Builder $query) => $query->where(fn (Builder $query) => $query
             ->where('name', 'like', "%{$search}%")
             ->orWhere('code', 'like', "%{$search}%")
             ->orWhere('address', 'like', "%{$search}%")));
@@ -124,7 +125,10 @@ class Branches extends Component
         return view('livewire.admin.branches', [
             'canManage' => Gate::allows('create', Branch::class),
             'branches' => $this->searchedBranches()
-                ->withCount('chambers')
+                ->withCount(['chambers' => function (Builder $query): void {
+                    /** @var Builder<Chamber> $query */
+                    $query->accessibleBy(Auth::user());
+                }])
                 ->when($this->status === 'active', fn (Builder $query) => $query->where('is_active', true))
                 ->when($this->status === 'inactive', fn (Builder $query) => $query->where('is_active', false))
                 ->orderBy('name')
@@ -133,7 +137,7 @@ class Branches extends Component
                 'total' => (int) $totals->total,
                 'active' => (int) $totals->active,
                 'inactive' => (int) $totals->total - (int) $totals->active,
-                'chambers' => Chamber::query()->whereIn('branch_id', $this->searchedBranches()->select('id'))->count(),
+                'chambers' => Chamber::query()->accessibleBy(Auth::user())->whereIn('branch_id', $this->searchedBranches()->select('id'))->count(),
             ],
             'hasFilters' => trim($this->search) !== '' || $this->status !== 'all',
         ]);

@@ -14,7 +14,7 @@ class ChamberPolicy
 
     public function view(User $user, Chamber $chamber): bool
     {
-        return $user->canAccessChamber($chamber);
+        return $user->canViewChamber($chamber);
     }
 
     public function create(User $user): bool

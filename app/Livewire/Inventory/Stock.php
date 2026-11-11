@@ -308,7 +308,7 @@ class Stock extends Component
             'products' => Product::query()
                 ->when($this->categoryId, fn (Builder $query) => $query->where('category_id', $this->categoryId))
                 ->orderBy('name')->get(['id', 'name', 'code']),
-            'canSeeAllStatuses' => Auth::user()->seesAllChambers(),
+            'canSeeAllStatuses' => Auth::user()->seesAllChambers() || Auth::user()->isManager(),
         ]);
     }
 }

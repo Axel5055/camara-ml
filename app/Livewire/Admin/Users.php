@@ -3,6 +3,7 @@
 namespace App\Livewire\Admin;
 
 use App\Actions\Users\AssignChambers;
+use App\Actions\Users\AssignManagerScope;
 use App\Enums\UserRole;
 use App\Livewire\Concerns\ReportsInventoryErrors;
 use App\Models\AuditLog;
@@ -51,6 +52,9 @@ class Users extends Component
     /** @var array<int, int|string> */
     public array $chamberIds = [];
 
+    /** @var array<int, int|string> Branches a manager sees in full. */
+    public array $branchIds = [];
+
     public function mount(): void
     {
         Gate::authorize('viewAny', User::class);
@@ -87,7 +91,7 @@ class Users extends Component
     {
         Gate::authorize('create', User::class);
 
-        $this->reset('editingId', 'name', 'email', 'password', 'branch_id', 'chamberIds');
+        $this->reset('editingId', 'name', 'email', 'password', 'branch_id', 'chamberIds', 'branchIds');
         $this->role = UserRole::Warehouse->value;
         $this->is_active = true;
         $this->resetValidation();
@@ -96,7 +100,7 @@ class Users extends Component
 
     public function edit(int $id): void
     {
-        $user = User::query()->with('chambers')->findOrFail($id);
+        $user = User::query()->with(['chambers', 'managedBranches'])->findOrFail($id);
         Gate::authorize('update', $user);
 
         $this->editingId = $user->id;
@@ -107,6 +111,7 @@ class Users extends Component
         $this->is_active = $user->is_active;
         $this->branch_id = $user->branch_id;
         $this->chamberIds = $user->chambers->pluck('id')->all();
+        $this->branchIds = $user->managedBranches->pluck('id')->all();
         $this->resetValidation();
         Flux::modal('user-form')->show();
     }
@@ -116,7 +121,12 @@ class Users extends Component
         $this->chamberIds = [];
     }
 
-    public function save(AssignChambers $assignChambers): void
+    public function updatedRole(): void
+    {
+        $this->reset('branch_id', 'chamberIds', 'branchIds');
+    }
+
+    public function save(AssignChambers $assignChambers, AssignManagerScope $assignManagerScope): void
     {
         $user = $this->editingId ? User::query()->findOrFail($this->editingId) : new User;
         Gate::authorize($user->exists ? 'update' : 'create', $user->exists ? $user : User::class);
@@ -136,8 +146,8 @@ class Users extends Component
             return;
         }
 
-        $saved = $this->attempt(function () use ($user, $validated, $assignChambers): void {
-            DB::transaction(function () use ($user, $validated, $assignChambers): void {
+        $saved = $this->attempt(function () use ($user, $validated, $assignChambers, $assignManagerScope): void {
+            DB::transaction(function () use ($user, $validated, $assignChambers, $assignManagerScope): void {
                 $isNew = ! $user->exists;
                 $old = $isNew ? null : $user->only(['name', 'email', 'role', 'is_active', 'branch_id']);
 
@@ -161,13 +171,18 @@ class Users extends Component
 
                 if ($user->role === UserRole::Warehouse) {
                     $assignChambers->handle(Auth::user(), $user, array_map('intval', $this->chamberIds));
+                    $user->managedBranches()->sync([]);
+                } elseif ($user->role === UserRole::Manager) {
+                    $assignManagerScope->handle(Auth::user(), $user, array_map('intval', $this->branchIds), array_map('intval', $this->chamberIds));
                 } else {
                     $user->chambers()->sync([]);
+                    $user->managedBranches()->sync([]);
                 }
 
                 AuditLog::record(Auth::user(), $isNew ? 'user.created' : 'user.updated', $user, $old, [
                     'name' => $user->name, 'email' => $user->email, 'role' => $user->role->value,
                     'is_active' => $user->is_active, 'branch_id' => $user->branch_id, 'chambers' => $user->chambers()->pluck('chambers.id')->all(),
+                    'managed_branches' => $user->managedBranches()->pluck('branches.id')->all(),
                     'password_changed' => ($validated['password'] ?? '') !== '',
                 ]);
             });
@@ -192,7 +207,7 @@ class Users extends Component
         return view('livewire.admin.users', [
             'roles' => UserRole::cases(),
             'users' => $this->searchedUsers()
-                ->with(['branch', 'chambers'])
+                ->with(['branch', 'chambers', 'managedBranches'])
                 ->when(UserRole::tryFrom($this->roleFilter), fn (Builder $query, UserRole $role) => $query->where('role', $role))
                 ->when($this->status === 'active', fn (Builder $query) => $query->where('is_active', true))
                 ->when($this->status === 'inactive', fn (Builder $query) => $query->where('is_active', false))
@@ -202,12 +217,16 @@ class Users extends Component
                 'total' => (int) $byRole->sum('total'),
                 'super_admin' => $countOf(UserRole::SuperAdmin),
                 'admin' => $countOf(UserRole::Admin),
+                'manager' => $countOf(UserRole::Manager),
                 'warehouse' => $countOf(UserRole::Warehouse),
                 'inactive' => (int) $byRole->sum('total') - (int) $byRole->sum('active'),
             ],
             'branches' => Branch::query()->orderBy('name')->get(),
             'branchChambers' => $this->branch_id
                 ? Chamber::query()->where('branch_id', $this->branch_id)->orderBy('name')->get()
+                : collect(),
+            'allChambers' => $this->role === UserRole::Manager->value
+                ? Chamber::query()->with('branch')->orderBy('branch_id')->orderBy('name')->get()
                 : collect(),
             'hasFilters' => trim($this->search) !== '' || $this->roleFilter !== 'all' || $this->status !== 'all',
         ]);

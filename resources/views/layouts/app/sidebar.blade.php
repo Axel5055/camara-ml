@@ -11,7 +11,7 @@
             </flux:sidebar.header>
 
             <flux:sidebar.nav>
-                @php($warehouseNav = in_array(auth()->user()->role->value, ['warehouse', 'admin'], true))
+                @php($warehouseNav = in_array(auth()->user()->role->value, ['warehouse', 'admin', 'manager'], true))
                 <flux:sidebar.group heading="Inventario" class="grid">
                     <flux:sidebar.item icon="home" :href="route('dashboard')" :current="request()->routeIs('dashboard')" wire:navigate>Panel</flux:sidebar.item>
                     <flux:sidebar.item icon="archive-box" :href="route('stock')" :current="request()->routeIs('stock', 'boxes.show')" wire:navigate>Existencias</flux:sidebar.item>
@@ -27,7 +27,7 @@
                         </flux:sidebar.item>
                         <div x-show="open" x-collapse class="ms-5 mt-0.5 grid gap-0.5 border-s border-zinc-700 ps-2">
                             <flux:sidebar.item icon="list-bullet" :href="route('entries.index')" :current="request()->routeIs('entries.index', 'entries.show')" wire:navigate>Todas las entradas</flux:sidebar.item>
-                            @php($pendingRequests = \App\Models\EntryRequest::query()->where('status', 'pending')->when(auth()->user()->role === \App\Enums\UserRole::Warehouse, fn ($query) => $query->where('user_id', auth()->id()))->count())
+                            @php($pendingRequests = \App\Models\EntryRequest::query()->where('status', 'pending')->when(auth()->user()->role === \App\Enums\UserRole::Warehouse, fn ($query) => $query->where('user_id', auth()->id()))->when(auth()->user()->isManager(), fn ($query) => $query->whereIn('chamber_id', \App\Models\Chamber::query()->accessibleBy(auth()->user())->select('id')))->count())
                             <flux:sidebar.item icon="shield-check" :href="route('entry-requests.index')" :current="request()->routeIs('entry-requests.index')" :badge="$pendingRequests > 0 ? $pendingRequests : null" badge-color="amber" wire:navigate data-test="nav-entry-requests">Solicitudes</flux:sidebar.item>
                             @can('operate-inventory')
                                 <flux:sidebar.item icon="plus-circle" :href="route('entries.create')" :current="request()->routeIs('entries.create')" wire:navigate>Nueva entrada</flux:sidebar.item>
@@ -57,7 +57,7 @@
                                 </span>
                             </flux:sidebar.item>
                             <div x-show="open" x-collapse class="ms-5 mt-0.5 grid gap-0.5 border-s border-zinc-700 ps-2">
-                                @php($pendingTransfers = \App\Models\Transfer::query()->where('status', \App\Enums\TransferStatus::InTransit)->when(auth()->user()->role === \App\Enums\UserRole::Warehouse, fn ($query) => $query->whereIn('dest_chamber_id', \App\Models\Chamber::query()->accessibleBy(auth()->user())->select('id')))->count())
+                                @php($pendingTransfers = \App\Models\Transfer::query()->where('status', \App\Enums\TransferStatus::InTransit)->when(in_array(auth()->user()->role, [\App\Enums\UserRole::Warehouse, \App\Enums\UserRole::Manager], true), fn ($query) => $query->whereIn('dest_chamber_id', \App\Models\Chamber::query()->accessibleBy(auth()->user())->select('id')))->count())
                                 <flux:sidebar.item icon="list-bullet" :href="route('transfers.index')" :current="request()->routeIs('transfers.index')" :badge="$pendingTransfers > 0 ? $pendingTransfers : null" badge-color="amber" wire:navigate :data-test="$pendingTransfers > 0 ? 'nav-pending-transfers' : null">Todas las transferencias</flux:sidebar.item>
                                 @can('operate-inventory')
                                     <flux:sidebar.item icon="plus-circle" :href="route('transfers.create')" :current="request()->routeIs('transfers.create')" wire:navigate>Nueva transferencia</flux:sidebar.item>

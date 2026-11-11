@@ -71,8 +71,37 @@ class User extends Authenticatable implements MustVerifyEmail, PasskeyUser
     }
 
     /**
+     * Managers read like administrators, but only within the branches and chambers assigned to them.
+     */
+    public function isManager(): bool
+    {
+        return $this->is_active && $this->role === UserRole::Manager;
+    }
+
+    /**
+     * Whether the user may look at the records of a chamber (not operate it): everyone sees what they may
+     * operate, administrators see all, managers see what is assigned to them.
+     */
+    public function canViewChamber(Chamber $chamber): bool
+    {
+        if (! $this->is_active) {
+            return false;
+        }
+
+        if ($this->seesAllChambers()) {
+            return true;
+        }
+
+        if ($this->role === UserRole::Manager) {
+            return Chamber::query()->accessibleBy($this)->whereKey($chamber->getKey())->exists();
+        }
+
+        return $this->canAccessChamber($chamber);
+    }
+
+    /**
      * Only super administrators operate every chamber; warehouse users only the chambers assigned to them within
-     * their own branch. The read-only administrator operates none.
+     * their own branch. The read-only administrator and managers operate none.
      */
     public function canAccessChamber(Chamber $chamber): bool
     {
@@ -82,6 +111,10 @@ class User extends Authenticatable implements MustVerifyEmail, PasskeyUser
 
         if ($this->role === UserRole::SuperAdmin) {
             return true;
+        }
+
+        if ($this->role === UserRole::Manager) {
+            return false;
         }
 
         return $this->branch_id === $chamber->branch_id
@@ -94,6 +127,16 @@ class User extends Authenticatable implements MustVerifyEmail, PasskeyUser
     public function branch(): BelongsTo
     {
         return $this->belongsTo(Branch::class);
+    }
+
+    /**
+     * Branches a manager is assigned to (all their chambers are visible).
+     *
+     * @return BelongsToMany<Branch, $this>
+     */
+    public function managedBranches(): BelongsToMany
+    {
+        return $this->belongsToMany(Branch::class)->withTimestamps();
     }
 
     /**

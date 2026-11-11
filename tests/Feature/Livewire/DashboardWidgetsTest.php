@@ -480,7 +480,7 @@ it('counts users by role and filters the users list', function () {
     $viewer = User::factory()->admin()->create(['name' => 'Consulta Demo', 'email' => 'consulta.demo@example.com']);
 
     $component = Livewire::actingAs($w['admin'])->test(Users::class);
-    expect($component->viewData('totals'))->toBe(['total' => 4, 'super_admin' => 1, 'admin' => 1, 'warehouse' => 2, 'inactive' => 1]);
+    expect($component->viewData('totals'))->toBe(['total' => 4, 'super_admin' => 1, 'admin' => 1, 'manager' => 0, 'warehouse' => 2, 'inactive' => 1]);
 
     $component->set('roleFilter', 'warehouse');
     expect($component->viewData('users')->total())->toBe(2)

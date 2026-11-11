@@ -9,6 +9,7 @@ use App\Models\Chamber;
 use Flux\Flux;
 use Illuminate\Contracts\View\View;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Validation\Rule;
 use Livewire\Attributes\Title;
@@ -60,6 +61,7 @@ class Chambers extends Component
         $search = trim($this->search);
 
         return Chamber::query()
+            ->accessibleBy(Auth::user())
             ->when($this->branchFilter, fn (Builder $query) => $query->where('branch_id', $this->branchFilter))
             ->when($search !== '', fn (Builder $query) => $query->where(fn (Builder $query) => $query
                 ->where('name', 'like', "%{$search}%")
@@ -139,7 +141,7 @@ class Chambers extends Component
                 'inactive' => (int) $totals->total - (int) $totals->active,
                 'boxes' => Box::query()->whereIn('current_chamber_id', $this->searchedChambers()->select('id'))->count(),
             ],
-            'branches' => Branch::query()->orderBy('name')->get(),
+            'branches' => Branch::query()->visibleTo(Auth::user())->orderBy('name')->get(),
             'hasFilters' => trim($this->search) !== '' || $this->branchFilter || $this->status !== 'all',
         ]);
     }

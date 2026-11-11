@@ -3,7 +3,7 @@
         <flux:button variant="primary" icon="plus" wire:click="create">Nuevo usuario</flux:button>
     </x-page-header>
 
-    <div class="grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
+    <div class="grid gap-4 sm:grid-cols-2 xl:grid-cols-6">
         <div class="flex items-center gap-4 rounded-xl border border-zinc-200 bg-white p-4 shadow-xs dark:border-zinc-700 dark:bg-zinc-800" data-test="users-total">
             <div class="flex size-12 shrink-0 items-center justify-center rounded-xl bg-indigo-500/10 text-indigo-600 dark:text-indigo-300">
                 <flux:icon.users class="size-6" />
@@ -29,6 +29,15 @@
             <div class="min-w-0">
                 <div class="text-xs font-medium uppercase tracking-wide text-zinc-500">Administradores</div>
                 <div class="text-2xl font-semibold text-zinc-900 dark:text-white">{{ number_format($totals['admin']) }}</div>
+            </div>
+        </div>
+        <div class="flex items-center gap-4 rounded-xl border border-zinc-200 bg-white p-4 shadow-xs dark:border-zinc-700 dark:bg-zinc-800" data-test="users-manager">
+            <div class="flex size-12 shrink-0 items-center justify-center rounded-xl bg-teal-500/10 text-teal-600 dark:text-teal-300">
+                <flux:icon.building-storefront class="size-6" />
+            </div>
+            <div class="min-w-0">
+                <div class="text-xs font-medium uppercase tracking-wide text-zinc-500">Gerentes</div>
+                <div class="text-2xl font-semibold text-zinc-900 dark:text-white">{{ number_format($totals['manager']) }}</div>
             </div>
         </div>
         <div class="flex items-center gap-4 rounded-xl border border-zinc-200 bg-white p-4 shadow-xs dark:border-zinc-700 dark:bg-zinc-800" data-test="users-warehouse">
@@ -99,10 +108,19 @@
                             </div>
                         </flux:table.cell>
                         <flux:table.cell>
-                            <flux:badge size="sm" :color="match ($user->role->value) { 'super_admin' => 'purple', 'admin' => 'sky', default => 'amber' }">{{ $user->role->label() }}</flux:badge>
+                            <flux:badge size="sm" :color="match ($user->role->value) { 'super_admin' => 'purple', 'admin' => 'sky', 'manager' => 'teal', default => 'amber' }">{{ $user->role->label() }}</flux:badge>
                         </flux:table.cell>
                         <flux:table.cell>
-                            @if ($user->branch)
+                            @if ($user->role->value === 'manager')
+                                <div class="flex flex-wrap gap-1" data-test="manager-scope">
+                                    @foreach ($user->managedBranches as $managedBranch)
+                                        <flux:badge size="sm" color="teal">{{ $managedBranch->name }} (completa)</flux:badge>
+                                    @endforeach
+                                    @foreach ($user->chambers as $chamber)
+                                        <flux:badge size="sm" color="zinc">{{ $chamber->name }}</flux:badge>
+                                    @endforeach
+                                </div>
+                            @elseif ($user->branch)
                                 <div>{{ $user->branch->name }}</div>
                                 <div class="mt-1 flex flex-wrap gap-1">
                                     @foreach ($user->chambers as $chamber)
@@ -129,45 +147,125 @@
         </flux:table>
     </div>
 
-    <flux:modal name="user-form" class="md:w-[28rem]">
+    <flux:modal name="user-form" class="w-full md:w-[38rem]">
         <form wire:submit="save" class="space-y-6">
-            <flux:heading size="lg">{{ $editingId ? 'Editar usuario' : 'Nuevo usuario' }}</flux:heading>
+            <div>
+                <flux:heading size="lg">{{ $editingId ? 'Editar usuario' : 'Nuevo usuario' }}</flux:heading>
+                <flux:text class="mt-1">{{ $editingId ? 'Actualiza los datos, el rol y el alcance de la cuenta.' : 'Crea una cuenta y define qué puede ver o hacer.' }}</flux:text>
+            </div>
 
             <flux:error name="operation" />
 
-            <flux:input wire:model="name" label="Nombre" required />
-            <flux:input wire:model="email" label="Correo" type="email" required />
-            <flux:input wire:model="password" label="{{ $editingId ? 'Nueva contraseña (opcional)' : 'Contraseña' }}" type="password" />
+            <div class="space-y-4 rounded-xl border border-zinc-200 p-4 dark:border-zinc-700">
+                <div class="text-xs font-semibold uppercase tracking-wide text-zinc-500">Datos de la cuenta</div>
 
-            <flux:select wire:model.live="role" label="Rol">
-                @foreach ($roles as $roleOption)
-                    <flux:select.option :value="$roleOption->value">{{ $roleOption->label() }}</flux:select.option>
-                @endforeach
-            </flux:select>
-            <flux:text class="-mt-3 text-xs">{{ \App\Enums\UserRole::tryFrom($role)?->description() }}</flux:text>
+                <div class="grid gap-4 sm:grid-cols-2">
+                    <flux:input wire:model="name" label="Nombre" icon="user" required />
+                    <flux:input wire:model="email" label="Correo" type="email" icon="envelope" required />
+                </div>
 
-            @if ($role === 'warehouse')
-                <flux:select wire:model.live="branch_id" label="Sucursal">
-                    <flux:select.option value="">Selecciona una sucursal</flux:select.option>
-                    @foreach ($branches as $branch)
-                        <flux:select.option :value="$branch->id">{{ $branch->name }}</flux:select.option>
+                <div
+                    x-data="{
+                        suggested: '',
+                        copied: false,
+                        suggest() {
+                            const pools = ['ABCDEFGHJKLMNPQRSTUVWXYZ', 'abcdefghijkmnpqrstuvwxyz', '23456789', '!@#$%&*?-_'];
+                            const rand = (max) => crypto.getRandomValues(new Uint32Array(1))[0] % max;
+                            const pick = (chars) => chars[rand(chars.length)];
+                            const all = pools.join('');
+                            const chars = pools.map(pick);
+                            while (chars.length < 14) { chars.push(pick(all)); }
+                            for (let i = chars.length - 1; i > 0; i--) {
+                                const j = rand(i + 1);
+                                [chars[i], chars[j]] = [chars[j], chars[i]];
+                            }
+                            this.suggested = chars.join('');
+                            this.copied = false;
+                            $wire.password = this.suggested;
+                        },
+                        async copy() {
+                            try { await navigator.clipboard.writeText(this.suggested); this.copied = true; } catch (e) {}
+                        },
+                    }"
+                    class="space-y-2"
+                >
+                    <flux:input wire:model="password" label="{{ $editingId ? 'Nueva contraseña (opcional)' : 'Contraseña' }}" type="password" icon="key" viewable autocomplete="new-password" data-test="user-password" />
+
+                    <div class="flex flex-wrap items-center gap-2">
+                        <flux:button type="button" size="sm" variant="ghost" icon="sparkles" x-on:click="suggest()" data-test="suggest-password">Sugerir contraseña</flux:button>
+
+                        <template x-if="suggested !== '' && $wire.password === suggested">
+                            <div class="flex min-w-0 items-center gap-2 rounded-lg bg-zinc-100 px-2 py-1 dark:bg-zinc-700/60" data-test="suggested-password">
+                                <code class="truncate font-mono text-sm text-zinc-800 dark:text-zinc-100" x-text="suggested"></code>
+                                <flux:button type="button" size="xs" variant="subtle" icon="clipboard" x-on:click="copy()">
+                                    <span x-text="copied ? 'Copiada' : 'Copiar'"></span>
+                                </flux:button>
+                            </div>
+                        </template>
+                    </div>
+                    <flux:text class="text-xs">Mínimo 12 caracteres con mayúsculas, minúsculas, números y símbolos. Cópiala para entregársela al usuario.</flux:text>
+                </div>
+            </div>
+
+            <div class="space-y-4 rounded-xl border border-zinc-200 p-4 dark:border-zinc-700">
+                <div class="text-xs font-semibold uppercase tracking-wide text-zinc-500">Rol y acceso</div>
+
+                <flux:select wire:model.live="role" label="Rol">
+                    @foreach ($roles as $roleOption)
+                        <flux:select.option :value="$roleOption->value">{{ $roleOption->label() }}</flux:select.option>
                     @endforeach
                 </flux:select>
+                <flux:text class="text-xs">{{ \App\Enums\UserRole::tryFrom($role)?->description() }}</flux:text>
 
-                @if ($branchChambers->isNotEmpty())
-                    <flux:checkbox.group wire:model="chamberIds" label="Cámaras autorizadas">
-                        @foreach ($branchChambers as $chamber)
-                            <flux:checkbox :value="$chamber->id" :label="$chamber->name" wire:key="chamber-{{ $chamber->id }}" />
+                @if ($role === 'warehouse')
+                    <flux:select wire:model.live="branch_id" label="Sucursal">
+                        <flux:select.option value="">Selecciona una sucursal</flux:select.option>
+                        @foreach ($branches as $branch)
+                            <flux:select.option :value="$branch->id">{{ $branch->name }}</flux:select.option>
                         @endforeach
+                    </flux:select>
+
+                    @if ($branchChambers->isNotEmpty())
+                        <flux:checkbox.group wire:model="chamberIds" label="Cámaras autorizadas">
+                            <div class="grid max-h-48 gap-2 overflow-y-auto rounded-lg bg-zinc-50 p-3 sm:grid-cols-2 dark:bg-zinc-900/40">
+                                @foreach ($branchChambers as $chamber)
+                                    <flux:checkbox :value="$chamber->id" :label="$chamber->name" wire:key="chamber-{{ $chamber->id }}" />
+                                @endforeach
+                            </div>
+                        </flux:checkbox.group>
+                    @endif
+                @endif
+
+                @if ($role === 'manager')
+                    <flux:checkbox.group wire:model="branchIds" label="Sucursales (con todas sus cámaras)">
+                        <div class="grid max-h-40 gap-2 overflow-y-auto rounded-lg bg-zinc-50 p-3 sm:grid-cols-2 dark:bg-zinc-900/40">
+                            @foreach ($branches as $branch)
+                                <flux:checkbox :value="$branch->id" :label="$branch->name" wire:key="manager-branch-{{ $branch->id }}" />
+                            @endforeach
+                        </div>
+                    </flux:checkbox.group>
+
+                    <flux:checkbox.group wire:model="chamberIds" label="Cámaras individuales">
+                        <div class="grid max-h-48 gap-2 overflow-y-auto rounded-lg bg-zinc-50 p-3 sm:grid-cols-2 dark:bg-zinc-900/40">
+                            @foreach ($allChambers as $chamber)
+                                <flux:checkbox :value="$chamber->id" :label="$chamber->branch->name.' · '.$chamber->name" wire:key="manager-chamber-{{ $chamber->id }}" />
+                            @endforeach
+                        </div>
                     </flux:checkbox.group>
                 @endif
-            @endif
+            </div>
 
-            <flux:switch wire:model="is_active" label="Activo" />
+            <div class="flex items-center justify-between gap-4 rounded-xl border border-zinc-200 p-4 dark:border-zinc-700">
+                <div>
+                    <div class="text-sm font-medium text-zinc-900 dark:text-white">Cuenta activa</div>
+                    <flux:text class="text-xs">Una cuenta inactiva no puede iniciar sesión.</flux:text>
+                </div>
+                <flux:switch wire:model="is_active" />
+            </div>
 
             <div class="flex justify-end gap-2">
                 <flux:modal.close><flux:button variant="ghost">Cancelar</flux:button></flux:modal.close>
-                <flux:button type="submit" variant="primary">Guardar</flux:button>
+                <flux:button type="submit" variant="primary" icon="check">Guardar</flux:button>
             </div>
         </form>
     </flux:modal>

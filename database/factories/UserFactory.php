@@ -54,6 +54,14 @@ class UserFactory extends Factory
     }
 
     /**
+     * A manager: reads like the administrator, within the branches and chambers assigned to them.
+     */
+    public function manager(): static
+    {
+        return $this->state(fn (array $attributes) => ['role' => UserRole::Manager]);
+    }
+
+    /**
      * A warehouse user belonging to the given branch.
      */
     public function warehouse(?Branch $branch = null): static
