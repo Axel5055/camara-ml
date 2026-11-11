@@ -13,15 +13,15 @@ class CancelTransfer
     public function __construct(private ReverseExit $reverseExit) {}
 
     /**
-     * Cancel a transfer (super administrators only); boxes return to the origin chamber. A transfer already
+     * Cancel a transfer (super administrators, administrators and managers within their scope); boxes return to the origin chamber. A transfer already
      * received is validated first: its boxes must still be untouched in the destination chamber.
      */
     public function handle(User $user, Transfer $transfer, string $reason): Transfer
     {
         $received = $transfer->status === TransferStatus::Received;
 
-        if (! $user->isSuperAdmin()) {
-            throw new AuthorizationException('Solo el super administrador puede cancelar una transferencia.');
+        if (! $user->canCorrectRecordsOf($transfer->originChamber, $transfer->destChamber)) {
+            throw new AuthorizationException('No tienes permiso para cancelar esta transferencia.');
         }
 
         if (! $received && $transfer->status !== TransferStatus::InTransit) {

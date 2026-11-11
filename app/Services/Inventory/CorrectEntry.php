@@ -38,8 +38,8 @@ class CorrectEntry extends InventoryOperation
      */
     public function handle(User $admin, Entry $entry, string $reason, ?CarbonInterface $occurredAt = null, ?string $notes = null, array $items = []): Entry
     {
-        if (! $admin->isSuperAdmin()) {
-            throw new AuthorizationException('Solo el super administrador puede corregir una entrada.');
+        if (! $admin->canCorrectEntriesOf($entry->chamber)) {
+            throw new AuthorizationException('No tienes permiso para corregir esta entrada.');
         }
 
         $reason = trim($reason);

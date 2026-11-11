@@ -40,6 +40,7 @@ class ExitsReport extends Component
             ->when($this->userId, fn (Builder $query, int $id) => $query->where('exits.user_id', $id))
             ->when($this->requester !== '', fn (Builder $query) => $query->where('exits.requester_name', 'like', "%{$this->requester}%"));
 
+        $this->limitToVisibleChambers($query, ['exits.origin_chamber_id', 'exits.dest_chamber_id']);
         $this->applyDateRange($query, 'exits.occurred_at');
 
         return $query;

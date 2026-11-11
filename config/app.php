@@ -16,6 +16,12 @@ return [
     'name' => env('APP_NAME', 'Laravel'),
 
     /*
+    | Versión visible del sistema (se muestra en el menú lateral).
+    */
+
+    'version' => env('APP_VERSION', '1.0.0'),
+
+    /*
     |--------------------------------------------------------------------------
     | Application Environment
     |--------------------------------------------------------------------------

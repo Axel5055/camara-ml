@@ -1,9 +1,17 @@
-@props(['products'])
+@props([
+    'products',
+    'model' => 'productId',
+    'label' => 'Producto',
+    'placeholder' => 'Escribe para buscar un producto',
+    'emptyMessage' => 'No hay productos con ese nombre. Solo se pueden registrar cajas de productos existentes.',
+    'dataTest' => 'product-search',
+])
 
 <div
     {{ $attributes }}
     x-data="{
-        items: @js($products->map(fn ($p) => ['id' => $p->id, 'name' => $p->name, 'code' => $p->code])->values()),
+        model: @js($model),
+        items: @js($products->map(fn ($p) => ['id' => $p->id, 'name' => $p->name, 'code' => (string) ($p->code ?? '')])->values()),
         query: '',
         open: false,
         active: 0,
@@ -14,25 +22,26 @@
         pick(item) {
             this.query = item.name;
             this.open = false;
-            $wire.set('productId', item.id);
+            $wire.set(this.model, item.id);
         },
         typed() {
             this.open = true;
             this.active = 0;
             const exact = this.items.find((i) => i.name.toLowerCase() === this.query.trim().toLowerCase());
-            $wire.set('productId', exact ? exact.id : null);
+            const next = exact ? exact.id : null;
+            if ($wire[this.model] !== next) { $wire.set(this.model, next); }
         },
         sync() {
-            const current = this.items.find((i) => i.id === $wire.productId);
+            const current = this.items.find((i) => i.id === $wire[this.model]);
             this.query = current ? current.name : (this.open ? this.query : '');
         },
     }"
-    x-effect="$wire.productId; sync()"
+    x-effect="$wire[model]; sync()"
     @click.outside="open = false"
     class="relative"
 >
     <flux:field>
-        <flux:label>Producto</flux:label>
+        <flux:label>{{ $label }}</flux:label>
         <flux:input
             x-model="query"
             x-on:input="typed()"
@@ -42,9 +51,9 @@
             x-on:keydown.enter.prevent="matches[active] && pick(matches[active])"
             x-on:keydown.escape="open = false"
             icon="magnifying-glass"
-            placeholder="Escribe para buscar un producto"
+            placeholder="{{ $placeholder }}"
             autocomplete="off"
-            data-test="product-search"
+            data-test="{{ $dataTest }}"
         />
     </flux:field>
     <ul
@@ -63,6 +72,6 @@
                 <span x-text="item.code" class="text-xs text-zinc-500"></span>
             </li>
         </template>
-        <li x-show="matches.length === 0" class="px-3 py-2 text-zinc-500">No hay productos con ese nombre. Solo se pueden registrar cajas de productos existentes.</li>
+        <li x-show="matches.length === 0" class="px-3 py-2 text-zinc-500">{{ $emptyMessage }}</li>
     </ul>
 </div>

@@ -26,7 +26,7 @@
             $kpis[] = ['key' => 'incoming', 'icon' => 'truck', 'tone' => 'sky', 'label' => 'Transferencias por recibir', 'value' => (string) $incoming, 'unit' => null, 'hint' => 'en tránsito hacia tus cámaras', 'href' => route('transfers.index')];
         }
 
-        $kpis[] = ['key' => 'low-stock', 'icon' => 'exclamation-triangle', 'tone' => 'amber', 'label' => 'Stock bajo', 'value' => (string) $lowStock->count(), 'unit' => null, 'hint' => 'productos con '.$threshold.' cajas o menos', 'href' => auth()->user()->isSuperAdmin() ? route('reports.low-stock') : null, 'alert' => $lowStock->isNotEmpty()];
+        $kpis[] = ['key' => 'low-stock', 'icon' => 'exclamation-triangle', 'tone' => 'amber', 'label' => 'Stock bajo', 'value' => (string) $lowStock->count(), 'unit' => null, 'hint' => 'productos con '.$threshold.' cajas o menos', 'href' => auth()->user()->can('view-reports') ? route('reports.low-stock') : null, 'alert' => $lowStock->isNotEmpty()];
 
         if ($openIncidents !== null) {
             $kpis[] = ['key' => 'incidents', 'icon' => 'flag', 'tone' => 'violet', 'label' => 'Incidencias abiertas', 'value' => (string) $openIncidents, 'unit' => null, 'hint' => 'de transferencias', 'href' => route('admin.incidents')];

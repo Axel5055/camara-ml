@@ -7,7 +7,9 @@ use App\Models\Category;
 use App\Models\Chamber;
 use App\Models\Product;
 use App\Models\User;
+use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Query\Builder;
+use Illuminate\Support\Facades\Auth;
 use Livewire\WithPagination;
 
 /**
@@ -15,7 +17,7 @@ use Livewire\WithPagination;
  */
 trait HasReportFilters
 {
-    use RequiresSuperAdmin, WithPagination;
+    use AuthorizesReports, InteractsWithChambers, WithPagination;
 
     public string $dateFrom = '';
 
@@ -60,6 +62,43 @@ trait HasReportFilters
     }
 
     /**
+     * Restricts a query to the chambers the user may see (a no-op for super administrators). The column is the
+     * chamber id of the row; give several when a row belongs to a visible chamber through either of them.
+     *
+     * @param  array<int, string>  $columns
+     */
+    protected function limitToVisibleChambers(Builder $query, array $columns): void
+    {
+        $visible = $this->visibleChamberIds();
+
+        if ($visible === null) {
+            return;
+        }
+
+        $query->where(function (Builder $scope) use ($columns, $visible): void {
+            foreach ($columns as $column) {
+                $scope->orWhereIn($column, $visible);
+            }
+        });
+    }
+
+    /**
+     * Users for the filter: everyone for super administrators; for managers only the warehouse users of their
+     * visible chambers.
+     *
+     * @return Collection<int, User>
+     */
+    private function filterableUsers(): Collection
+    {
+        $user = Auth::user();
+
+        return User::query()
+            ->when($user->isManager(), fn ($query) => $query->whereHas('chambers', fn ($chambers) => $chambers
+                ->whereIn('chambers.id', Chamber::query()->accessibleBy($user)->select('chambers.id'))))
+            ->orderBy('name')->get(['id', 'name']);
+    }
+
+    /**
      * Options for the filter selects.
      *
      * @return array<string, mixed>
@@ -67,13 +106,13 @@ trait HasReportFilters
     protected function filterOptions(): array
     {
         return [
-            'chambers' => Chamber::query()->with('branch:id,name')->orderBy('name')->get(),
+            'chambers' => Chamber::query()->accessibleBy(Auth::user())->with('branch:id,name')->orderBy('name')->get(),
             'branches' => Branch::query()->orderBy('name')->get(['id', 'name']),
             'categories' => Category::query()->orderBy('name')->get(['id', 'name']),
             'products' => Product::query()
                 ->when($this->categoryId, fn ($query, int $id) => $query->where('category_id', $id))
-                ->orderBy('name')->get(['id', 'name']),
-            'users' => User::query()->orderBy('name')->get(['id', 'name']),
+                ->orderBy('name')->get(['id', 'name', 'code']),
+            'users' => $this->filterableUsers(),
         ];
     }
 }

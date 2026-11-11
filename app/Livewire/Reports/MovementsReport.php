@@ -34,6 +34,7 @@ class MovementsReport extends Component
             ->when($this->categoryId, fn (Builder $query, int $id) => $query->where('boxes.category_id', $id))
             ->when($this->productId, fn (Builder $query, int $id) => $query->where('boxes.product_id', $id));
 
+        $this->limitToVisibleChambers($query, ['box_movements.from_chamber_id', 'box_movements.to_chamber_id']);
         $this->applyDateRange($query, 'box_movements.occurred_at');
 
         return $query;

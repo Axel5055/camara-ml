@@ -26,8 +26,8 @@ class ReverseEntry extends InventoryOperation
      */
     public function handle(User $admin, Entry $entry, string $reason): Entry
     {
-        if (! $admin->isSuperAdmin()) {
-            throw new AuthorizationException('Solo el super administrador puede cancelar una entrada.');
+        if (! $admin->canCorrectEntriesOf($entry->chamber)) {
+            throw new AuthorizationException('No tienes permiso para cancelar esta entrada.');
         }
 
         $reason = trim($reason);

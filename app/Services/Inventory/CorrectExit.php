@@ -44,8 +44,8 @@ class CorrectExit extends InventoryOperation
         array $removeBoxIds = [],
         array $addBoxIds = [],
     ): StockExit {
-        if (! $admin->isSuperAdmin()) {
-            throw new AuthorizationException('Solo el super administrador puede corregir una salida.');
+        if (! $admin->canCorrectRecordsOf($exit->originChamber, $exit->destChamber)) {
+            throw new AuthorizationException('No tienes permiso para corregir esta salida.');
         }
 
         $reason = trim($reason);

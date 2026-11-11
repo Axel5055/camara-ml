@@ -296,29 +296,28 @@
 
     <flux:modal
         name="delete-passkey-modal"
-        class="max-w-md md:min-w-md"
+        class="w-full md:w-[28rem]"
         @close="closeDeleteModal"
         wire:model="showDeleteModal"
     >
         <div class="space-y-6">
-            <div class="space-y-2">
-                <flux:heading size="lg">{{ __('Remove passkey') }}</flux:heading>
-                <flux:text>
-                    {{ __('Are you sure you want to remove the passkey ":name"? You will no longer be able to use it to sign in.', ['name' => $deletingPasskeyName]) }}
-                </flux:text>
+            <div class="flex items-start gap-4">
+                <div class="flex size-10 shrink-0 items-center justify-center rounded-full bg-red-100 dark:bg-red-950/50">
+                    <flux:icon.key class="size-5 text-red-600 dark:text-red-400" />
+                </div>
+                <div>
+                    <flux:heading size="lg">{{ __('Remove passkey') }}</flux:heading>
+                    <flux:text class="mt-1">
+                        {{ __('Are you sure you want to remove the passkey ":name"? You will no longer be able to use it to sign in.', ['name' => $deletingPasskeyName]) }}
+                    </flux:text>
+                </div>
             </div>
 
-            <div class="flex gap-3 justify-end">
-                <flux:button
-                    variant="outline"
-                    wire:click="closeDeleteModal"
-                >
+            <div class="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+                <flux:button variant="ghost" wire:click="closeDeleteModal">
                     {{ __('Cancel') }}
                 </flux:button>
-                <flux:button
-                    variant="danger"
-                    wire:click="deletePasskey"
-                >
+                <flux:button variant="danger" icon="trash" wire:click="deletePasskey">
                     {{ __('Remove passkey') }}
                 </flux:button>
             </div>

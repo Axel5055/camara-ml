@@ -77,7 +77,7 @@ Route::middleware(['auth', 'active', 'verified'])->group(function () {
 
     // Catalogs: super administrators manage them, administrators can only look at them.
     Route::middleware('can:view-catalogs')->prefix('administracion')->group(function () {
-        Route::livewire('sucursales', Branches::class)->name('admin.branches');
+        Route::livewire('sucursales', Branches::class)->name('admin.branches')->middleware('can:view-branches');
         Route::livewire('camaras', Chambers::class)->name('admin.chambers');
         Route::livewire('categorias', Categories::class)->name('admin.categories');
     });
@@ -86,18 +86,21 @@ Route::middleware(['auth', 'active', 'verified'])->group(function () {
     Route::middleware('super-admin')->group(function () {
         Route::prefix('administracion')->group(function () {
             Route::livewire('usuarios', Users::class)->name('admin.users');
-            Route::livewire('incidencias', Incidents::class)->name('admin.incidents');
             Route::livewire('ajustes', Adjustments::class)->name('admin.adjustments');
             Route::livewire('auditoria', AuditLogs::class)->name('admin.audit');
         });
+    });
 
-        Route::prefix('reportes')->group(function () {
-            Route::livewire('inventario', InventoryReport::class)->name('reports.inventory');
-            Route::livewire('entradas', EntriesReport::class)->name('reports.entries');
-            Route::livewire('salidas', ExitsReport::class)->name('reports.exits');
-            Route::livewire('movimientos', MovementsReport::class)->name('reports.movements');
-            Route::livewire('existencias-bajas', LowStock::class)->name('reports.low-stock');
-        });
+    // Incidents: super administrators resolve them; administrators and managers (within their scope) only look.
+    Route::livewire('administracion/incidencias', Incidents::class)->name('admin.incidents')->middleware('can:view-incidents');
+
+    // Reports: super administrators, and managers limited to their branches and chambers.
+    Route::middleware('can:view-reports')->prefix('reportes')->group(function () {
+        Route::livewire('inventario', InventoryReport::class)->name('reports.inventory');
+        Route::livewire('entradas', EntriesReport::class)->name('reports.entries');
+        Route::livewire('salidas', ExitsReport::class)->name('reports.exits');
+        Route::livewire('movimientos', MovementsReport::class)->name('reports.movements');
+        Route::livewire('existencias-bajas', LowStock::class)->name('reports.low-stock');
     });
 });
 

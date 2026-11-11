@@ -21,12 +21,7 @@
         </flux:select>
     @endif
     @if (in_array('product', $show))
-        <flux:select wire:model.live="productId" label="Producto">
-            <flux:select.option value="">Todos</flux:select.option>
-            @foreach ($products as $product)
-                <flux:select.option :value="$product->id">{{ $product->name }}</flux:select.option>
-            @endforeach
-        </flux:select>
+        <x-product-search :products="$products" placeholder="Todos los productos" emptyMessage="No hay productos con ese nombre." data-test="report-product-search" wire:key="report-product-search-{{ $categoryId }}" />
     @endif
     @if (in_array('user', $show))
         <flux:select wire:model.live="userId" label="Usuario">

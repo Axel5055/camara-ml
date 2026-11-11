@@ -10,24 +10,30 @@
         </flux:button>
     </flux:modal.trigger>
 
-    <flux:modal name="confirm-user-deletion" :show="$errors->isNotEmpty()" focusable class="max-w-lg">
+    <flux:modal name="confirm-user-deletion" :show="$errors->isNotEmpty()" focusable class="w-full md:w-[30rem]">
         <form method="POST" wire:submit="deleteUser" class="space-y-6">
-            <div>
-                <flux:heading size="lg">{{ __('Are you sure you want to delete your account?') }}</flux:heading>
-
-                <flux:subheading>
-                    {{ __('Once your account is deleted, all of its resources and data will be permanently deleted. Please enter your password to confirm you would like to permanently delete your account.') }}
-                </flux:subheading>
+            <div class="flex items-start gap-4">
+                <div class="flex size-10 shrink-0 items-center justify-center rounded-full bg-red-100 dark:bg-red-950/50">
+                    <flux:icon.exclamation-triangle class="size-5 text-red-600 dark:text-red-400" />
+                </div>
+                <div>
+                    <flux:heading size="lg">{{ __('Are you sure you want to delete your account?') }}</flux:heading>
+                    <flux:text class="mt-1">
+                        {{ __('Once your account is deleted, all of its resources and data will be permanently deleted. Please enter your password to confirm you would like to permanently delete your account.') }}
+                    </flux:text>
+                </div>
             </div>
 
-            <flux:input wire:model="password" :label="__('Password')" type="password" viewable />
+            <div class="space-y-4 rounded-xl border border-zinc-200 p-4 dark:border-zinc-700">
+                <flux:input wire:model="password" :label="__('Password')" type="password" icon="lock-closed" viewable />
+            </div>
 
-            <div class="flex justify-end space-x-2 rtl:space-x-reverse">
+            <div class="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
                 <flux:modal.close>
-                    <flux:button variant="filled">{{ __('Cancel') }}</flux:button>
+                    <flux:button variant="ghost" type="button">{{ __('Cancel') }}</flux:button>
                 </flux:modal.close>
 
-                <flux:button variant="danger" type="submit">{{ __('Delete account') }}</flux:button>
+                <flux:button variant="danger" type="submit" icon="trash">{{ __('Delete account') }}</flux:button>
             </div>
         </form>
     </flux:modal>

@@ -573,3 +573,44 @@ it('lets the super administrator edit a box from the stock list', function () {
 
     expect($box->fresh()->current_weight_kg)->toBe('18.500')->and($box->fresh()->unit_cost_mxn)->toBe('123.45');
 });
+
+it('lets the super administrator skip the ticket when registering, but nobody else', function () {
+    $w = detailsWorld();
+    $single = Product::factory()->create(['code' => 'CERDO', 'name' => 'Cerdo']);
+
+    Livewire::actingAs($w['admin'])->test(CreateEntry::class)
+        ->set('chamberId', $w['c1']->id)
+        ->set('productId', $w['product']->id)->set('boxesCount', '2')->set('weight', '10')->set('cost', '50')
+        ->call('addLine')
+        ->assertSeeHtml('data-test="print-ticket-toggle"')
+        ->set('printTicketOnSave', false)
+        ->call('save')
+        ->assertHasNoErrors();
+
+    expect(session('print_ticket'))->toBeNull();
+
+    app(RegisterEntry::class)->handle($w['centroUser'], $w['c1'], [
+        ['product_id' => $single->id, 'boxes_count' => 2, 'weight_per_box_kg' => '15', 'unit_cost_mxn' => '90'],
+    ]);
+
+    Livewire::actingAs($w['admin'])->test(CreateExit::class)
+        ->set('originChamberId', $w['c1']->id)
+        ->set('productId', $single->id)->set('quantity', '1')->call('addProduct')
+        ->set('destBranchId', $w['sur']->id)->set('requester', 'Ana')
+        ->set('printTicketOnSave', false)
+        ->call('save')
+        ->assertHasNoErrors();
+
+    expect(session('print_ticket'))->toBeNull();
+
+    Livewire::actingAs($w['centroUser'])->test(CreateExit::class)
+        ->set('originChamberId', $w['c1']->id)
+        ->set('productId', $single->id)->set('quantity', '1')->call('addProduct')
+        ->set('destBranchId', $w['sur']->id)->set('requester', 'Ana')
+        ->assertDontSeeHtml('data-test="print-ticket-toggle"')
+        ->set('printTicketOnSave', false)
+        ->call('save')
+        ->assertHasNoErrors();
+
+    expect(session('print_ticket'))->toContain('/ticket');
+});

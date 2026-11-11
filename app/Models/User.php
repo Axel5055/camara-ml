@@ -100,6 +100,33 @@ class User extends Authenticatable implements MustVerifyEmail, PasskeyUser
     }
 
     /**
+     * Super administrators correct or cancel the entries of any chamber; managers only those of their own
+     * branches and chambers.
+     */
+    public function canCorrectEntriesOf(Chamber $chamber): bool
+    {
+        return $this->isSuperAdmin() || ($this->isManager() && $this->canViewChamber($chamber));
+    }
+
+    /**
+     * Correcting or cancelling exits and transfers: super administrators and administrators anywhere, managers
+     * only when every chamber involved (origin and destination) is within their scope.
+     */
+    public function canCorrectRecordsOf(?Chamber ...$chambers): bool
+    {
+        if (! $this->is_active) {
+            return false;
+        }
+
+        if (in_array($this->role, [UserRole::SuperAdmin, UserRole::Admin], true)) {
+            return true;
+        }
+
+        return $this->role === UserRole::Manager
+            && collect($chambers)->filter()->every(fn (Chamber $chamber): bool => $this->canViewChamber($chamber));
+    }
+
+    /**
      * Only super administrators operate every chamber; warehouse users only the chambers assigned to them within
      * their own branch. The read-only administrator and managers operate none.
      */

@@ -31,6 +31,7 @@ class EntriesReport extends Component
             ->when($this->productId, fn (Builder $query, int $id) => $query->where('entry_items.product_id', $id))
             ->when($this->userId, fn (Builder $query, int $id) => $query->where('entries.user_id', $id));
 
+        $this->limitToVisibleChambers($query, ['entries.chamber_id']);
         $this->applyDateRange($query, 'entries.occurred_at');
 
         return $query;

@@ -352,9 +352,12 @@ class CreateExit extends Component
         Flux::modal('confirm-save')->close();
 
         if ($done && $exit !== null) {
-            session()->flash('print_ticket', $this->isTransfer()
-                ? route('transfers.ticket', ['transfer' => $exit->transfer()->value('id'), 'auto' => 1, 'copies' => $this->ticketCopies()])
-                : route('exits.ticket', ['exit' => $exit, 'auto' => 1, 'copies' => $this->ticketCopies()]));
+            if ($this->shouldPrintTicket()) {
+                session()->flash('print_ticket', $this->isTransfer()
+                    ? route('transfers.ticket', ['transfer' => $exit->transfer()->value('id'), 'auto' => 1, 'copies' => $this->ticketCopies()])
+                    : route('exits.ticket', ['exit' => $exit, 'auto' => 1, 'copies' => $this->ticketCopies()]));
+            }
+
             Flux::toast(text: $this->isTransfer() ? 'Transferencia enviada.' : 'Salida registrada.', variant: 'success');
             $this->redirectRoute($this->isTransfer() ? 'transfers.index' : 'exits.index', navigate: true);
         }

@@ -108,16 +108,31 @@
         </flux:table>
     </div>
 
-    <flux:modal name="branch-form" class="md:w-96">
+    <flux:modal name="branch-form" class="w-full md:w-[30rem]">
         <form wire:submit="save" class="space-y-6">
-            <flux:heading size="lg">{{ $editingId ? 'Editar sucursal' : 'Nueva sucursal' }}</flux:heading>
-            <flux:input wire:model="code" label="Código" required />
-            <flux:input wire:model="name" label="Nombre" required />
-            <flux:input wire:model="address" label="Dirección" />
-            <flux:switch wire:model="is_active" label="Activa" />
-            <div class="flex justify-end gap-2">
-                <flux:modal.close><flux:button variant="ghost">Cancelar</flux:button></flux:modal.close>
-                <flux:button type="submit" variant="primary">Guardar</flux:button>
+            <div>
+                <flux:heading size="lg">{{ $editingId ? 'Editar sucursal' : 'Nueva sucursal' }}</flux:heading>
+                <flux:text class="mt-1">{{ $editingId ? 'Actualiza los datos de la sucursal.' : 'Registra una sucursal para poder asignarle cámaras y enviarle salidas.' }}</flux:text>
+            </div>
+
+            <div class="space-y-4 rounded-xl border border-zinc-200 p-4 dark:border-zinc-700">
+                <div class="text-xs font-semibold uppercase tracking-wide text-zinc-500">Datos de la sucursal</div>
+
+                <div class="grid gap-4 sm:grid-cols-3">
+                    <flux:input wire:model="code" label="Código" icon="hashtag" class="font-mono uppercase" placeholder="CENTRO" required />
+                    <div class="sm:col-span-2">
+                        <flux:input wire:model="name" label="Nombre" icon="building-storefront" placeholder="Ej. Sucursal Centro" required />
+                    </div>
+                </div>
+
+                <flux:input wire:model="address" label="Dirección" icon="map-pin" placeholder="Calle, número y colonia (opcional)" />
+            </div>
+
+            <x-active-switch title="Sucursal activa" description="Una sucursal inactiva ya no aparece como destino de salidas." />
+
+            <div class="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+                <flux:modal.close><flux:button variant="ghost" type="button">Cancelar</flux:button></flux:modal.close>
+                <flux:button type="submit" variant="primary" icon="check">Guardar</flux:button>
             </div>
         </form>
     </flux:modal>

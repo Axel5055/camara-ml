@@ -19,12 +19,12 @@ class TransferPolicy
     }
 
     /**
-     * Only a super administrator corrects a transfer: boxes, destination and date while it is in transit,
-     * requester and notes also once received.
+     * Super administrators, administrators and (within their scope) managers correct a transfer: boxes,
+     * destination and date while it is in transit, requester and notes also once received.
      */
     public function correct(User $user, Transfer $transfer): bool
     {
-        return $user->isSuperAdmin()
+        return $user->canCorrectRecordsOf($transfer->originChamber, $transfer->destChamber)
             && in_array($transfer->status, [TransferStatus::InTransit, TransferStatus::Received], true);
     }
 
@@ -34,12 +34,12 @@ class TransferPolicy
     }
 
     /**
-     * Only a super administrator cancels a transfer, whether it is still in transit or was already received
-     * (to correct a mistake). Warehouse users ask the super administrator to do it.
+     * Super administrators, administrators and (within their scope) managers cancel a transfer, whether it is
+     * still in transit or was already received (to correct a mistake). Warehouse users ask them to do it.
      */
     public function cancel(User $user, Transfer $transfer): bool
     {
-        return $user->isSuperAdmin()
+        return $user->canCorrectRecordsOf($transfer->originChamber, $transfer->destChamber)
             && in_array($transfer->status, [TransferStatus::InTransit, TransferStatus::Received], true);
     }
 }

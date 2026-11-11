@@ -46,6 +46,7 @@ class InventoryReport extends Component
             ->when($this->categoryId, fn (Builder $query, int $id) => $query->where('boxes.category_id', $id))
             ->when($this->productId, fn (Builder $query, int $id) => $query->where('boxes.product_id', $id));
 
+        $this->limitToVisibleChambers($query, ['chambers.id']);
         $this->applyDateRange($query, 'boxes.entered_at');
 
         return $query;

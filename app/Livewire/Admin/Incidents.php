@@ -4,7 +4,7 @@ namespace App\Livewire\Admin;
 
 use App\Enums\IncidentStatus;
 use App\Enums\IncidentType;
-use App\Livewire\Concerns\RequiresSuperAdmin;
+use App\Livewire\Concerns\InteractsWithChambers;
 use App\Models\AuditLog;
 use App\Models\Incident;
 use Flux\Flux;
@@ -12,6 +12,7 @@ use Illuminate\Contracts\View\View;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Gate;
+use Livewire\Attributes\Locked;
 use Livewire\Attributes\Title;
 use Livewire\Component;
 use Livewire\WithPagination;
@@ -19,7 +20,7 @@ use Livewire\WithPagination;
 #[Title('Incidencias')]
 class Incidents extends Component
 {
-    use RequiresSuperAdmin, WithPagination;
+    use InteractsWithChambers, WithPagination;
 
     /** open | resolved | all */
     public string $status = 'open';
@@ -29,9 +30,18 @@ class Incidents extends Component
     /** all | an IncidentType value */
     public string $type = 'all';
 
+    #[Locked]
     public ?int $resolvingId = null;
 
     public string $resolution = '';
+
+    /**
+     * Livewire boot hook: runs on the first load and on every later request of the component.
+     */
+    public function boot(): void
+    {
+        abort_unless(Gate::allows('view-incidents'), 403);
+    }
 
     public function updated(string $property): void
     {
@@ -55,8 +65,11 @@ class Incidents extends Component
     private function searchedIncidents(): Builder
     {
         $search = trim($this->search);
+        $visible = $this->visibleChamberIds();
 
         return Incident::query()
+            ->when($visible !== null, fn (Builder $query) => $query->whereHas('transfer', fn (Builder $transfer) => $transfer
+                ->whereIn('origin_chamber_id', $visible)->orWhereIn('dest_chamber_id', $visible)))
             ->when(IncidentType::tryFrom($this->type), fn (Builder $query, IncidentType $type) => $query->where('type', $type))
             ->when($search !== '', fn (Builder $query) => $query->where(fn (Builder $query) => $query
                 ->where('description', 'like', "%{$search}%")
@@ -105,9 +118,15 @@ class Incidents extends Component
             ->groupBy('status')
             ->pluck('total', 'status');
 
+        $resolving = $this->resolvingId === null ? null : Incident::query()
+            ->with(['transfer.originChamber.branch', 'transfer.destChamber.branch', 'box'])
+            ->find($this->resolvingId);
+
         return view('livewire.admin.incidents', [
+            'resolving' => $resolving !== null && Gate::allows('resolve', $resolving) ? $resolving : null,
+            'isSuperAdmin' => Auth::user()->isSuperAdmin(),
             'incidents' => $this->searchedIncidents()
-                ->with(['transfer:id,reference', 'box:id,barcode', 'resolver:id,name'])
+                ->with(['transfer:id,reference,origin_chamber_id,dest_chamber_id', 'transfer.originChamber', 'transfer.destChamber', 'box:id,barcode', 'resolver:id,name'])
                 ->when(IncidentStatus::tryFrom($this->status), fn (Builder $query, IncidentStatus $status) => $query->where('status', $status))
                 ->orderByRaw("status = 'open' desc")->orderByDesc('id')
                 ->paginate(20),

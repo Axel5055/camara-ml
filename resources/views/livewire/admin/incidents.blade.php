@@ -107,8 +107,8 @@
                             <flux:badge size="sm" :color="$incident->status === \App\Enums\IncidentStatus::Open ? 'red' : 'green'">{{ $incident->status === \App\Enums\IncidentStatus::Open ? 'Abierta' : 'Resuelta' }}</flux:badge>
                         </flux:table.cell>
                         <flux:table.cell align="end">
-                            @if ($incident->status === \App\Enums\IncidentStatus::Open)
-                                <flux:button size="sm" variant="ghost" icon="check" wire:click="askResolve({{ $incident->id }})">Resolver</flux:button>
+                            @if ($incident->status === \App\Enums\IncidentStatus::Open && auth()->user()->can('resolve', $incident))
+                                <flux:button size="sm" variant="ghost" icon="check" wire:click="askResolve({{ $incident->id }})" data-test="incident-resolve">Resolver</flux:button>
                             @endif
                         </flux:table.cell>
                     </flux:table.row>
@@ -121,14 +121,72 @@
         </flux:table>
     </div>
 
-    <flux:modal name="resolve-incident" class="md:w-96">
+    <flux:modal name="resolve-incident" class="w-full md:w-[34rem]">
         <form wire:submit="resolve" class="space-y-6">
-            <flux:heading size="lg">Resolver incidencia</flux:heading>
-            <flux:text>Si hay que corregir el inventario de la caja, regístralo antes en Ajustes.</flux:text>
-            <flux:textarea wire:model="resolution" label="Resolución" rows="3" required />
-            <div class="flex justify-end gap-2">
-                <flux:modal.close><flux:button variant="ghost">Cancelar</flux:button></flux:modal.close>
-                <flux:button type="submit" variant="primary">Marcar como resuelta</flux:button>
+            <div>
+                <flux:heading size="lg">Resolver incidencia</flux:heading>
+                <flux:text class="mt-1">Revisa el detalle y explica cómo se resolvió. Quedará en la auditoría con tu nombre.</flux:text>
+            </div>
+
+            @if ($resolving)
+                <div class="space-y-3 rounded-xl border border-zinc-200 p-4 dark:border-zinc-700" data-test="resolve-summary">
+                    <div class="flex flex-wrap items-center justify-between gap-2">
+                        <div class="text-xs font-semibold uppercase tracking-wide text-zinc-500">Incidencia</div>
+                        <flux:badge size="sm" :color="$resolving->type->color()">{{ $resolving->type->label() }}</flux:badge>
+                    </div>
+
+                    <dl class="grid gap-x-4 gap-y-2 text-sm sm:grid-cols-2">
+                        <div>
+                            <dt class="text-xs text-zinc-500">Transferencia</dt>
+                            <dd class="font-mono text-zinc-900 dark:text-white">{{ $resolving->transfer->reference }}</dd>
+                        </div>
+                        <div>
+                            <dt class="text-xs text-zinc-500">Caja</dt>
+                            <dd class="font-mono text-zinc-900 dark:text-white">{{ $resolving->box?->barcode ?? '—' }}</dd>
+                        </div>
+                        <div>
+                            <dt class="text-xs text-zinc-500">Origen</dt>
+                            <dd class="text-zinc-900 dark:text-white">{{ $resolving->transfer->originChamber->branch->name }} · {{ $resolving->transfer->originChamber->name }}</dd>
+                        </div>
+                        <div>
+                            <dt class="text-xs text-zinc-500">Destino</dt>
+                            <dd class="text-zinc-900 dark:text-white">{{ $resolving->transfer->destChamber->branch->name }} · {{ $resolving->transfer->destChamber->name }}</dd>
+                        </div>
+                        @if ($resolving->expected_weight_kg !== null || $resolving->received_weight_kg !== null)
+                            <div>
+                                <dt class="text-xs text-zinc-500">Peso esperado</dt>
+                                <dd class="tabular-nums text-zinc-900 dark:text-white">{{ $resolving->expected_weight_kg ?? '—' }} kg</dd>
+                            </div>
+                            <div>
+                                <dt class="text-xs text-zinc-500">Peso recibido</dt>
+                                <dd class="tabular-nums text-zinc-900 dark:text-white">{{ $resolving->received_weight_kg ?? '—' }} kg</dd>
+                            </div>
+                        @endif
+                    </dl>
+
+                    <div class="rounded-lg bg-zinc-100 p-3 text-sm text-zinc-700 dark:bg-zinc-700/40 dark:text-zinc-200">{{ $resolving->description }}</div>
+                </div>
+            @endif
+
+            <div class="space-y-2">
+                <flux:textarea wire:model="resolution" label="Resolución" rows="4" placeholder="Ej. La caja se localizó en la cámara de tránsito y se entregó." required data-test="resolution-input" />
+                <flux:text class="text-xs">Mínimo 5 caracteres.</flux:text>
+            </div>
+
+            <div class="flex items-start gap-2 rounded-lg bg-amber-50 p-3 text-xs text-amber-800 dark:bg-amber-500/10 dark:text-amber-200">
+                <flux:icon.information-circle class="mt-0.5 size-4 shrink-0" />
+                <span>
+                    @if ($isSuperAdmin)
+                        Si hay que corregir el inventario de la caja, regístralo antes en Ajustes.
+                    @else
+                        Si hay que corregir el inventario de la caja, solicita el ajuste al super administrador antes de resolver.
+                    @endif
+                </span>
+            </div>
+
+            <div class="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+                <flux:modal.close><flux:button variant="ghost" type="button" class="w-full sm:w-auto">Cancelar</flux:button></flux:modal.close>
+                <flux:button type="submit" variant="primary" icon="check" class="w-full sm:w-auto" wire:loading.attr="disabled" wire:target="resolve" data-test="resolve-submit">Marcar como resuelta</flux:button>
             </div>
         </form>
     </flux:modal>

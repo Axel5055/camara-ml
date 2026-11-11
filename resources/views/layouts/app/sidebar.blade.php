@@ -11,30 +11,34 @@
             </flux:sidebar.header>
 
             <flux:sidebar.nav>
-                @php($warehouseNav = in_array(auth()->user()->role->value, ['warehouse', 'admin', 'manager'], true))
+                @php($warehouseNav = in_array(auth()->user()->role->value, ['warehouse', 'admin'], true))
+                @php($isManager = auth()->user()->role === \App\Enums\UserRole::Manager)
                 <flux:sidebar.group heading="Inventario" class="grid">
                     <flux:sidebar.item icon="home" :href="route('dashboard')" :current="request()->routeIs('dashboard')" wire:navigate>Panel</flux:sidebar.item>
                     <flux:sidebar.item icon="archive-box" :href="route('stock')" :current="request()->routeIs('stock', 'boxes.show')" wire:navigate>Existencias</flux:sidebar.item>
                     @if (auth()->user()->role === \App\Enums\UserRole::Warehouse)
                         <flux:sidebar.item icon="shopping-bag" :href="route('admin.products')" :current="request()->routeIs('admin.products')" wire:navigate data-test="nav-products">Productos</flux:sidebar.item>
                     @endif
-                    <div x-data='{ open: {{ $warehouseNav ? "true" : '$persist(true).as("nav-entries")' }} }' data-test="nav-entries">
+                    @php($pendingRequests = \App\Models\EntryRequest::query()->where('status', 'pending')->when(auth()->user()->role === \App\Enums\UserRole::Warehouse, fn ($query) => $query->where('user_id', auth()->id()))->when(auth()->user()->isManager(), fn ($query) => $query->whereIn('chamber_id', \App\Models\Chamber::query()->accessibleBy(auth()->user())->select('id')))->count())
+                    <div x-data='{ open: {{ $warehouseNav ? "true" : ($isManager ? '(window.navOpen ??= {}).entries ?? false' : '$persist(true).as("nav-entries")') }} }' x-effect="(window.navOpen ??= {}).entries = open" data-test="nav-entries">
                         <flux:sidebar.item as="button" type="button" icon="arrow-down-tray" x-on:click="open = ! open" x-bind:aria-expanded="open" class="w-full">
                             <span class="flex w-full items-center justify-between gap-2">
                                 Entradas
+                                @if ($pendingRequests > 0)
+                                    <flux:badge size="sm" color="amber" class="ms-auto" x-show="! open" data-test="nav-entries-badge">{{ $pendingRequests }}</flux:badge>
+                                @endif
                                 <flux:icon name="chevron-down" class="size-4 text-zinc-400 transition-transform duration-200" x-bind:class="open ? '' : '-rotate-90'" />
                             </span>
                         </flux:sidebar.item>
                         <div x-show="open" x-collapse class="ms-5 mt-0.5 grid gap-0.5 border-s border-zinc-700 ps-2">
                             <flux:sidebar.item icon="list-bullet" :href="route('entries.index')" :current="request()->routeIs('entries.index', 'entries.show')" wire:navigate>Todas las entradas</flux:sidebar.item>
-                            @php($pendingRequests = \App\Models\EntryRequest::query()->where('status', 'pending')->when(auth()->user()->role === \App\Enums\UserRole::Warehouse, fn ($query) => $query->where('user_id', auth()->id()))->when(auth()->user()->isManager(), fn ($query) => $query->whereIn('chamber_id', \App\Models\Chamber::query()->accessibleBy(auth()->user())->select('id')))->count())
                             <flux:sidebar.item icon="shield-check" :href="route('entry-requests.index')" :current="request()->routeIs('entry-requests.index')" :badge="$pendingRequests > 0 ? $pendingRequests : null" badge-color="amber" wire:navigate data-test="nav-entry-requests">Solicitudes</flux:sidebar.item>
                             @can('operate-inventory')
                                 <flux:sidebar.item icon="plus-circle" :href="route('entries.create')" :current="request()->routeIs('entries.create')" wire:navigate>Nueva entrada</flux:sidebar.item>
                             @endcan
                         </div>
                     </div>
-                    <div x-data='{ open: {{ $warehouseNav ? "true" : '$persist(true).as("nav-exits")' }} }' data-test="nav-exits">
+                    <div x-data='{ open: {{ $warehouseNav ? "true" : ($isManager ? '(window.navOpen ??= {}).exits ?? false' : '$persist(true).as("nav-exits")') }} }' x-effect="(window.navOpen ??= {}).exits = open" data-test="nav-exits">
                         <flux:sidebar.item as="button" type="button" icon="arrow-up-tray" x-on:click="open = ! open" x-bind:aria-expanded="open" class="w-full">
                             <span class="flex w-full items-center justify-between gap-2">
                                 Salidas
@@ -49,15 +53,18 @@
                         </div>
                     </div>
                     @can('viewAny', \App\Models\Transfer::class)
-                        <div x-data='{ open: {{ $warehouseNav ? "true" : '$persist(true).as("nav-transfers")' }} }' data-test="nav-transfers">
+                        @php($pendingTransfers = \App\Models\Transfer::query()->where('status', \App\Enums\TransferStatus::InTransit)->when(in_array(auth()->user()->role, [\App\Enums\UserRole::Warehouse, \App\Enums\UserRole::Manager], true), fn ($query) => $query->whereIn('dest_chamber_id', \App\Models\Chamber::query()->accessibleBy(auth()->user())->select('id')))->count())
+                        <div x-data='{ open: {{ $warehouseNav ? "true" : ($isManager ? '(window.navOpen ??= {}).transfers ?? false' : '$persist(true).as("nav-transfers")') }} }' x-effect="(window.navOpen ??= {}).transfers = open" data-test="nav-transfers">
                             <flux:sidebar.item as="button" type="button" icon="arrows-right-left" x-on:click="open = ! open" x-bind:aria-expanded="open" class="w-full">
                                 <span class="flex w-full items-center justify-between gap-2">
                                     Transferencias
+                                @if ($pendingTransfers > 0)
+                                    <flux:badge size="sm" color="amber" class="ms-auto" x-show="! open" data-test="nav-transfers-badge">{{ $pendingTransfers }}</flux:badge>
+                                @endif
                                     <flux:icon name="chevron-down" class="size-4 text-zinc-400 transition-transform duration-200" x-bind:class="open ? '' : '-rotate-90'" />
                                 </span>
                             </flux:sidebar.item>
                             <div x-show="open" x-collapse class="ms-5 mt-0.5 grid gap-0.5 border-s border-zinc-700 ps-2">
-                                @php($pendingTransfers = \App\Models\Transfer::query()->where('status', \App\Enums\TransferStatus::InTransit)->when(in_array(auth()->user()->role, [\App\Enums\UserRole::Warehouse, \App\Enums\UserRole::Manager], true), fn ($query) => $query->whereIn('dest_chamber_id', \App\Models\Chamber::query()->accessibleBy(auth()->user())->select('id')))->count())
                                 <flux:sidebar.item icon="list-bullet" :href="route('transfers.index')" :current="request()->routeIs('transfers.index')" :badge="$pendingTransfers > 0 ? $pendingTransfers : null" badge-color="amber" wire:navigate :data-test="$pendingTransfers > 0 ? 'nav-pending-transfers' : null">Todas las transferencias</flux:sidebar.item>
                                 @can('operate-inventory')
                                     <flux:sidebar.item icon="plus-circle" :href="route('transfers.create')" :current="request()->routeIs('transfers.create')" wire:navigate>Nueva transferencia</flux:sidebar.item>
@@ -67,26 +74,29 @@
                     @endcan
                 </flux:sidebar.group>
 
-                <flux:sidebar.group heading="Equipo" class="grid">
-                    <flux:sidebar.item icon="printer" :href="route('printers')" :current="request()->routeIs('printers')" wire:navigate>Impresoras</flux:sidebar.item>
-                </flux:sidebar.group>
-
                 @can('view-catalogs')
                     <flux:sidebar.group heading="Administración" class="grid">
-                        <flux:sidebar.item icon="building-storefront" :href="route('admin.branches')" :current="request()->routeIs('admin.branches')" wire:navigate>Sucursales</flux:sidebar.item>
+                        @can('view-branches')
+                            <flux:sidebar.item icon="building-storefront" :href="route('admin.branches')" :current="request()->routeIs('admin.branches')" wire:navigate>Sucursales</flux:sidebar.item>
+                        @endcan
                         <flux:sidebar.item icon="cube" :href="route('admin.chambers')" :current="request()->routeIs('admin.chambers')" wire:navigate>Cámaras</flux:sidebar.item>
                         <flux:sidebar.item icon="tag" :href="route('admin.categories')" :current="request()->routeIs('admin.categories')" wire:navigate>Categorías</flux:sidebar.item>
                         <flux:sidebar.item icon="shopping-bag" :href="route('admin.products')" :current="request()->routeIs('admin.products')" wire:navigate>Productos</flux:sidebar.item>
                         @if (auth()->user()->isSuperAdmin())
                         <flux:sidebar.item icon="users" :href="route('admin.users')" :current="request()->routeIs('admin.users')" wire:navigate>Usuarios</flux:sidebar.item>
-                        <flux:sidebar.item icon="exclamation-triangle" :href="route('admin.incidents')" :current="request()->routeIs('admin.incidents')" wire:navigate>Incidencias</flux:sidebar.item>
+                        @endif
+                        @can('view-incidents')
+                        @php($openIncidents = \App\Models\Incident::query()->where('status', \App\Enums\IncidentStatus::Open)->when(auth()->user()->isManager(), fn ($query) => $query->whereHas('transfer', fn ($transfer) => $transfer->whereIn('origin_chamber_id', \App\Models\Chamber::query()->accessibleBy(auth()->user())->select('id'))->orWhereIn('dest_chamber_id', \App\Models\Chamber::query()->accessibleBy(auth()->user())->select('id'))))->count())
+                        <flux:sidebar.item icon="exclamation-triangle" :href="route('admin.incidents')" :current="request()->routeIs('admin.incidents')" :badge="$openIncidents > 0 ? $openIncidents : null" badge-color="amber" wire:navigate :data-test="$openIncidents > 0 ? 'nav-open-incidents' : null">Incidencias</flux:sidebar.item>
+                        @endcan
+                        @if (auth()->user()->isSuperAdmin())
                         <flux:sidebar.item icon="adjustments-horizontal" :href="route('admin.adjustments')" :current="request()->routeIs('admin.adjustments')" wire:navigate>Ajustes</flux:sidebar.item>
                         <flux:sidebar.item icon="shield-check" :href="route('admin.audit')" :current="request()->routeIs('admin.audit')" wire:navigate>Auditoría</flux:sidebar.item>
                         @endif
                     </flux:sidebar.group>
                 @endcan
 
-                @if (auth()->user()->isSuperAdmin())
+                @can('view-reports')
                     <flux:sidebar.group heading="Reportes" class="grid">
                         <flux:sidebar.item icon="chart-bar" :href="route('reports.inventory')" :current="request()->routeIs('reports.inventory')" wire:navigate>Inventario</flux:sidebar.item>
                         <flux:sidebar.item icon="arrow-down-tray" :href="route('reports.entries')" :current="request()->routeIs('reports.entries')" wire:navigate>Entradas</flux:sidebar.item>
@@ -94,12 +104,22 @@
                         <flux:sidebar.item icon="queue-list" :href="route('reports.movements')" :current="request()->routeIs('reports.movements')" wire:navigate>Movimientos</flux:sidebar.item>
                         <flux:sidebar.item icon="bell-alert" :href="route('reports.low-stock')" :current="request()->routeIs('reports.low-stock')" wire:navigate>Existencias bajas</flux:sidebar.item>
                     </flux:sidebar.group>
-                @endif
+                @endcan
+
+                <flux:sidebar.group heading="Configuración" class="grid">
+                    <flux:sidebar.item icon="printer" :href="route('printers')" :current="request()->routeIs('printers')" wire:navigate>Impresoras</flux:sidebar.item>
+                </flux:sidebar.group>
             </flux:sidebar.nav>
 
             <flux:spacer />
 
             <x-desktop-user-menu class="hidden lg:block" :name="auth()->user()->name" />
+
+            <div class="border-t border-zinc-700 pt-3 text-center text-[10px] leading-snug text-zinc-500" data-test="app-footer">
+                <div>MLGRUPO &copy; {{ now()->year }}</div>
+                <div>Todos los derechos reservados</div>
+                <div>Diseñado por: Mycletch</div>
+            </div>
         </flux:sidebar>
 
         <!-- Mobile User Menu -->

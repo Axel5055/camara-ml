@@ -108,12 +108,12 @@ it('does not let a warehouse user edit or deactivate products', function () {
     expect($product->fresh()->is_active)->toBeTrue();
 });
 
-it('keeps the read-only administrator from creating products', function () {
-    $admin = User::factory()->admin()->create();
-
-    Livewire::actingAs($admin)->test(Products::class)->call('create')->assertForbidden();
-    $this->actingAs($admin)->get(route('admin.products'))->assertOk()->assertDontSeeHtml('data-test="product-create"');
-    $this->get(route('dashboard'))->assertDontSeeHtml('data-test="nav-products"');
+it('lets the administrator and the manager create products but not edit them', function () {
+    foreach ([User::factory()->admin()->create(), User::factory()->manager()->create()] as $user) {
+        Livewire::actingAs($user)->test(Products::class)->call('create')->assertOk();
+        $this->actingAs($user)->get(route('admin.products'))->assertOk()->assertSeeHtml('data-test="product-create"')->assertDontSee('wire:click="edit(', false);
+        $this->get(route('dashboard'))->assertDontSeeHtml('data-test="nav-products"');
+    }
 });
 
 it('keeps the super administrator in control of the products', function () {

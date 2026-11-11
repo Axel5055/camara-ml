@@ -280,9 +280,9 @@
                 </div>
             @endif
 
-            <flux:text class="text-sm">Se imprimirá el ticket. Si algún dato está mal, regresa y corrígelo antes de continuar.</flux:text>
+            <flux:text class="text-sm">Si algún dato está mal, regresa y corrígelo antes de continuar.</flux:text>
 
-            <flux:input type="number" min="1" max="10" step="1" inputmode="numeric" wire:model="ticketCopies" label="Copias del ticket a imprimir" data-test="ticket-copies" />
+            @include('livewire.inventory.partials.ticket-options')
 
             <div class="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
                 <flux:modal.close><flux:button variant="ghost" type="button" class="w-full sm:w-auto">Revisar de nuevo</flux:button></flux:modal.close>

@@ -2,7 +2,8 @@
 
 namespace App\Livewire\Reports;
 
-use App\Livewire\Concerns\RequiresSuperAdmin;
+use App\Livewire\Concerns\AuthorizesReports;
+use App\Livewire\Concerns\InteractsWithChambers;
 use App\Models\AuditLog;
 use App\Models\Chamber;
 use App\Models\Product;
@@ -22,7 +23,7 @@ use Symfony\Component\HttpFoundation\StreamedResponse;
 #[Title('Existencias bajas')]
 class LowStock extends Component
 {
-    use RequiresSuperAdmin;
+    use AuthorizesReports, InteractsWithChambers;
 
     /** Condition (over the joined stock and threshold) that makes a product low on stock. */
     private const IS_LOW = 'case when t.id is null then coalesce(s.boxes, 0) <= '.LowStockAlerts::THRESHOLD.'
@@ -59,6 +60,7 @@ class LowStock extends Component
             ->union(DB::table('stock_thresholds')->select('chamber_id', 'product_id'));
 
         $search = trim($this->search);
+        $visible = $this->visibleChamberIds();
 
         return DB::query()
             ->fromSub($pairs, 'p')
@@ -68,6 +70,7 @@ class LowStock extends Component
             ->leftJoin('stock_thresholds as t', fn ($join) => $join->on('t.chamber_id', '=', 'p.chamber_id')->on('t.product_id', '=', 'p.product_id'))
             ->leftJoinSub($stock, 's', fn ($join) => $join->on('s.current_chamber_id', '=', 'p.chamber_id')->on('s.product_id', '=', 'p.product_id'))
             ->whereRaw('(t.id is not null or (products.is_active = 1 and chambers.is_active = 1))')
+            ->when($visible !== null, fn (Builder $query) => $query->whereIn('p.chamber_id', $visible))
             ->when($this->chamberFilter, fn (Builder $query, int $id) => $query->where('p.chamber_id', $id))
             ->when($search !== '', fn (Builder $query) => $query->where('products.name', 'like', "%{$search}%"))
             ->selectRaw('p.chamber_id, p.product_id, t.id as threshold_id, (t.id is null) as is_default,
@@ -95,6 +98,8 @@ class LowStock extends Component
 
     public function saveThreshold(): void
     {
+        abort_unless(Auth::user()->isSuperAdmin(), 403);
+
         $validated = $this->validate([
             'thresholdChamberId' => ['required', Rule::exists('chambers', 'id')],
             'thresholdProductId' => ['required', Rule::exists('products', 'id')],
@@ -128,6 +133,8 @@ class LowStock extends Component
 
     public function deleteThreshold(int $id): void
     {
+        abort_unless(Auth::user()->isSuperAdmin(), 403);
+
         $threshold = StockThreshold::query()->findOrFail($id);
         AuditLog::record(Auth::user(), 'stock_threshold.deleted', $threshold, $threshold->only(['chamber_id', 'product_id', 'min_boxes', 'min_weight_kg']), null);
         $threshold->delete();
@@ -159,8 +166,9 @@ class LowStock extends Component
                 'healthy' => (int) $summary->thresholds - (int) $summary->low,
             ],
             'hasFilters' => trim($this->search) !== '' || $this->chamberFilter || $this->showAll,
-            'chambers' => Chamber::query()->with('branch:id,name')->where('is_active', true)->orderBy('name')->get(),
-            'products' => Product::query()->where('is_active', true)->orderBy('name')->get(['id', 'name']),
+            'canManage' => Auth::user()->isSuperAdmin(),
+            'chambers' => Chamber::query()->accessibleBy(Auth::user())->with('branch:id,name')->where('is_active', true)->orderBy('name')->get(),
+            'products' => Product::query()->where('is_active', true)->orderBy('name')->get(['id', 'name', 'code']),
         ]);
     }
 }

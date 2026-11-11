@@ -222,9 +222,9 @@
             @if ($needsApproval)
                 <flux:text class="text-sm" data-test="entry-needs-approval">Se avisará a los administradores. Las cajas y sus códigos de barras se crean hasta que la autoricen; si la rechazan, no se registra nada.</flux:text>
             @else
-                <flux:text class="text-sm">Al confirmar se crearán las cajas con sus códigos de barras y se imprimirá el ticket. Si algún dato está mal, regresa y corrígelo antes de registrar.</flux:text>
+                <flux:text class="text-sm">Al confirmar se crearán las cajas con sus códigos de barras. Si algún dato está mal, regresa y corrígelo antes de registrar.</flux:text>
 
-                <flux:input type="number" min="1" max="10" step="1" inputmode="numeric" wire:model="ticketCopies" label="Copias del ticket a imprimir" data-test="ticket-copies" />
+                @include('livewire.inventory.partials.ticket-options')
             @endif
 
             <div class="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">

@@ -211,7 +211,10 @@ class CreateEntry extends Component
         Flux::modal('confirm-save')->close();
 
         if ($done && $entry !== null) {
-            session()->flash('print_ticket', route('entries.ticket', ['entry' => $entry, 'auto' => 1, 'copies' => $this->ticketCopies()]));
+            if ($this->shouldPrintTicket()) {
+                session()->flash('print_ticket', route('entries.ticket', ['entry' => $entry, 'auto' => 1, 'copies' => $this->ticketCopies()]));
+            }
+
             Flux::toast(text: 'Entrada registrada.', variant: 'success');
             $this->redirectRoute('entries.index', navigate: true);
         }

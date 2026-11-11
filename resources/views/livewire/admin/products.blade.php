@@ -117,33 +117,59 @@
         </flux:table>
     </div>
 
-    <flux:modal name="product-form" class="md:w-96">
+    <flux:modal name="product-form" class="w-full md:w-[34rem]">
         <form wire:submit="save" class="space-y-6">
-            <flux:heading size="lg">{{ $editingId ? 'Editar producto' : 'Nuevo producto' }}</flux:heading>
-            <flux:select wire:model="category_id" label="Categoría">
-                <flux:select.option value="">Selecciona una categoría</flux:select.option>
-                @foreach ($categories as $category)
-                    <flux:select.option :value="$category->id">{{ $category->name }}</flux:select.option>
-                @endforeach
-            </flux:select>
-            <flux:input wire:model.live.debounce.300ms="name" label="Nombre" class="uppercase" required data-test="product-name" />
-            @if ($editingId)
-                <flux:input wire:model="code" label="Código (prefijo del código de barras)" :disabled="$codeLocked" required />
-            @else
-                <flux:field>
-                    <flux:label>Código (prefijo del código de barras)</flux:label>
-                    <flux:input wire:model="code" readonly placeholder="Se genera con el nombre" class="font-mono" data-test="product-code" />
-                    <flux:description>Se sugiere solo a partir del nombre y no se puede editar.</flux:description>
-                    <flux:error name="code" />
-                </flux:field>
-            @endif
-            <flux:textarea wire:model="description" label="Información adicional" rows="2" />
+            <div>
+                <flux:heading size="lg">{{ $editingId ? 'Editar producto' : 'Nuevo producto' }}</flux:heading>
+                <flux:text class="mt-1">{{ $editingId ? 'Actualiza los datos del producto.' : 'Registra un producto del catálogo. El código se genera solo a partir del nombre.' }}</flux:text>
+            </div>
+
+            <div class="space-y-4 rounded-xl border border-zinc-200 p-4 dark:border-zinc-700">
+                <div class="text-xs font-semibold uppercase tracking-wide text-zinc-500">Datos del producto</div>
+
+                <flux:input wire:model.live.debounce.300ms="name" label="Nombre" icon="shopping-bag" class="uppercase" placeholder="Ej. POLLO ENTERO" required data-test="product-name" />
+
+                <flux:select wire:model="category_id" label="Categoría">
+                    <flux:select.option value="">Selecciona una categoría</flux:select.option>
+                    @foreach ($categories as $category)
+                        <flux:select.option :value="$category->id">{{ $category->name }}</flux:select.option>
+                    @endforeach
+                </flux:select>
+
+                @if ($editingId)
+                    <flux:input wire:model="code" label="Código (prefijo del código de barras)" icon="qr-code" class="font-mono" :disabled="$codeLocked" required />
+                    @if ($codeLocked)
+                        <flux:text class="-mt-2 text-xs">El código ya no se puede cambiar porque el producto tiene cajas registradas.</flux:text>
+                    @endif
+                @else
+                    <flux:field>
+                        <flux:label>Código (prefijo del código de barras)</flux:label>
+                        <flux:input wire:model="code" icon="qr-code" readonly placeholder="Se genera con el nombre" class="font-mono" data-test="product-code" />
+                        <flux:description>Se sugiere solo a partir del nombre y no se puede editar.</flux:description>
+                        <flux:error name="code" />
+                    </flux:field>
+                @endif
+            </div>
+
+            <div class="space-y-4 rounded-xl border border-zinc-200 p-4 dark:border-zinc-700">
+                <div class="text-xs font-semibold uppercase tracking-wide text-zinc-500">Detalles</div>
+
+                <flux:textarea wire:model="description" label="Información adicional" rows="3" placeholder="Presentación, origen, notas…" />
+            </div>
+
             @if ($canManage)
-                <flux:switch wire:model="is_active" label="Activo" />
+                <div class="flex items-center justify-between gap-4 rounded-xl border border-zinc-200 p-4 dark:border-zinc-700">
+                    <div>
+                        <div class="text-sm font-medium text-zinc-900 dark:text-white">Producto activo</div>
+                        <flux:text class="text-xs">Un producto inactivo no se puede usar en nuevas entradas.</flux:text>
+                    </div>
+                    <flux:switch wire:model="is_active" />
+                </div>
             @endif
+
             <div class="flex justify-end gap-2">
                 <flux:modal.close><flux:button variant="ghost">Cancelar</flux:button></flux:modal.close>
-                <flux:button type="submit" variant="primary">Guardar</flux:button>
+                <flux:button type="submit" variant="primary" icon="check">Guardar</flux:button>
             </div>
         </form>
     </flux:modal>
