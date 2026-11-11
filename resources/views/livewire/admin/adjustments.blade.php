@@ -120,7 +120,7 @@
             <div class="space-y-4 rounded-xl border border-zinc-200 p-4 dark:border-zinc-700">
                 <div class="text-xs font-semibold uppercase tracking-wide text-zinc-500">Caja a ajustar</div>
 
-                <flux:input wire:model.live.debounce.400ms="barcode" label="Código de barras de la caja" icon="qr-code" class="font-mono uppercase" placeholder="Escanea o escribe el código" />
+                <flux:input wire:model.live.debounce.400ms="barcode" label="Código de barras de la caja" icon="qr-code" class="font-mono uppercase" placeholder="Escanea el código" />
 
                 @if ($box)
                     <flux:callout icon="information-circle" color="zinc">
