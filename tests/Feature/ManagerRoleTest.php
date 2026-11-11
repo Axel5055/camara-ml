@@ -268,16 +268,17 @@ it('lets a manager reject a request of their scope but never see or decide one o
         ->and(Entry::query()->where('chamber_id', $w['n2']->id)->count())->toBe(1);
 });
 
-it('starts the sidebar submenus collapsed on every reload for managers only', function () {
+it('starts the sidebar submenus collapsed and remembers them while navigating for managers and administrators', function () {
     $w = managerWorld();
 
-    $this->actingAs($w['manager'])->get(route('dashboard'))
-        ->assertSee('open: (window.navOpen ??= {}).entries ?? false', false)
-        ->assertDontSee('$persist(', false);
+    $admin = User::factory()->create(['role' => 'admin']);
 
-    $this->actingAs($w['superAdmin'])->get(route('dashboard'))
-        ->assertSee('$persist(true)', false)
-        ->assertDontSee('open: (window.navOpen', false);
+    foreach ([$w['manager'], $w['superAdmin'], $admin] as $user) {
+        $this->actingAs($user)->get(route('dashboard'))
+            ->assertSee('open: (window.navOpen ??= {}).entries ?? false', false)
+            ->assertSee('open: (window.navOpen ??= {}).exits ?? false', false)
+            ->assertDontSee('$persist(', false);
+    }
 });
 
 it('repeats the pending counters on the collapsible sidebar headings', function () {

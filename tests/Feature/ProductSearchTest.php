@@ -35,3 +35,20 @@ it('keeps filtering by the product picked in the search box', function () {
         ->call('clearFilters')
         ->assertSet('productId', null);
 });
+
+it('offers a refresh button that reloads the product list without losing what is typed', function () {
+    $product = Product::factory()->create(['name' => 'POLLO ENTERO', 'code' => 'POLLO']);
+    $this->actingAs(User::factory()->superAdmin()->create());
+
+    $component = Livewire::test(Stock::class)
+        ->set('search', 'texto en captura')
+        ->assertSeeHtml('data-test="stock-product-search-refresh"');
+
+    $newProduct = Product::factory()->create(['name' => 'ALAS DE POLLO', 'code' => 'ALAS']);
+
+    $component->call('$refresh')
+        ->assertSet('search', 'texto en captura')
+        ->assertSeeHtml('ALAS DE POLLO');
+
+    expect($newProduct->exists)->toBeTrue()->and($product->exists)->toBeTrue();
+});

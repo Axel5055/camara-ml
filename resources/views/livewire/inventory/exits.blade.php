@@ -109,7 +109,7 @@
                                 <flux:icon.arrow-right class="size-4 shrink-0 text-zinc-400" />
                                 <span class="font-medium text-zinc-900 dark:text-white">{{ $exit->destChamber?->name ?? $exit->destBranch->name }}</span>
                             </div>
-                            <div class="text-xs text-zinc-500">{{ $exit->destChamber ? 'Transferencia · '.$exit->destBranch->name : 'Entrega a sucursal' }}</div>
+                            <div class="text-xs text-zinc-500">{{ $exit->destChamber ? 'Transferencia · '.$exit->destBranch->name : 'Entrega a sucursal'.($exit->deliveryChamber ? ' · Cámara '.$exit->deliveryChamber->name : '') }}</div>
                         </flux:table.cell>
                         <flux:table.cell>{{ $exit->requester_name }}</flux:table.cell>
                         <flux:table.cell align="end" class="tabular-nums font-medium text-zinc-900 dark:text-white">{{ number_format($exit->total_boxes) }}</flux:table.cell>

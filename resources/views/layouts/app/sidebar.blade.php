@@ -11,16 +11,14 @@
             </flux:sidebar.header>
 
             <flux:sidebar.nav>
-                @php($warehouseNav = in_array(auth()->user()->role->value, ['warehouse', 'admin'], true))
-                @php($isManager = auth()->user()->role === \App\Enums\UserRole::Manager)
-                <flux:sidebar.group heading="Inventario" class="grid">
+                @php($warehouseNav = auth()->user()->role === \App\Enums\UserRole::Warehouse)                <flux:sidebar.group heading="Inventario" class="grid">
                     <flux:sidebar.item icon="home" :href="route('dashboard')" :current="request()->routeIs('dashboard')" wire:navigate>Panel</flux:sidebar.item>
                     <flux:sidebar.item icon="archive-box" :href="route('stock')" :current="request()->routeIs('stock', 'boxes.show')" wire:navigate>Existencias</flux:sidebar.item>
                     @if (auth()->user()->role === \App\Enums\UserRole::Warehouse)
                         <flux:sidebar.item icon="shopping-bag" :href="route('admin.products')" :current="request()->routeIs('admin.products')" wire:navigate data-test="nav-products">Productos</flux:sidebar.item>
                     @endif
                     @php($pendingRequests = \App\Models\EntryRequest::query()->where('status', 'pending')->when(auth()->user()->role === \App\Enums\UserRole::Warehouse, fn ($query) => $query->where('user_id', auth()->id()))->when(auth()->user()->isManager(), fn ($query) => $query->whereIn('chamber_id', \App\Models\Chamber::query()->accessibleBy(auth()->user())->select('id')))->count())
-                    <div x-data='{ open: {{ $warehouseNav ? "true" : ($isManager ? '(window.navOpen ??= {}).entries ?? false' : '$persist(true).as("nav-entries")') }} }' x-effect="(window.navOpen ??= {}).entries = open" data-test="nav-entries">
+                    <div x-data='{ open: {{ $warehouseNav ? "true" : '(window.navOpen ??= {}).entries ?? false' }} }' x-effect="(window.navOpen ??= {}).entries = open" data-test="nav-entries">
                         <flux:sidebar.item as="button" type="button" icon="arrow-down-tray" x-on:click="open = ! open" x-bind:aria-expanded="open" class="w-full">
                             <span class="flex w-full items-center justify-between gap-2">
                                 Entradas
@@ -38,7 +36,7 @@
                             @endcan
                         </div>
                     </div>
-                    <div x-data='{ open: {{ $warehouseNav ? "true" : ($isManager ? '(window.navOpen ??= {}).exits ?? false' : '$persist(true).as("nav-exits")') }} }' x-effect="(window.navOpen ??= {}).exits = open" data-test="nav-exits">
+                    <div x-data='{ open: {{ $warehouseNav ? "true" : '(window.navOpen ??= {}).exits ?? false' }} }' x-effect="(window.navOpen ??= {}).exits = open" data-test="nav-exits">
                         <flux:sidebar.item as="button" type="button" icon="arrow-up-tray" x-on:click="open = ! open" x-bind:aria-expanded="open" class="w-full">
                             <span class="flex w-full items-center justify-between gap-2">
                                 Salidas
@@ -54,7 +52,7 @@
                     </div>
                     @can('viewAny', \App\Models\Transfer::class)
                         @php($pendingTransfers = \App\Models\Transfer::query()->where('status', \App\Enums\TransferStatus::InTransit)->when(in_array(auth()->user()->role, [\App\Enums\UserRole::Warehouse, \App\Enums\UserRole::Manager], true), fn ($query) => $query->whereIn('dest_chamber_id', \App\Models\Chamber::query()->accessibleBy(auth()->user())->select('id')))->count())
-                        <div x-data='{ open: {{ $warehouseNav ? "true" : ($isManager ? '(window.navOpen ??= {}).transfers ?? false' : '$persist(true).as("nav-transfers")') }} }' x-effect="(window.navOpen ??= {}).transfers = open" data-test="nav-transfers">
+                        <div x-data='{ open: {{ $warehouseNav ? "true" : '(window.navOpen ??= {}).transfers ?? false' }} }' x-effect="(window.navOpen ??= {}).transfers = open" data-test="nav-transfers">
                             <flux:sidebar.item as="button" type="button" icon="arrows-right-left" x-on:click="open = ! open" x-bind:aria-expanded="open" class="w-full">
                                 <span class="flex w-full items-center justify-between gap-2">
                                     Transferencias

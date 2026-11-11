@@ -66,7 +66,7 @@ class Exits extends Component
     public function render(): View
     {
         $showCosts = Gate::allows('view-costs');
-        $columns = ['id', 'reference', 'requester_name', 'origin_chamber_id', 'dest_branch_id', 'dest_chamber_id', 'user_id', 'occurred_at', 'total_boxes', 'total_weight_kg', 'status'];
+        $columns = ['id', 'reference', 'requester_name', 'origin_chamber_id', 'dest_branch_id', 'dest_chamber_id', 'delivery_chamber_id', 'user_id', 'occurred_at', 'total_boxes', 'total_weight_kg', 'status'];
 
         $summary = $this->filteredExits()->toBase()
             ->where('status', DocumentStatus::Confirmed)
@@ -78,7 +78,7 @@ class Exits extends Component
                 ->select($showCosts ? [...$columns, 'total_cost_mxn'] : $columns)
                 ->withMin(['items as min_unit_cost' => fn (Builder $query) => $query->where('is_active', true)], 'unit_cost_snapshot_mxn')
                 ->withMax(['items as max_unit_cost' => fn (Builder $query) => $query->where('is_active', true)], 'unit_cost_snapshot_mxn')
-                ->with(['originChamber:id,name', 'destBranch:id,name', 'destChamber:id,name', 'user:id,name', 'transfer:id,exit_id,status'])
+                ->with(['originChamber:id,name', 'destBranch:id,name', 'destChamber:id,name', 'deliveryChamber:id,name', 'user:id,name', 'transfer:id,exit_id,status'])
                 ->orderByDesc('occurred_at')->orderByDesc('id')
                 ->paginate(20),
             'summary' => $summary,
