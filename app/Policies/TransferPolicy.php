@@ -15,7 +15,7 @@ class TransferPolicy
 
     public function view(User $user, Transfer $transfer): bool
     {
-        return $user->canAccessChamber($transfer->originChamber) || $user->canAccessChamber($transfer->destChamber);
+        return $user->canViewChamber($transfer->originChamber) || $user->canViewChamber($transfer->destChamber);
     }
 
     /**

@@ -15,8 +15,8 @@ class StockExitPolicy
 
     public function view(User $user, StockExit $exit): bool
     {
-        return $user->canAccessChamber($exit->originChamber)
-            || ($exit->destChamber !== null && $user->canAccessChamber($exit->destChamber));
+        return $user->canViewChamber($exit->originChamber)
+            || ($exit->destChamber !== null && $user->canViewChamber($exit->destChamber));
     }
 
     /**

@@ -81,8 +81,12 @@ class ReviewEntryRequest
 
     private function assertMayDecide(User $reviewer, EntryRequest $request): void
     {
-        if (! $reviewer->is_active || ! in_array($reviewer->role, [UserRole::Admin, UserRole::SuperAdmin], true)) {
+        if (! $reviewer->is_active || ! in_array($reviewer->role, [UserRole::Admin, UserRole::SuperAdmin, UserRole::Manager], true)) {
             throw new AuthorizationException('Solo un administrador puede autorizar o rechazar entradas.');
+        }
+
+        if ($reviewer->role === UserRole::Manager && ! $reviewer->canViewChamber($request->chamber)) {
+            throw new AuthorizationException('No tienes acceso a la cámara de esta solicitud.');
         }
 
         if ($request->user_id === $reviewer->id) {

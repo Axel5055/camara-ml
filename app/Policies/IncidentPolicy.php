@@ -16,7 +16,7 @@ class IncidentPolicy
     {
         $transfer = $incident->transfer;
 
-        return $user->canAccessChamber($transfer->originChamber) || $user->canAccessChamber($transfer->destChamber);
+        return $user->canViewChamber($transfer->originChamber) || $user->canViewChamber($transfer->destChamber);
     }
 
     /**

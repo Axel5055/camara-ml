@@ -19,8 +19,8 @@ class BoxPolicy
     {
         $box->loadMissing('currentChamber', 'originChamber');
 
-        return ($box->currentChamber !== null && $user->canAccessChamber($box->currentChamber))
-            || $user->canAccessChamber($box->originChamber);
+        return ($box->currentChamber !== null && $user->canViewChamber($box->currentChamber))
+            || $user->canViewChamber($box->originChamber);
     }
 
     public function create(User $user): bool

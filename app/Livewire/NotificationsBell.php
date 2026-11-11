@@ -54,7 +54,9 @@ class NotificationsBell extends Component
                 ->where('status', EntryRequestStatus::Pending)
                 ->orWhere(fn (Builder $decided) => $decided->whereIn('status', [EntryRequestStatus::Approved, EntryRequestStatus::Rejected])->where('decided_at', '>=', now()->subDays(3))));
         } else {
-            $query->where('status', EntryRequestStatus::Pending);
+            $query->where('status', EntryRequestStatus::Pending)
+                ->when($user->isManager(), fn (Builder $inner) => $inner
+                    ->whereIn('chamber_id', Chamber::query()->accessibleBy($user)->select('id')));
         }
 
         return $query->orderByDesc('created_at')->limit(15)->get();

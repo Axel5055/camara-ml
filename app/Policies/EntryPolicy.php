@@ -15,7 +15,7 @@ class EntryPolicy
 
     public function view(User $user, Entry $entry): bool
     {
-        return $user->canAccessChamber($entry->chamber);
+        return $user->canViewChamber($entry->chamber);
     }
 
     /**

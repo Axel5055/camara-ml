@@ -54,14 +54,15 @@ class AppServiceProvider extends ServiceProvider
                 // Receiving and cancelling depend on the state of the transfer, so the policy decides them.
                 UserRole::SuperAdmin => in_array($ability, ['receive', 'cancel', 'decide'], true) ? null : true,
                 UserRole::Admin => $this->readOnlyAdminMay($ability, $arguments) ? true : null,
-                UserRole::Warehouse => null,
+                // Managers read like administrators, but only what is assigned to them: the policies check that.
+                UserRole::Manager, UserRole::Warehouse => null,
             };
         });
 
         // Super administrators pass every gate through Gate::before; these decide for the other roles.
-        Gate::define('view-costs', fn (User $user): bool => $user->role === UserRole::Admin);
-        Gate::define('view-catalogs', fn (User $user): bool => $user->role === UserRole::Admin);
-        Gate::define('view-products', fn (User $user): bool => in_array($user->role, [UserRole::Admin, UserRole::Warehouse], true));
+        Gate::define('view-costs', fn (User $user): bool => in_array($user->role, [UserRole::Admin, UserRole::Manager], true));
+        Gate::define('view-catalogs', fn (User $user): bool => in_array($user->role, [UserRole::Admin, UserRole::Manager], true));
+        Gate::define('view-products', fn (User $user): bool => in_array($user->role, [UserRole::Admin, UserRole::Manager, UserRole::Warehouse], true));
         Gate::define('operate-inventory', fn (User $user): bool => $user->role === UserRole::Warehouse);
     }
 

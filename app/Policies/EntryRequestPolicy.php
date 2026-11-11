@@ -18,7 +18,7 @@ class EntryRequestPolicy
     {
         return $user->role === UserRole::Admin
             || $request->user_id === $user->id
-            || $user->canAccessChamber($request->chamber);
+            || $user->canViewChamber($request->chamber);
     }
 
     /**
@@ -30,13 +30,20 @@ class EntryRequestPolicy
     }
 
     /**
-     * Authorizing or rejecting: administrators and super administrators, never the one who asked.
+     * Authorizing or rejecting: administrators and super administrators, and managers for their own chambers;
+     * never the one who asked.
      */
     public function decide(User $user, EntryRequest $request): bool
     {
-        return $request->isPending()
-            && $request->user_id !== $user->id
-            && in_array($user->role, [UserRole::Admin, UserRole::SuperAdmin], true);
+        if (! $request->isPending() || $request->user_id === $user->id) {
+            return false;
+        }
+
+        return match ($user->role) {
+            UserRole::Admin, UserRole::SuperAdmin => true,
+            UserRole::Manager => $user->canViewChamber($request->chamber),
+            default => false,
+        };
     }
 
     /**

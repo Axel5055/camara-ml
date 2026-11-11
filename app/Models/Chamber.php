@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Enums\UserRole;
 use Database\Factories\ChamberFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Builder;
@@ -34,13 +35,22 @@ class Chamber extends Model
     }
 
     /**
-     * Chambers the given user may work with: every one for administrators, only the assigned ones otherwise.
+     * Chambers the given user may see or work with: every one for administrators, those of the assigned branches
+     * plus the individually assigned chambers for managers, only the assigned ones otherwise.
      *
      * @param  Builder<Chamber>  $query
      */
     public function scopeAccessibleBy(Builder $query, User $user): void
     {
         if ($user->seesAllChambers()) {
+            return;
+        }
+
+        if ($user->role === UserRole::Manager) {
+            $query->where(fn (Builder $scope) => $scope
+                ->whereIn('branch_id', $user->managedBranches()->select('branches.id'))
+                ->orWhereIn('id', $user->chambers()->select('chambers.id')));
+
             return;
         }
 
