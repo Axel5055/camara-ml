@@ -47,8 +47,8 @@ class CorrectTransfer extends InventoryOperation
         array $removeBoxIds = [],
         array $addBoxIds = [],
     ): Transfer {
-        if (! $admin->isSuperAdmin()) {
-            throw new AuthorizationException('Solo el super administrador puede corregir una transferencia.');
+        if (! $admin->canCorrectRecordsOf($transfer->originChamber, $transfer->destChamber, $destChamber)) {
+            throw new AuthorizationException('No tienes permiso para corregir esta transferencia.');
         }
 
         $reason = trim($reason);

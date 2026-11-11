@@ -57,12 +57,7 @@
                     <flux:select.option :value="$category->id">{{ $category->name }}</flux:select.option>
                 @endforeach
             </flux:select>
-            <flux:select wire:model.live="productId" label="Producto">
-                <flux:select.option value="">Todos los productos</flux:select.option>
-                @foreach ($products as $product)
-                    <flux:select.option :value="$product->id">{{ $product->name }}</flux:select.option>
-                @endforeach
-            </flux:select>
+            <x-product-search :products="$products" placeholder="Todos los productos" emptyMessage="No hay productos con ese nombre." data-test="stock-product-search" wire:key="stock-product-search-{{ $categoryId }}" />
             @unless ($isSummary)
             <flux:select wire:model.live="status" label="Estado">
                 <flux:select.option value="available">Disponibles</flux:select.option>
@@ -200,8 +195,8 @@
     @endif
 
     @if ($canAdjust)
-        <flux:modal name="adjust-stock" class="md:w-[34rem]">
-            <form wire:submit="saveAdjust" class="space-y-5" data-test="stock-adjust-form">
+        <flux:modal name="adjust-stock" class="w-full md:w-[36rem]">
+            <form wire:submit="saveAdjust" class="space-y-6" data-test="stock-adjust-form">
                 <div>
                     <flux:heading size="lg">Ajustar existencias</flux:heading>
                     <flux:text class="mt-1">{{ $adjustLabel }}</flux:text>
@@ -218,23 +213,29 @@
 
                 <flux:error name="operation" />
 
-                <div class="grid gap-4 sm:grid-cols-3">
-                    <flux:input wire:model="adjustBoxes" type="number" min="0" label="Cajas" />
-                    <flux:input wire:model="adjustWeight" inputmode="decimal" label="Peso por caja (kg)" />
-                    <flux:input wire:model="adjustCost" inputmode="decimal" label="Costo por caja (MXN)" />
+                <div class="space-y-4 rounded-xl border border-zinc-200 p-4 dark:border-zinc-700">
+                    <div class="text-xs font-semibold uppercase tracking-wide text-zinc-500">Valores correctos</div>
+                    <div class="grid gap-4 sm:grid-cols-3">
+                        <flux:input wire:model="adjustBoxes" type="number" min="0" label="Cajas" icon="archive-box" />
+                        <flux:input wire:model="adjustWeight" inputmode="decimal" label="Peso por caja (kg)" icon="scale" />
+                        <flux:input wire:model="adjustCost" inputmode="decimal" label="Costo por caja (MXN)" icon="currency-dollar" />
+                    </div>
                 </div>
 
-                <flux:textarea wire:model="adjustReason" label="Motivo del ajuste" rows="2" placeholder="Qué se contó o se encontró distinto." required />
+                <div class="space-y-4 rounded-xl border border-zinc-200 p-4 dark:border-zinc-700">
+                    <div class="text-xs font-semibold uppercase tracking-wide text-zinc-500">Justificación</div>
+                    <flux:textarea wire:model="adjustReason" label="Motivo del ajuste" rows="2" placeholder="Qué se contó o se encontró distinto." required />
+                </div>
 
-                <div class="flex justify-end gap-2">
-                    <flux:modal.close><flux:button variant="ghost">Cancelar</flux:button></flux:modal.close>
-                    <flux:button type="submit" variant="primary">Guardar ajuste</flux:button>
+                <div class="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+                    <flux:modal.close><flux:button variant="ghost" type="button">Cancelar</flux:button></flux:modal.close>
+                    <flux:button type="submit" variant="primary" icon="check">Guardar ajuste</flux:button>
                 </div>
             </form>
         </flux:modal>
 
-        <flux:modal name="edit-box" class="md:w-[30rem]">
-            <form wire:submit="saveEditBox" class="space-y-5" data-test="box-edit-form">
+        <flux:modal name="edit-box" class="w-full md:w-[32rem]">
+            <form wire:submit="saveEditBox" class="space-y-6" data-test="box-edit-form">
                 <div>
                     <flux:heading size="lg">Editar caja</flux:heading>
                     @if ($editBox)
@@ -254,16 +255,22 @@
 
                 <flux:error name="operation" />
 
-                <div class="grid gap-4 sm:grid-cols-2">
-                    <flux:input wire:model="editWeight" inputmode="decimal" label="Peso (kg)" />
-                    <flux:input wire:model="editCost" inputmode="decimal" label="Costo (MXN)" />
+                <div class="space-y-4 rounded-xl border border-zinc-200 p-4 dark:border-zinc-700">
+                    <div class="text-xs font-semibold uppercase tracking-wide text-zinc-500">Datos de la caja</div>
+                    <div class="grid gap-4 sm:grid-cols-2">
+                        <flux:input wire:model="editWeight" inputmode="decimal" label="Peso (kg)" icon="scale" />
+                        <flux:input wire:model="editCost" inputmode="decimal" label="Costo (MXN)" icon="currency-dollar" />
+                    </div>
                 </div>
 
-                <flux:textarea wire:model="editReason" label="Motivo del cambio" rows="2" placeholder="Qué estaba mal capturado." required />
+                <div class="space-y-4 rounded-xl border border-zinc-200 p-4 dark:border-zinc-700">
+                    <div class="text-xs font-semibold uppercase tracking-wide text-zinc-500">Justificación</div>
+                    <flux:textarea wire:model="editReason" label="Motivo del cambio" rows="2" placeholder="Qué estaba mal capturado." required />
+                </div>
 
-                <div class="flex justify-end gap-2">
-                    <flux:modal.close><flux:button variant="ghost">Cancelar</flux:button></flux:modal.close>
-                    <flux:button type="submit" variant="primary">Guardar cambios</flux:button>
+                <div class="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+                    <flux:modal.close><flux:button variant="ghost" type="button">Cancelar</flux:button></flux:modal.close>
+                    <flux:button type="submit" variant="primary" icon="check">Guardar cambios</flux:button>
                 </div>
             </form>
         </flux:modal>

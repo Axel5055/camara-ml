@@ -62,6 +62,9 @@ class AppServiceProvider extends ServiceProvider
         // Super administrators pass every gate through Gate::before; these decide for the other roles.
         Gate::define('view-costs', fn (User $user): bool => in_array($user->role, [UserRole::Admin, UserRole::Manager], true));
         Gate::define('view-catalogs', fn (User $user): bool => in_array($user->role, [UserRole::Admin, UserRole::Manager], true));
+        Gate::define('view-incidents', fn (User $user): bool => in_array($user->role, [UserRole::Admin, UserRole::Manager], true));
+        Gate::define('view-branches', fn (User $user): bool => $user->role === UserRole::Admin);
+        Gate::define('view-reports', fn (User $user): bool => $user->role === UserRole::Manager);
         Gate::define('view-products', fn (User $user): bool => in_array($user->role, [UserRole::Admin, UserRole::Manager, UserRole::Warehouse], true));
         Gate::define('operate-inventory', fn (User $user): bool => $user->role === UserRole::Warehouse);
     }

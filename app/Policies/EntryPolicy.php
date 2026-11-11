@@ -26,17 +26,20 @@ class EntryPolicy
         return $chamber !== null && $user->canAccessChamber($chamber);
     }
 
+    /**
+     * Correcting an entry: super administrators (granted globally) and managers for their own chambers.
+     */
     public function update(User $user, Entry $entry): bool
     {
-        return false;
+        return $user->canCorrectEntriesOf($entry->chamber);
     }
 
     /**
-     * Cancelling a confirmed entry. Only super administrators (granted globally).
+     * Cancelling a confirmed entry: super administrators (granted globally) and managers for their own chambers.
      */
     public function reverse(User $user, Entry $entry): bool
     {
-        return false;
+        return $user->canCorrectEntriesOf($entry->chamber);
     }
 
     public function delete(User $user, Entry $entry): bool

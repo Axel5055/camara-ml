@@ -99,14 +99,23 @@
         </flux:table>
     </div>
 
-    <flux:modal name="category-form" class="md:w-96">
+    <flux:modal name="category-form" class="w-full md:w-[28rem]">
         <form wire:submit="save" class="space-y-6">
-            <flux:heading size="lg">{{ $editingId ? 'Editar categoría' : 'Nueva categoría' }}</flux:heading>
-            <flux:input wire:model="name" label="Nombre" class="uppercase" required />
-            <flux:switch wire:model="is_active" label="Activa" />
-            <div class="flex justify-end gap-2">
-                <flux:modal.close><flux:button variant="ghost">Cancelar</flux:button></flux:modal.close>
-                <flux:button type="submit" variant="primary">Guardar</flux:button>
+            <div>
+                <flux:heading size="lg">{{ $editingId ? 'Editar categoría' : 'Nueva categoría' }}</flux:heading>
+                <flux:text class="mt-1">{{ $editingId ? 'Actualiza el nombre de la categoría.' : 'Agrupa los productos del catálogo por categoría.' }}</flux:text>
+            </div>
+
+            <div class="space-y-4 rounded-xl border border-zinc-200 p-4 dark:border-zinc-700">
+                <div class="text-xs font-semibold uppercase tracking-wide text-zinc-500">Datos de la categoría</div>
+                <flux:input wire:model="name" label="Nombre" icon="tag" class="uppercase" placeholder="Ej. POLLO" required />
+            </div>
+
+            <x-active-switch title="Categoría activa" description="Los productos de una categoría inactiva no se pueden usar en nuevas entradas." />
+
+            <div class="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+                <flux:modal.close><flux:button variant="ghost" type="button">Cancelar</flux:button></flux:modal.close>
+                <flux:button type="submit" variant="primary" icon="check">Guardar</flux:button>
             </div>
         </form>
     </flux:modal>

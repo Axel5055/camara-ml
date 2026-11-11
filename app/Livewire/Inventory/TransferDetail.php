@@ -176,7 +176,7 @@ class TransferDetail extends Component
                 'editableItems' => $inTransit
                     ? TransferItem::query()->where('transfer_id', $this->transfer->id)->with('box:id,barcode,product_id,unit_cost_mxn', 'box.product:id,name')->orderBy('id')->get()
                     : collect(),
-                'destChambers' => Chamber::query()->with('branch:id,name')
+                'destChambers' => Chamber::query()->accessibleBy(Auth::user())->with('branch:id,name')
                     ->where(fn (Builder $query) => $query->where('is_active', true)->whereHas('branch', fn (Builder $branch) => $branch->where('is_active', true))->orWhere('id', $this->transfer->dest_chamber_id))
                     ->where('id', '!=', $this->transfer->origin_chamber_id)
                     ->orderBy('branch_id')->orderBy('name')->get(),

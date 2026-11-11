@@ -108,51 +108,69 @@
         </flux:table>
     </div>
 
-    <flux:modal name="adjustment-form" class="md:w-[28rem]">
-        <form wire:submit="save" class="space-y-5">
-            <flux:heading size="lg">Nuevo ajuste</flux:heading>
-            <flux:text>El ajuste queda registrado con el antes y el después, el motivo y tu usuario.</flux:text>
+    <flux:modal name="adjustment-form" class="w-full md:w-[34rem]">
+        <form wire:submit="save" class="space-y-6">
+            <div>
+                <flux:heading size="lg">Nuevo ajuste</flux:heading>
+                <flux:text class="mt-1">El ajuste queda registrado con el antes y el después, el motivo y tu usuario.</flux:text>
+            </div>
+
             <flux:error name="operation" />
 
-            <flux:input wire:model.live.debounce.400ms="barcode" label="Código de barras de la caja" />
-            @if ($box)
-                <flux:callout icon="information-circle">
-                    {{ $box->product->name }} · {{ $box->current_weight_kg }} de {{ $box->initial_weight_kg }} kg ·
-                    {{ $box->status->label() }}{{ $box->currentChamber ? ' en '.$box->currentChamber->name : '' }}
-                </flux:callout>
-            @endif
+            <div class="space-y-4 rounded-xl border border-zinc-200 p-4 dark:border-zinc-700">
+                <div class="text-xs font-semibold uppercase tracking-wide text-zinc-500">Caja a ajustar</div>
 
-            <flux:select wire:model.live="type" label="Tipo de ajuste">
-                @foreach ($types as $type)
-                    <flux:select.option :value="$type->value">{{ $type->label() }}</flux:select.option>
-                @endforeach
-            </flux:select>
+                <flux:input wire:model.live.debounce.400ms="barcode" label="Código de barras de la caja" icon="qr-code" class="font-mono uppercase" placeholder="Escanea o escribe el código" />
 
-            @if (in_array($type, ['weight_correction', 'found', 'status_fix']))
-                <flux:input wire:model="newWeight" label="Nuevo peso (kg)" inputmode="decimal" />
-            @endif
-            @if ($type === 'status_fix')
-                <flux:select wire:model="newStatus" label="Nuevo estado">
-                    <flux:select.option value="">Selecciona</flux:select.option>
-                    @foreach ($statuses as $status)
-                        <flux:select.option :value="$status->value">{{ $status->label() }}</flux:select.option>
+                @if ($box)
+                    <flux:callout icon="information-circle" color="zinc">
+                        <flux:callout.heading>{{ $box->product->name }}</flux:callout.heading>
+                        <flux:callout.text>
+                            {{ $box->current_weight_kg }} de {{ $box->initial_weight_kg }} kg ·
+                            {{ $box->status->label() }}{{ $box->currentChamber ? ' en '.$box->currentChamber->name : '' }}
+                        </flux:callout.text>
+                    </flux:callout>
+                @endif
+            </div>
+
+            <div class="space-y-4 rounded-xl border border-zinc-200 p-4 dark:border-zinc-700">
+                <div class="text-xs font-semibold uppercase tracking-wide text-zinc-500">Ajuste</div>
+
+                <flux:select wire:model.live="type" label="Tipo de ajuste">
+                    @foreach ($types as $type)
+                        <flux:select.option :value="$type->value">{{ $type->label() }}</flux:select.option>
                     @endforeach
                 </flux:select>
-            @endif
-            @if (in_array($type, ['found', 'status_fix']))
-                <flux:select wire:model="chamberId" label="Cámara (si queda disponible)">
-                    <flux:select.option value="">Selecciona</flux:select.option>
-                    @foreach ($chambers as $chamber)
-                        <flux:select.option :value="$chamber->id">{{ $chamber->branch->name }} · {{ $chamber->name }}</flux:select.option>
-                    @endforeach
-                </flux:select>
-            @endif
 
-            <flux:textarea wire:model="reason" label="Motivo" rows="3" required />
+                @if (in_array($type, ['weight_correction', 'found', 'status_fix']))
+                    <flux:input wire:model="newWeight" label="Nuevo peso (kg)" icon="scale" inputmode="decimal" />
+                @endif
+                @if ($type === 'status_fix')
+                    <flux:select wire:model="newStatus" label="Nuevo estado">
+                        <flux:select.option value="">Selecciona</flux:select.option>
+                        @foreach ($statuses as $status)
+                            <flux:select.option :value="$status->value">{{ $status->label() }}</flux:select.option>
+                        @endforeach
+                    </flux:select>
+                @endif
+                @if (in_array($type, ['found', 'status_fix']))
+                    <flux:select wire:model="chamberId" label="Cámara (si queda disponible)">
+                        <flux:select.option value="">Selecciona</flux:select.option>
+                        @foreach ($chambers as $chamber)
+                            <flux:select.option :value="$chamber->id">{{ $chamber->branch->name }} · {{ $chamber->name }}</flux:select.option>
+                        @endforeach
+                    </flux:select>
+                @endif
+            </div>
 
-            <div class="flex justify-end gap-2">
-                <flux:modal.close><flux:button variant="ghost">Cancelar</flux:button></flux:modal.close>
-                <flux:button type="submit" variant="primary">Aplicar ajuste</flux:button>
+            <div class="space-y-4 rounded-xl border border-zinc-200 p-4 dark:border-zinc-700">
+                <div class="text-xs font-semibold uppercase tracking-wide text-zinc-500">Justificación</div>
+                <flux:textarea wire:model="reason" label="Motivo" rows="3" placeholder="Qué se encontró y por qué se corrige." required />
+            </div>
+
+            <div class="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+                <flux:modal.close><flux:button variant="ghost" type="button">Cancelar</flux:button></flux:modal.close>
+                <flux:button type="submit" variant="primary" icon="check">Aplicar ajuste</flux:button>
             </div>
         </form>
     </flux:modal>

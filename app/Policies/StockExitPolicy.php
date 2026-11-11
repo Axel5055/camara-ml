@@ -28,17 +28,20 @@ class StockExitPolicy
     }
 
     /**
-     * Reversing a confirmed exit. Administrators are granted globally; warehouse users may only cancel
-     * a transfer through TransferPolicy::cancel.
+     * Reversing a confirmed exit: super administrators (granted globally), administrators, and managers within
+     * their scope. Warehouse users may only ask for a transfer to be cancelled.
      */
     public function reverse(User $user, StockExit $exit): bool
     {
-        return false;
+        return $user->canCorrectRecordsOf($exit->originChamber, $exit->destChamber);
     }
 
+    /**
+     * Correcting an exit: same people as reversing it.
+     */
     public function update(User $user, StockExit $exit): bool
     {
-        return false;
+        return $user->canCorrectRecordsOf($exit->originChamber, $exit->destChamber);
     }
 
     public function delete(User $user, StockExit $exit): bool

@@ -43,12 +43,12 @@ class ReverseExit extends InventoryOperation
             throw new InventoryException('Indica el motivo de la reversión (mínimo 5 caracteres).');
         }
 
-        $exit->loadMissing('originChamber', 'transfer');
+        $exit->loadMissing('originChamber', 'destChamber', 'transfer');
 
-        if (! $user->isSuperAdmin()) {
+        if (! $user->canCorrectRecordsOf($exit->originChamber, $exit->destChamber)) {
             throw new AuthorizationException($exit->transfer === null
-                ? 'Solo un administrador puede revertir una salida.'
-                : 'Solo el super administrador puede cancelar una transferencia.');
+                ? 'No tienes permiso para revertir esta salida.'
+                : 'No tienes permiso para cancelar esta transferencia.');
         }
 
         return DB::transaction(function () use ($user, $exit, $reason): StockExit {

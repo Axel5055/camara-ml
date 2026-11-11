@@ -111,21 +111,36 @@
         </flux:table>
     </div>
 
-    <flux:modal name="chamber-form" class="md:w-96">
+    <flux:modal name="chamber-form" class="w-full md:w-[30rem]">
         <form wire:submit="save" class="space-y-6">
-            <flux:heading size="lg">{{ $editingId ? 'Editar cámara' : 'Nueva cámara' }}</flux:heading>
-            <flux:select wire:model="branch_id" label="Sucursal">
-                <flux:select.option value="">Selecciona una sucursal</flux:select.option>
-                @foreach ($branches as $branch)
-                    <flux:select.option :value="$branch->id">{{ $branch->name }}</flux:select.option>
-                @endforeach
-            </flux:select>
-            <flux:input wire:model="code" label="Código" required />
-            <flux:input wire:model="name" label="Nombre" required />
-            <flux:switch wire:model="is_active" label="Activa" />
-            <div class="flex justify-end gap-2">
-                <flux:modal.close><flux:button variant="ghost">Cancelar</flux:button></flux:modal.close>
-                <flux:button type="submit" variant="primary">Guardar</flux:button>
+            <div>
+                <flux:heading size="lg">{{ $editingId ? 'Editar cámara' : 'Nueva cámara' }}</flux:heading>
+                <flux:text class="mt-1">{{ $editingId ? 'Actualiza los datos de la cámara.' : 'Registra una cámara de refrigeración dentro de una sucursal.' }}</flux:text>
+            </div>
+
+            <div class="space-y-4 rounded-xl border border-zinc-200 p-4 dark:border-zinc-700">
+                <div class="text-xs font-semibold uppercase tracking-wide text-zinc-500">Datos de la cámara</div>
+
+                <flux:select wire:model="branch_id" label="Sucursal">
+                    <flux:select.option value="">Selecciona una sucursal</flux:select.option>
+                    @foreach ($branches as $branch)
+                        <flux:select.option :value="$branch->id">{{ $branch->name }}</flux:select.option>
+                    @endforeach
+                </flux:select>
+
+                <div class="grid gap-4 sm:grid-cols-3">
+                    <flux:input wire:model="code" label="Código" icon="hashtag" class="font-mono uppercase" placeholder="C1" required />
+                    <div class="sm:col-span-2">
+                        <flux:input wire:model="name" label="Nombre" icon="cube" placeholder="Ej. Cámara 1" required />
+                    </div>
+                </div>
+            </div>
+
+            <x-active-switch title="Cámara activa" description="No se pueden registrar entradas, salidas ni transferencias en una cámara inactiva." />
+
+            <div class="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+                <flux:modal.close><flux:button variant="ghost" type="button">Cancelar</flux:button></flux:modal.close>
+                <flux:button type="submit" variant="primary" icon="check">Guardar</flux:button>
             </div>
         </form>
     </flux:modal>

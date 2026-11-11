@@ -1,7 +1,9 @@
 <section class="w-full space-y-6">
     <x-page-header icon="bell-alert" title="Existencias bajas" description="Productos con pocas cajas disponibles. Sin umbral propio se avisa con 20 cajas o menos; puedes configurar uno por cámara y producto.">
         <div class="flex gap-2">
-            <flux:modal.trigger name="threshold-form"><flux:button icon="plus">Configurar umbral</flux:button></flux:modal.trigger>
+            @if ($canManage)
+                <flux:modal.trigger name="threshold-form"><flux:button icon="plus">Configurar umbral</flux:button></flux:modal.trigger>
+            @endif
             <flux:button icon="arrow-down-tray" wire:click="export">Exportar CSV</flux:button>
         </div>
     </x-page-header>
@@ -80,9 +82,9 @@
                             <span class="font-medium text-zinc-900 dark:text-white">{{ number_format((float) $row->kg, 3) }}</span> <span class="text-zinc-500">/ {{ $row->min_weight_kg ?? '—' }}</span>
                         </flux:table.cell>
                         <flux:table.cell align="end">
-                            @unless ($row->is_default)
+                            @if ($canManage && ! $row->is_default)
                                 <flux:button size="sm" variant="ghost" icon="trash" wire:click="deleteThreshold({{ $row->threshold_id }})" wire:confirm="¿Eliminar este umbral?">Quitar umbral</flux:button>
-                            @endunless
+                            @endif
                         </flux:table.cell>
                     </flux:table.row>
                 @empty
@@ -103,12 +105,7 @@
                     <flux:select.option :value="$chamber->id">{{ $chamber->branch->name }} · {{ $chamber->name }}</flux:select.option>
                 @endforeach
             </flux:select>
-            <flux:select wire:model="thresholdProductId" label="Producto">
-                <flux:select.option value="">Selecciona</flux:select.option>
-                @foreach ($products as $product)
-                    <flux:select.option :value="$product->id">{{ $product->name }}</flux:select.option>
-                @endforeach
-            </flux:select>
+            <x-product-search :products="$products" model="thresholdProductId" placeholder="Escribe para buscar un producto" emptyMessage="No hay productos con ese nombre." data-test="threshold-product-search" wire:key="threshold-product-search" />
             <flux:input wire:model="minBoxes" label="Mínimo de cajas" type="number" min="0" />
             <flux:input wire:model="minWeight" label="Mínimo de kilogramos" inputmode="decimal" />
             <div class="flex justify-end gap-2">
