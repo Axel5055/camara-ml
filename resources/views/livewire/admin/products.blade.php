@@ -104,6 +104,9 @@
                                 <div class="flex justify-end gap-1">
                                     <flux:button size="sm" variant="ghost" icon="pencil-square" wire:click="edit({{ $product->id }})">Editar</flux:button>
                                     <flux:button size="sm" variant="ghost" :icon="$product->is_active ? 'pause' : 'play'" wire:click="toggle({{ $product->id }})">{{ $product->is_active ? 'Desactivar' : 'Activar' }}</flux:button>
+                                    @if ($canDelete && ! $product->has_boxes && ! $product->has_entry_items)
+                                        <flux:button size="sm" variant="ghost" icon="trash" class="text-red-600 dark:text-red-400" wire:click="confirmDelete({{ $product->id }})" data-test="product-delete-{{ $product->id }}">Eliminar</flux:button>
+                                    @endif
                                 </div>
                             </flux:table.cell>
                         @endif
@@ -116,6 +119,56 @@
             </flux:table.rows>
         </flux:table>
     </div>
+
+    <flux:modal name="product-delete" class="w-full md:w-[28rem]">
+        <div class="space-y-5" data-test="product-delete-alert">
+            <div class="flex items-start gap-3">
+                <span class="flex size-10 shrink-0 items-center justify-center rounded-full bg-red-500/15 text-red-600 dark:text-red-400">
+                    <flux:icon name="trash" class="size-5" />
+                </span>
+                <div>
+                    <flux:heading size="lg">Eliminar producto</flux:heading>
+                    <flux:text class="mt-1">Se eliminará <strong class="text-zinc-900 dark:text-white">{{ $deletingProduct?->name }}</strong> ({{ $deletingProduct?->code }}) del catálogo. Solo es posible porque no tiene movimientos; esta acción no se puede deshacer.</flux:text>
+                </div>
+            </div>
+
+            <div class="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+                <flux:modal.close><flux:button variant="ghost" class="w-full sm:w-auto">Cancelar</flux:button></flux:modal.close>
+                <flux:button variant="danger" class="w-full sm:w-auto" wire:click="delete" wire:loading.attr="disabled" wire:target="delete" data-test="product-delete-confirm">Eliminar</flux:button>
+            </div>
+        </div>
+    </flux:modal>
+
+    <flux:modal name="similar-products" class="w-full md:w-[30rem]">
+        <div class="space-y-5" data-test="similar-products-alert">
+            <div class="flex items-start gap-3">
+                <span class="flex size-10 shrink-0 items-center justify-center rounded-full bg-amber-500/15 text-amber-600 dark:text-amber-400">
+                    <flux:icon name="exclamation-triangle" class="size-5" />
+                </span>
+                <div>
+                    <flux:heading size="lg">¿Seguro que quieres crearlo?</flux:heading>
+                    <flux:text class="mt-1">Ya existe {{ count($similar) === 1 ? 'un producto parecido' : 'productos parecidos' }} a <strong class="text-zinc-900 dark:text-white">{{ $name }}</strong>. Revisa que no sea el mismo o que el nombre no esté mal escrito.</flux:text>
+                </div>
+            </div>
+
+            <ul class="divide-y divide-zinc-200 overflow-hidden rounded-xl border border-zinc-200 dark:divide-zinc-700 dark:border-zinc-700">
+                @foreach ($similar as $match)
+                    <li class="flex items-center justify-between gap-3 px-4 py-3" data-test="similar-product">
+                        <div class="min-w-0">
+                            <div class="truncate font-medium text-zinc-900 dark:text-white">{{ $match['name'] }}</div>
+                            <div class="text-xs text-zinc-500">{{ $match['category'] }}{{ $match['is_active'] ? '' : ' · Inactivo' }}</div>
+                        </div>
+                        <span class="shrink-0 rounded-md bg-zinc-100 px-2 py-1 font-mono text-xs text-zinc-700 dark:bg-zinc-700 dark:text-zinc-200">{{ $match['code'] }}</span>
+                    </li>
+                @endforeach
+            </ul>
+
+            <div class="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+                <flux:modal.close><flux:button variant="ghost" class="w-full sm:w-auto">Revisar nombre</flux:button></flux:modal.close>
+                <flux:button variant="primary" class="w-full sm:w-auto" wire:click="confirmSimilar" wire:loading.attr="disabled" wire:target="confirmSimilar" data-test="confirm-similar-product">Crear de todos modos</flux:button>
+            </div>
+        </div>
+    </flux:modal>
 
     <flux:modal name="product-form" class="w-full md:w-[34rem]">
         <form wire:submit="save" class="space-y-6">

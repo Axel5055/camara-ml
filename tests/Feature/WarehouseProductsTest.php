@@ -122,3 +122,63 @@ it('keeps the super administrator in control of the products', function () {
         ->assertOk()
         ->assertSeeHtml('data-test="product-create"');
 });
+
+it('warns about similar or misspelled product names and lists them before creating', function () {
+    $category = Category::factory()->create(['name' => 'AVES']);
+    Product::factory()->create(['category_id' => $category->id, 'code' => 'POLLOENTE', 'name' => 'POLLO ENTERO']);
+
+    $create = fn (string $name) => Livewire::actingAs(warehouseUser())->test(Products::class)
+        ->call('create')
+        ->set('name', $name)
+        ->set('category_id', $category->id);
+
+    // Misspelled, different order, accents and punctuation all count as similar.
+    foreach (['Pollo entrero', 'Entero pollo', 'pollo  ENTERO.', 'Poyo entero'] as $typed) {
+        $create($typed)->call('save')
+            ->assertHasNoErrors()
+            ->assertSeeHtml('data-test="similar-products-alert"')
+            ->assertSee('POLLO ENTERO')
+            ->assertSet('similar.0.code', 'POLLOENTE');
+    }
+
+    expect(Product::query()->count())->toBe(1);
+
+    // An unrelated name is created straight away.
+    $create('Salmón fresco')->call('save')->assertSet('similar', []);
+    expect(Product::query()->where('name', 'SALMÓN FRESCO')->exists())->toBeTrue();
+});
+
+it('creates the product after the user confirms the similar-name alert, only once per name', function () {
+    $category = Category::factory()->create();
+    Product::factory()->create(['category_id' => $category->id, 'code' => 'POLLOENTE', 'name' => 'POLLO ENTERO']);
+
+    $component = Livewire::actingAs(warehouseUser())->test(Products::class)
+        ->call('create')
+        ->set('name', 'Pollo entrero')
+        ->set('category_id', $category->id)
+        ->call('save');
+
+    expect(Product::query()->count())->toBe(1);
+
+    $component->call('confirmSimilar')->assertHasNoErrors();
+
+    expect(Product::query()->where('name', 'POLLO ENTRERO')->exists())->toBeTrue();
+
+    // Changing the name asks again.
+    $component->call('create')->set('name', 'Pollo entreros')->set('category_id', $category->id)->call('save');
+    expect(Product::query()->count())->toBe(2);
+});
+
+it('does not warn when editing an existing product', function () {
+    $category = Category::factory()->create();
+    Product::factory()->create(['category_id' => $category->id, 'code' => 'POLLOENTE', 'name' => 'POLLO ENTERO']);
+    $other = Product::factory()->create(['category_id' => $category->id, 'code' => 'ALAS', 'name' => 'ALAS']);
+
+    Livewire::actingAs(User::factory()->superAdmin()->create())->test(Products::class)
+        ->call('edit', $other->id)
+        ->set('name', 'Pollo entrero')
+        ->call('save')
+        ->assertSet('similar', []);
+
+    expect($other->fresh()->name)->toBe('POLLO ENTRERO');
+});
