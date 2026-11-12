@@ -29,8 +29,14 @@
             }
         },
         get matches() {
-            const q = this.query.trim().toLowerCase();
-            return this.items.filter((i) => ! q || i.name.toLowerCase().includes(q) || i.code.toLowerCase().includes(q)).slice(0, 50);
+            const words = this.normalize(this.query).split(/\s+/).filter(Boolean);
+            return this.items.filter((i) => {
+                const text = this.normalize(i.name + ' ' + i.code);
+                return words.every((word) => text.includes(word));
+            }).slice(0, 50);
+        },
+        normalize(text) {
+            return String(text).normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
         },
         pick(item) {
             this.query = item.name;
