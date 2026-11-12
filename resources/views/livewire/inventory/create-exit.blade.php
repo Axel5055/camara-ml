@@ -185,6 +185,8 @@
                 </flux:table>
             </div>
 
+            <x-save-errors :fields="['originChamberId' => 'Cámara de origen', 'destChamberId' => 'Cámara destino', 'destBranchId' => 'Sucursal destino', 'deliveryChamberId' => 'Cámara de la sucursal', 'requester' => 'Solicitante', 'notes' => 'Observaciones']" />
+
             <div class="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-zinc-200 bg-white p-4 shadow-xs dark:border-zinc-700 dark:bg-zinc-800">
                 <div class="flex items-center gap-2 text-sm text-zinc-500">
                     <flux:icon name="printer" class="size-5" />
