@@ -74,13 +74,57 @@
         throw wrapped;
     }
 
+    /**
+     * Alto del ticket en mm. Sin alto de página, QZ Tray parte el ticket según el tamaño de papel del controlador y la
+     * impresora corta a la mitad los tickets largos; con el alto exacto sale en una sola pieza.
+     */
+    function measureHeight(html) {
+        return new Promise(function (resolve) {
+            var frame = document.createElement('iframe');
+            var done = false;
+
+            function finish(height) {
+                if (done) {
+                    return;
+                }
+
+                done = true;
+                frame.remove();
+                resolve(height);
+            }
+
+            frame.setAttribute('aria-hidden', 'true');
+            frame.style.cssText = 'position:fixed;left:-9999px;top:0;width:72mm;height:100px;border:0;visibility:hidden';
+            frame.onload = function () {
+                try {
+                    var doc = frame.contentDocument;
+                    var pixels = Math.max(doc.body.scrollHeight, doc.documentElement.scrollHeight);
+
+                    finish(pixels > 0 ? Math.ceil(pixels * 25.4 / 96) + 6 : null);
+                } catch (error) {
+                    finish(null);
+                }
+            };
+            document.body.appendChild(frame);
+            frame.srcdoc = html;
+            setTimeout(function () { finish(null); }, 4000);
+        });
+    }
+
     /** Rechaza con error.kind: 'connection' (QZ Tray), 'printer' (la impresora) o 'ticket' (leer el ticket). */
     function send(printer, html, copies) {
         return connect()
             .catch(function (error) { fail('connection', error); })
-            .then(function () {
+            .then(function () { return measureHeight(html); })
+            .then(function (height) {
                 var config = qz.configs.create(printer, { units: 'mm', margins: 0 });
-                var job = { type: 'pixel', format: 'html', flavor: 'plain', data: html, options: { pageWidth: 72 } };
+                var options = { pageWidth: 72 };
+
+                if (height) {
+                    options.pageHeight = height;
+                }
+
+                var job = { type: 'pixel', format: 'html', flavor: 'plain', data: html, options: options };
                 var jobs = [];
 
                 // Un trabajo por copia: algunos controladores ignoran la opción "copies" de la impresora.
