@@ -20,6 +20,16 @@ class CreateTransfer extends CreateExit
         return ['destChamberId' => ['required', 'exists:chambers,id']];
     }
 
+    protected function restoreDestination(array $draft): void
+    {
+        $chamberId = is_numeric($draft['destChamberId'] ?? null) ? (int) $draft['destChamberId'] : 0;
+
+        $this->destChamberId = $chamberId > 0 && $chamberId !== $this->originChamberId
+            && Chamber::query()->where('is_active', true)->whereKey($chamberId)->exists()
+            ? $chamberId
+            : null;
+    }
+
     protected function destination(): array
     {
         $chamber = Chamber::query()->with('branch')->findOrFail($this->destChamberId);

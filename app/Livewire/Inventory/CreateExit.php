@@ -315,6 +315,109 @@ class CreateExit extends Component
         $this->reset('productId', 'quantity', 'variants', 'variantQuantities', 'pendingQuantity', 'pendingProductId');
     }
 
+    /**
+     * Rebuilds the capture from the draft the browser kept (refresh, lost connection). Nothing from the browser is
+     * trusted: the origin chamber is checked against the user's access and only the boxes that are still available
+     * there come back, so an exit never takes boxes that moved in the meantime.
+     *
+     * @param  array<string, mixed>  $draft
+     */
+    public function restoreDraft(array $draft): void
+    {
+        $this->resetErrorBag();
+
+        $originId = is_numeric($draft['originChamberId'] ?? null) ? (int) $draft['originChamberId'] : null;
+        $this->originChamberId = $originId;
+
+        if (! $this->originIsAllowed()) {
+            $this->originChamberId = $this->onlyChamberId();
+        }
+
+        $this->requester = is_string($draft['requester'] ?? null) ? mb_substr($draft['requester'], 0, 255) : '';
+        $this->notes = is_string($draft['notes'] ?? null) ? mb_substr($draft['notes'], 0, 2000) : '';
+
+        if (is_string($draft['clientToken'] ?? null) && Str::isUuid($draft['clientToken'])) {
+            $this->clientToken = $draft['clientToken'];
+        }
+
+        $this->restoreDestination($draft);
+
+        $requested = array_values(array_unique(array_map('intval', array_filter(
+            array_merge([], ...array_map(
+                fn (mixed $line): array => is_array($line) && is_array($line['box_ids'] ?? null) ? array_slice($line['box_ids'], 0, 20000) : [],
+                is_array($draft['lines'] ?? null) ? $draft['lines'] : [],
+            )),
+            'is_numeric',
+        ))));
+
+        $this->lines = $this->originIsAllowed() ? $this->restoredLines($requested) : [];
+        $dropped = count($requested) - count($this->takenIds());
+
+        $productId = is_numeric($draft['productId'] ?? null) ? (int) $draft['productId'] : 0;
+
+        if ($productId > 0 && $this->originIsAllowed() && $this->availableBoxes($productId)->exists()) {
+            $this->productId = $productId;
+        }
+
+        $this->quantity = is_numeric($draft['quantity'] ?? null) && ctype_digit((string) $draft['quantity']) && (int) $draft['quantity'] >= 1 && (int) $draft['quantity'] <= 100000
+            ? (string) (int) $draft['quantity']
+            : '';
+
+        if ($dropped > 0) {
+            Flux::toast(text: "Se recuperó la captura, pero {$dropped} caja(s) ya no están disponibles en la cámara y se omitieron.", variant: 'warning');
+        } else {
+            Flux::toast(text: 'Se recuperó tu captura anterior.', variant: 'success');
+        }
+    }
+
+    /**
+     * Destination fields of the draft: the branch and, optionally, the chamber that receives the delivery.
+     *
+     * @param  array<string, mixed>  $draft
+     */
+    protected function restoreDestination(array $draft): void
+    {
+        $branchId = is_numeric($draft['destBranchId'] ?? null) ? (int) $draft['destBranchId'] : 0;
+        $this->destBranchId = $branchId > 0 && $this->activeBranches()->contains('id', $branchId) ? $branchId : null;
+
+        $deliveryId = is_numeric($draft['deliveryChamberId'] ?? null) ? (int) $draft['deliveryChamberId'] : null;
+        $this->deliveryChamberId = $deliveryId;
+
+        if ($this->deliveryChamber() === null) {
+            $this->deliveryChamberId = null;
+        }
+    }
+
+    /**
+     * The requested boxes that are still available in the origin chamber, grouped by product, weight and price.
+     *
+     * @param  array<int, int>  $boxIds
+     * @return array<int, array{product_id: int, product: string, weight: string, cost: string, box_ids: array<int, int>}>
+     */
+    private function restoredLines(array $boxIds): array
+    {
+        $lines = [];
+
+        foreach (array_chunk($boxIds, 1000) as $chunk) {
+            Box::query()->availableIn((int) $this->originChamberId)
+                ->whereIn('id', $chunk)->with('product:id,name')
+                ->orderBy('entered_at')->orderBy('id')->get()
+                ->each(function (Box $box) use (&$lines): void {
+                    $key = $box->product_id.'|'.$box->current_weight_kg.'|'.$box->unit_cost_mxn;
+                    $lines[$key] ??= [
+                        'product_id' => $box->product_id,
+                        'product' => $box->product->name,
+                        'weight' => (string) $box->current_weight_kg,
+                        'cost' => (string) $box->unit_cost_mxn,
+                        'box_ids' => [],
+                    ];
+                    $lines[$key]['box_ids'][] = $box->id;
+                });
+        }
+
+        return array_values($lines);
+    }
+
     public function removeLine(int $index): void
     {
         unset($this->lines[$index]);
@@ -403,6 +506,7 @@ class CreateExit extends Component
                     : route('exits.ticket', ['exit' => $exit, 'auto' => 1, 'copies' => $this->ticketCopies()]));
             }
 
+            $this->dispatch('draft-saved');
             Flux::toast(text: $this->isTransfer() ? 'Transferencia enviada.' : 'Salida registrada.', variant: 'success');
             $this->redirectRoute($this->isTransfer() ? 'transfers.index' : 'exits.index', navigate: true);
         }
