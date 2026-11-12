@@ -7,6 +7,12 @@
         <flux:button :href="route($isTransfer ? 'transfers.index' : 'exits.index')" wire:navigate icon="arrow-left">{{ $isTransfer ? 'Transferencias' : 'Salidas' }}</flux:button>
     </x-page-header>
 
+    <x-draft-recovery
+        :draft-key="$isTransfer ? 'transfer' : 'exit'"
+        :fields="['originChamberId', $isTransfer ? 'destChamberId' : 'destBranchId', 'deliveryChamberId', 'requester', 'notes', 'clientToken', 'lines', 'productId', 'quantity']"
+        :noun="$isTransfer ? 'transferencia' : 'salida'"
+    />
+
     <flux:error name="operation" />
 
     @php

@@ -129,6 +129,128 @@ class CreateEntry extends Component
         $this->boxesCount = '1';
     }
 
+    /**
+     * Rebuilds the capture from the draft the browser kept (refresh, lost connection). Nothing from the browser is
+     * trusted: products, chamber and every number are checked again, and whatever no longer holds is left out.
+     *
+     * @param  array<string, mixed>  $draft
+     */
+    public function restoreDraft(array $draft, BarcodeGenerator $barcodes): void
+    {
+        $this->resetErrorBag();
+
+        $chamberId = is_numeric($draft['chamberId'] ?? null) ? (int) $draft['chamberId'] : 0;
+
+        if ($chamberId > 0 && $this->accessibleChambers()->contains('id', $chamberId)) {
+            $this->chamberId = $chamberId;
+        }
+
+        $this->notes = is_string($draft['notes'] ?? null) ? mb_substr($draft['notes'], 0, 2000) : '';
+
+        if (is_string($draft['clientToken'] ?? null) && Str::isUuid($draft['clientToken'])) {
+            $this->clientToken = $draft['clientToken'];
+        }
+
+        $rawLines = array_values(array_filter(is_array($draft['lines'] ?? null) ? $draft['lines'] : [], 'is_array'));
+        $products = Product::query()->where('is_active', true)
+            ->whereIn('id', array_filter(array_map(fn (array $line): int => is_numeric($line['product_id'] ?? null) ? (int) $line['product_id'] : 0, $rawLines)))
+            ->get()->keyBy('id');
+
+        $this->lines = [];
+        $dropped = 0;
+
+        foreach ($rawLines as $raw) {
+            $line = $this->restoredLine($raw, $products->get((int) ($raw['product_id'] ?? 0)), $barcodes);
+
+            if ($line === null) {
+                $dropped++;
+
+                continue;
+            }
+
+            $this->lines[] = $line;
+        }
+
+        $this->restoreInProgressFields($draft);
+
+        if ($dropped > 0) {
+            Flux::toast(text: "Se recuperó la captura, pero {$dropped} grupo(s) ya no son válidos y se omitieron.", variant: 'warning');
+        } else {
+            Flux::toast(text: 'Se recuperó tu captura anterior.', variant: 'success');
+        }
+    }
+
+    /**
+     * @param  array<string, mixed>  $raw
+     * @return array{product_id: int, product: string, code: string, boxes_count: int, weight: string, cost: string, manual: array<int, string>, origin: string|null}|null
+     */
+    private function restoredLine(array $raw, ?Product $product, BarcodeGenerator $barcodes): ?array
+    {
+        $boxesCount = $raw['boxes_count'] ?? null;
+
+        if ($product === null || ! is_numeric($boxesCount) || (int) $boxesCount < 1 || (int) $boxesCount > 100000
+            || ! is_numeric($raw['weight'] ?? null) || (float) $raw['weight'] <= 0
+            || ! is_numeric($raw['cost'] ?? null) || (float) $raw['cost'] < 0) {
+            return null;
+        }
+
+        try {
+            $manual = array_map(
+                fn (mixed $code): string => $barcodes->normalizeManual((string) $code),
+                array_values(array_filter(is_array($raw['manual'] ?? null) ? $raw['manual'] : [], 'is_string')),
+            );
+            $weight = Decimal::normalize((string) $raw['weight'], Decimal::WEIGHT_SCALE);
+            $cost = Decimal::normalize((string) $raw['cost'], Decimal::MONEY_SCALE);
+        } catch (InventoryException) {
+            return null;
+        }
+
+        $origin = is_string($raw['origin'] ?? null) ? trim(mb_substr($raw['origin'], 0, 255)) : '';
+
+        if (count($manual) > (int) $boxesCount
+            || ($manual !== [] && $origin === '')
+            || array_intersect($manual, array_merge([], ...array_column($this->lines, 'manual'))) !== []) {
+            return null;
+        }
+
+        return [
+            'product_id' => $product->id,
+            'product' => $product->name,
+            'code' => (string) $product->code,
+            'boxes_count' => (int) $boxesCount,
+            'weight' => $weight,
+            'cost' => $cost,
+            'manual' => $manual,
+            'origin' => $manual === [] ? null : $origin,
+        ];
+    }
+
+    /**
+     * The group that was being typed (not yet added) comes back too.
+     *
+     * @param  array<string, mixed>  $draft
+     */
+    private function restoreInProgressFields(array $draft): void
+    {
+        $productId = is_numeric($draft['productId'] ?? null) ? (int) $draft['productId'] : 0;
+
+        if ($productId > 0 && Product::query()->where('is_active', true)->whereKey($productId)->exists()) {
+            $this->productId = $productId;
+        }
+
+        $boxes = $draft['boxesCount'] ?? null;
+
+        if (is_numeric($boxes) && ctype_digit((string) $boxes) && (int) $boxes >= 1 && (int) $boxes <= 100000) {
+            $this->boxesCount = (string) (int) $boxes;
+        }
+
+        foreach (['weight', 'cost'] as $field) {
+            if (is_numeric($draft[$field] ?? null) && strlen((string) $draft[$field]) <= 20) {
+                $this->{$field} = (string) $draft[$field];
+            }
+        }
+    }
+
     public function removeLine(int $index): void
     {
         unset($this->lines[$index]);
@@ -215,6 +337,7 @@ class CreateEntry extends Component
                 session()->flash('print_ticket', route('entries.ticket', ['entry' => $entry, 'auto' => 1, 'copies' => $this->ticketCopies()]));
             }
 
+            $this->dispatch('draft-saved');
             Flux::toast(text: 'Entrada registrada.', variant: 'success');
             $this->redirectRoute('entries.index', navigate: true);
         }
@@ -247,6 +370,7 @@ class CreateEntry extends Component
         Flux::modal('confirm-save')->close();
 
         if ($sent) {
+            $this->dispatch('draft-saved');
             Flux::toast(text: 'Solicitud enviada. Un administrador debe autorizarla para registrar la entrada.', variant: 'success');
             $this->redirectRoute('entry-requests.index', navigate: true);
         }

@@ -3,6 +3,12 @@
         <flux:button :href="route('entries.index')" wire:navigate icon="arrow-left">Entradas</flux:button>
     </x-page-header>
 
+    <x-draft-recovery
+        draft-key="entry"
+        :fields="['chamberId', 'notes', 'clientToken', 'lines', 'productId', 'boxesCount', 'weight', 'cost']"
+        noun="entrada"
+    />
+
     <flux:error name="operation" />
 
     @php
