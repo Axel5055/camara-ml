@@ -68,7 +68,7 @@
                         <flux:input wire:model.live.debounce.400ms="weight" label="Peso por caja (kg)" inputmode="decimal" placeholder="0.000" />
                     </div>
                     <div>
-                        <flux:input wire:model.live.debounce.400ms="cost" label="Costo por caja (MXN)" inputmode="decimal" placeholder="0.00" />
+                        <flux:input wire:model.live.debounce.400ms="cost" label="Costo por kg (MXN)" inputmode="decimal" placeholder="0.00" />
                     </div>
                 </div>
 
@@ -111,7 +111,7 @@
                         <flux:table.column>Producto</flux:table.column>
                         <flux:table.column align="end">Cajas</flux:table.column>
                         <flux:table.column align="end">Peso por caja</flux:table.column>
-                        <flux:table.column align="end">Costo por caja</flux:table.column>
+                        <flux:table.column align="end">Costo por kg</flux:table.column>
                         <flux:table.column align="end">Peso total</flux:table.column>
                         @if ($showCosts)
                             <flux:table.column align="end">Importe</flux:table.column>

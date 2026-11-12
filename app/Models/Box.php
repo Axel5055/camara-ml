@@ -25,6 +25,7 @@ use Illuminate\Support\Carbon;
  * @property int $origin_chamber_id
  * @property string $initial_weight_kg
  * @property string $current_weight_kg
+ * @property string $price_per_kg_mxn
  * @property string $unit_cost_mxn
  * @property Carbon $entered_at
  * @property Carbon|null $voided_at
@@ -46,6 +47,7 @@ class Box extends Model
             'status' => BoxStatus::class,
             'initial_weight_kg' => 'decimal:3',
             'current_weight_kg' => 'decimal:3',
+            'price_per_kg_mxn' => 'decimal:2',
             'unit_cost_mxn' => 'decimal:2',
             'entered_at' => 'datetime',
             'voided_at' => 'datetime',

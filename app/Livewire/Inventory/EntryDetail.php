@@ -37,7 +37,7 @@ class EntryDetail extends Component
 
     public string $reverseReason = '';
 
-    /** @var array<int|string, array{boxes_count: int|string, weight_per_box_kg: string, unit_cost_mxn: string}> */
+    /** @var array<int|string, array{boxes_count: int|string, weight_per_box_kg: string, price_per_kg_mxn: string}> */
     public array $editItems = [];
 
     public function mount(Entry $entry): void
@@ -94,7 +94,7 @@ class EntryDetail extends Component
             $item->id => [
                 'boxes_count' => $item->boxes_count,
                 'weight_per_box_kg' => $item->weight_per_box_kg,
-                'unit_cost_mxn' => $item->unit_cost_mxn,
+                'price_per_kg_mxn' => $item->price_per_kg_mxn,
             ],
         ])->all();
 

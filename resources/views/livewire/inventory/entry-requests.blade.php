@@ -109,7 +109,7 @@
                                 <th class="px-3 py-2">Producto</th>
                                 <th class="px-3 py-2 text-right">Cajas</th>
                                 <th class="px-3 py-2 text-right">kg por caja</th>
-                                <th class="px-3 py-2 text-right">Precio por caja</th>
+                                <th class="px-3 py-2 text-right">Costo por kg</th>
                             </tr>
                         </thead>
                         <tbody class="divide-y divide-zinc-200 dark:divide-zinc-700">
@@ -123,7 +123,7 @@
                                     </td>
                                     <td class="px-3 py-2 text-right tabular-nums">{{ number_format($group['boxes_count']) }}</td>
                                     <td class="px-3 py-2 text-right tabular-nums">{{ $group['weight_per_box_kg'] }}</td>
-                                    <td class="px-3 py-2 text-right tabular-nums">${{ number_format((float) $group['unit_cost_mxn'], 2) }}</td>
+                                    <td class="px-3 py-2 text-right tabular-nums">${{ number_format((float) $group['price_per_kg_mxn'], 2) }}</td>
                                 </tr>
                             @endforeach
                         </tbody>

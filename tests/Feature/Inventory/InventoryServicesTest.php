@@ -65,9 +65,9 @@ function warehouseWorld(): array
 function registerExampleEntry(array $w): Entry
 {
     return app(RegisterEntry::class)->handle($w['centroUser'], $w['c1'], [
-        ['product_id' => $w['product']->id, 'boxes_count' => 10, 'weight_per_box_kg' => '20', 'unit_cost_mxn' => '500'],
-        ['product_id' => $w['product']->id, 'boxes_count' => 15, 'weight_per_box_kg' => '22', 'unit_cost_mxn' => '550'],
-        ['product_id' => $w['product']->id, 'boxes_count' => 8, 'weight_per_box_kg' => '18', 'unit_cost_mxn' => '470'],
+        ['product_id' => $w['product']->id, 'boxes_count' => 10, 'weight_per_box_kg' => '20', 'price_per_kg_mxn' => '25.00'],
+        ['product_id' => $w['product']->id, 'boxes_count' => 15, 'weight_per_box_kg' => '22', 'price_per_kg_mxn' => '25.00'],
+        ['product_id' => $w['product']->id, 'boxes_count' => 8, 'weight_per_box_kg' => '18', 'price_per_kg_mxn' => '26.00'],
     ]);
 }
 
@@ -79,7 +79,7 @@ it('registers an entry with several groups, exact totals and one unique barcode 
 
     expect($entry->total_boxes)->toBe(33)
         ->and($entry->total_weight_kg)->toBe('674.000')
-        ->and($entry->total_cost_mxn)->toBe('17010.00')
+        ->and($entry->total_cost_mxn)->toBe('16994.00')
         ->and($entry->items)->toHaveCount(3);
 
     $barcodes = Box::query()->orderBy('id')->pluck('barcode');
@@ -94,7 +94,7 @@ it('registers an entry with several groups, exact totals and one unique barcode 
 
 it('keeps the barcode sequence global across days and grows past six digits', function () {
     $w = warehouseWorld();
-    $group = [['product_id' => $w['product']->id, 'boxes_count' => 1, 'weight_per_box_kg' => '20', 'unit_cost_mxn' => '500']];
+    $group = [['product_id' => $w['product']->id, 'boxes_count' => 1, 'weight_per_box_kg' => '20', 'price_per_kg_mxn' => '25.00']];
 
     Carbon::setTestNow('2026-10-28 10:00:00');
     app(RegisterEntry::class)->handle($w['centroUser'], $w['c1'], $group);
@@ -110,7 +110,7 @@ it('keeps the barcode sequence global across days and grows past six digits', fu
 it('accepts manual barcodes with an origin and rejects reserved, duplicated or unexplained ones', function () {
     $w = warehouseWorld();
     $make = fn (array $extra) => app(RegisterEntry::class)->handle($w['centroUser'], $w['c1'], [
-        array_merge(['product_id' => $w['product']->id, 'boxes_count' => 1, 'weight_per_box_kg' => '10', 'unit_cost_mxn' => '100'], $extra),
+        array_merge(['product_id' => $w['product']->id, 'boxes_count' => 1, 'weight_per_box_kg' => '10', 'price_per_kg_mxn' => '10.00'], $extra),
     ]);
 
     $make(['manual_barcodes' => ['etiq-100'], 'manual_barcode_origin' => 'Proveedor X']);
@@ -126,7 +126,7 @@ it('accepts manual barcodes with an origin and rejects reserved, duplicated or u
 
 it('is idempotent for the same client token', function () {
     $w = warehouseWorld();
-    $group = [['product_id' => $w['product']->id, 'boxes_count' => 2, 'weight_per_box_kg' => '10', 'unit_cost_mxn' => '100']];
+    $group = [['product_id' => $w['product']->id, 'boxes_count' => 2, 'weight_per_box_kg' => '10', 'price_per_kg_mxn' => '10.00']];
 
     $first = app(RegisterEntry::class)->handle($w['centroUser'], $w['c1'], $group, clientToken: 'same-token');
     $second = app(RegisterEntry::class)->handle($w['centroUser'], $w['c1'], $group, clientToken: 'same-token');
@@ -139,8 +139,8 @@ it('rolls back the whole entry when a product is inactive', function () {
     $inactive = Product::factory()->create(['is_active' => false]);
 
     expect(fn () => app(RegisterEntry::class)->handle($w['centroUser'], $w['c1'], [
-        ['product_id' => $w['product']->id, 'boxes_count' => 2, 'weight_per_box_kg' => '10', 'unit_cost_mxn' => '100'],
-        ['product_id' => $inactive->id, 'boxes_count' => 1, 'weight_per_box_kg' => '10', 'unit_cost_mxn' => '100'],
+        ['product_id' => $w['product']->id, 'boxes_count' => 2, 'weight_per_box_kg' => '10', 'price_per_kg_mxn' => '10.00'],
+        ['product_id' => $inactive->id, 'boxes_count' => 1, 'weight_per_box_kg' => '10', 'price_per_kg_mxn' => '10.00'],
     ]))->toThrow(InventoryException::class);
 
     expect(Box::query()->count())->toBe(0)->and(Entry::query()->count())->toBe(0);
@@ -149,18 +149,18 @@ it('rolls back the whole entry when a product is inactive', function () {
 it('rejects float-like precision, zero weight and negative cost', function () {
     $w = warehouseWorld();
     $try = fn (array $g) => fn () => app(RegisterEntry::class)->handle($w['centroUser'], $w['c1'], [
-        array_merge(['product_id' => $w['product']->id, 'boxes_count' => 1, 'weight_per_box_kg' => '10', 'unit_cost_mxn' => '100'], $g),
+        array_merge(['product_id' => $w['product']->id, 'boxes_count' => 1, 'weight_per_box_kg' => '10', 'price_per_kg_mxn' => '10.00'], $g),
     ]);
 
     expect($try(['weight_per_box_kg' => '10.0005']))->toThrow(InventoryException::class)
-        ->and($try(['unit_cost_mxn' => '100.005']))->toThrow(InventoryException::class)
+        ->and($try(['price_per_kg_mxn' => '100.005']))->toThrow(InventoryException::class)
         ->and($try(['weight_per_box_kg' => '0']))->toThrow(InventoryException::class)
-        ->and($try(['unit_cost_mxn' => '-1']))->toThrow(InventoryException::class);
+        ->and($try(['price_per_kg_mxn' => '-1']))->toThrow(InventoryException::class);
 });
 
 it('enforces chamber access on the server', function () {
     $w = warehouseWorld();
-    $group = [['product_id' => $w['product']->id, 'boxes_count' => 1, 'weight_per_box_kg' => '10', 'unit_cost_mxn' => '100']];
+    $group = [['product_id' => $w['product']->id, 'boxes_count' => 1, 'weight_per_box_kg' => '10', 'price_per_kg_mxn' => '10.00']];
 
     expect(fn () => app(RegisterEntry::class)->handle($w['norteUser'], $w['c1'], $group))->toThrow(AuthorizationException::class);
 
@@ -180,7 +180,7 @@ it('exits exactly the selected boxes to a branch without chamber and keeps histo
 
     expect($exit->total_boxes)->toBe(3)
         ->and($exit->total_weight_kg)->toBe('62.000')
-        ->and($exit->total_cost_mxn)->toBe('1570.00')
+        ->and($exit->total_cost_mxn)->toBe('1568.00')
         ->and($exit->transfer)->toBeNull()
         ->and(Box::query()->whereIn('id', $ids)->pluck('status')->unique()->all())->toBe([BoxStatus::Dispatched])
         ->and(Box::query()->where('status', BoxStatus::Available)->count())->toBe(30);
@@ -490,17 +490,17 @@ it('lets only the super administrator correct an entry, keeping the stock, the h
         ->toThrow(AuthorizationException::class);
 
     $corrected = app(CorrectEntry::class)->handle($w['admin'], $entry, 'El peso y el costo estaban mal', null, 'Corregida por el administrador', [
-        $items[0]->id => ['boxes_count' => 12, 'weight_per_box_kg' => '21', 'unit_cost_mxn' => '510'],
-        $items[2]->id => ['boxes_count' => 6, 'weight_per_box_kg' => '18', 'unit_cost_mxn' => '470'],
+        $items[0]->id => ['boxes_count' => 12, 'weight_per_box_kg' => '21', 'price_per_kg_mxn' => '24.00'],
+        $items[2]->id => ['boxes_count' => 6, 'weight_per_box_kg' => '18', 'price_per_kg_mxn' => '26.00'],
     ]);
 
     // 12×21@510 + 15×22@550 + 6×18@470
     expect($corrected->total_boxes)->toBe(33)
         ->and($corrected->total_weight_kg)->toBe('690.000')
-        ->and($corrected->total_cost_mxn)->toBe('17190.00')
+        ->and($corrected->total_cost_mxn)->toBe('17106.00')
         ->and($corrected->notes)->toBe('Corregida por el administrador')
         ->and(Box::query()->where('entry_item_id', $items[0]->id)->whereNull('voided_at')->count())->toBe(12)
-        ->and(Box::query()->where('entry_item_id', $items[0]->id)->whereNull('voided_at')->where('initial_weight_kg', 21)->where('current_weight_kg', 21)->where('unit_cost_mxn', 510)->count())->toBe(12)
+        ->and(Box::query()->where('entry_item_id', $items[0]->id)->whereNull('voided_at')->where('initial_weight_kg', 21)->where('current_weight_kg', 21)->where('unit_cost_mxn', 504)->count())->toBe(12)
         ->and(Box::query()->where('entry_item_id', $items[2]->id)->whereNotNull('voided_at')->where('status', BoxStatus::WrittenOff)->count())->toBe(2)
         ->and(Box::query()->where('status', BoxStatus::Available)->count())->toBe(33)
         ->and(Box::query()->distinct()->count('barcode'))->toBe(Box::query()->count());
@@ -527,17 +527,17 @@ it('refuses to change the boxes of an entry whose boxes already moved, but still
     app(RegisterExit::class)->handle($w['centroUser'], $w['c1'], $w['sur'], null, 'Ana', [$box->id]);
 
     expect(fn () => app(CorrectEntry::class)->handle($w['admin'], $entry, 'Peso mal capturado', null, null, [
-        $items[0]->id => ['boxes_count' => 10, 'weight_per_box_kg' => '19', 'unit_cost_mxn' => '500'],
+        $items[0]->id => ['boxes_count' => 10, 'weight_per_box_kg' => '19', 'price_per_kg_mxn' => '26.00'],
     ]))->toThrow(InventoryException::class, 'Ya hubo movimientos');
 
     // The other groups are untouched, so they can still be corrected.
     app(CorrectEntry::class)->handle($w['admin'], $entry, 'Costo mal capturado', null, 'Nueva nota', [
-        $items[1]->id => ['boxes_count' => 15, 'weight_per_box_kg' => '22', 'unit_cost_mxn' => '560'],
+        $items[1]->id => ['boxes_count' => 15, 'weight_per_box_kg' => '22', 'price_per_kg_mxn' => '26.00'],
     ]);
 
     expect($entry->fresh()->notes)->toBe('Nueva nota')
         ->and($items[0]->fresh()->weight_per_box_kg)->toBe('20.000')
-        ->and($items[1]->fresh()->unit_cost_mxn)->toBe('560.00');
+        ->and($items[1]->fresh()->unit_cost_mxn)->toBe('572.00');
 });
 
 it('lets the super administrator fix the header, the destination and the boxes of a delivery', function () {
@@ -611,7 +611,7 @@ it('lets only the super administrator settle the stock of a product in a chamber
         ->and(DB::table('audit_logs')->where('event', 'stock.adjusted')->count())->toBe(1);
 
     // More boxes, a new weight and a new cost: the remaining boxes follow, the new ones are created.
-    $result = $service->handle($w['admin'], $w['c1'], $w['product'], 'Llegó mercancía sin registrar', 32, '25', '600');
+    $result = $service->handle($w['admin'], $w['c1'], $w['product'], 'Llegó mercancía sin registrar', 32, '25', '24');
 
     expect($result['added'])->toBe(2)
         ->and($result['reweighed'])->toBe(30)
@@ -654,11 +654,11 @@ it('lets only the super administrator edit the weight and cost of a box', functi
         ->and(fn () => $service->handle($w['admin'], $box, 'Peso mal capturado', '0'))->toThrow(InventoryException::class, 'mayor a cero');
 
     // An intact box stays intact: initial and current weight both change.
-    $edited = $service->handle($w['admin'], $box, 'Peso y costo mal capturados', '19.5', '510');
+    $edited = $service->handle($w['admin'], $box, 'Peso y costo mal capturados', '19.5', '26');
 
     expect($edited->initial_weight_kg)->toBe('19.500')
         ->and($edited->current_weight_kg)->toBe('19.500')
-        ->and($edited->unit_cost_mxn)->toBe('510.00')
+        ->and($edited->unit_cost_mxn)->toBe('507.00')
         ->and($edited->isPartial())->toBeFalse()
         ->and(DB::table('audit_logs')->where('event', 'box.edited')->count())->toBe(1);
 
@@ -680,4 +680,23 @@ it('only changes the current weight of a partial box and refuses a box that is n
 
     app(RegisterExit::class)->handle($w['centroUser'], $w['c1'], $w['sur'], null, 'Ana', [$boxes[1]->id]);
     expect(fn () => $service->handle($w['admin'], $boxes[1]->fresh(), 'Caja ya entregada', '15'))->toThrow(InventoryException::class, 'no está disponible');
+});
+
+it('calculates the cost per kilo: 7 boxes of 20 kg at $200 per kg is $28,000', function () {
+    $w = warehouseWorld();
+
+    $entry = app(RegisterEntry::class)->handle($w['centroUser'], $w['c1'], [
+        ['product_id' => $w['product']->id, 'boxes_count' => 7, 'weight_per_box_kg' => '20', 'price_per_kg_mxn' => '200'],
+    ]);
+    $box = Box::query()->firstOrFail();
+
+    expect($entry->total_cost_mxn)->toBe('28000.00')
+        ->and($box->price_per_kg_mxn)->toBe('200.00')
+        ->and($box->unit_cost_mxn)->toBe('4000.00');
+
+    $edited = app(EditBox::class)->handle($w['admin'], $box, 'Peso mal capturado', '10');
+    expect($edited->unit_cost_mxn)->toBe('2000.00');
+
+    $partial = app(WithdrawPartial::class)->handle($w['centroUser'], $edited->fresh(), '5', $w['sur'], 'Ana');
+    expect($partial->total_cost_mxn)->toBe('1000.00');
 });

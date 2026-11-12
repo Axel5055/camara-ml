@@ -60,7 +60,7 @@ it('lets exactly one of several simultaneous exits take the same boxes', functio
     $product = Product::factory()->create();
 
     app(RegisterEntry::class)->handle($user, $chamber, [
-        ['product_id' => $product->id, 'boxes_count' => 20, 'weight_per_box_kg' => '10', 'unit_cost_mxn' => '100'],
+        ['product_id' => $product->id, 'boxes_count' => 20, 'weight_per_box_kg' => '10', 'price_per_kg_mxn' => '10.00'],
     ]);
     $ids = Box::query()->orderBy('id')->pluck('id')->all();
 

@@ -34,7 +34,7 @@ class CorrectEntry extends InventoryOperation
      * updated and every change is appended to each box history and to the audit log. Removed boxes are not
      * deleted: they are written off and marked as voided; added boxes get new generated barcodes.
      *
-     * @param  array<int|string, array{boxes_count: int|string, weight_per_box_kg: string|int|float, unit_cost_mxn: string|int|float}>  $items  entry item id => new values
+     * @param  array<int|string, array{boxes_count: int|string, weight_per_box_kg: string|int|float, price_per_kg_mxn: string|int|float}>  $items  entry item id => new values
      */
     public function handle(User $admin, Entry $entry, string $reason, ?CarbonInterface $occurredAt = null, ?string $notes = null, array $items = []): Entry
     {
@@ -112,7 +112,7 @@ class CorrectEntry extends InventoryOperation
 
     /**
      * @param  array<int|string, array<string, mixed>>  $items
-     * @return list<array{id: int, boxes_count: int, old_boxes_count: int, weight_per_box_kg: string, unit_cost_mxn: string}>
+     * @return list<array{id: int, boxes_count: int, old_boxes_count: int, weight_per_box_kg: string, price_per_kg_mxn: string, unit_cost_mxn: string}>
      */
     private function normalize(Entry $entry, array $items): array
     {
@@ -124,7 +124,7 @@ class CorrectEntry extends InventoryOperation
 
             $count = (int) ($values['boxes_count'] ?? 0);
             $weight = Decimal::normalize($values['weight_per_box_kg'] ?? '', Decimal::WEIGHT_SCALE);
-            $cost = Decimal::normalize($values['unit_cost_mxn'] ?? '', Decimal::MONEY_SCALE);
+            $price = Decimal::normalize($values['price_per_kg_mxn'] ?? '', Decimal::MONEY_SCALE);
 
             if ($count < 1 || $count > 100000) {
                 throw new InventoryException('La cantidad de cajas debe estar entre 1 y 100,000.');
@@ -134,8 +134,8 @@ class CorrectEntry extends InventoryOperation
                 throw new InventoryException('El peso por caja debe ser mayor a cero.');
             }
 
-            if (Decimal::cmp($cost, '0', Decimal::MONEY_SCALE) < 0) {
-                throw new InventoryException('El costo unitario no puede ser negativo.');
+            if (Decimal::cmp($price, '0', Decimal::MONEY_SCALE) < 0) {
+                throw new InventoryException('El costo por kilo no puede ser negativo.');
             }
 
             $normalized[] = [
@@ -143,7 +143,8 @@ class CorrectEntry extends InventoryOperation
                 'boxes_count' => $count,
                 'old_boxes_count' => $item->boxes_count,
                 'weight_per_box_kg' => $weight,
-                'unit_cost_mxn' => $cost,
+                'price_per_kg_mxn' => $price,
+                'unit_cost_mxn' => Decimal::costOf($weight, $price),
             ];
         }
 
@@ -151,17 +152,17 @@ class CorrectEntry extends InventoryOperation
     }
 
     /**
-     * @param  array{boxes_count: int, weight_per_box_kg: string, unit_cost_mxn: string}  $change
+     * @param  array{boxes_count: int, weight_per_box_kg: string, price_per_kg_mxn: string}  $change
      */
     private function differs(array $change, EntryItem $item): bool
     {
         return $change['boxes_count'] !== $item->boxes_count
             || Decimal::cmp($change['weight_per_box_kg'], $item->weight_per_box_kg, Decimal::WEIGHT_SCALE) !== 0
-            || Decimal::cmp($change['unit_cost_mxn'], $item->unit_cost_mxn, Decimal::MONEY_SCALE) !== 0;
+            || Decimal::cmp($change['price_per_kg_mxn'], $item->price_per_kg_mxn, Decimal::MONEY_SCALE) !== 0;
     }
 
     /**
-     * @param  array{id: int, boxes_count: int, weight_per_box_kg: string, unit_cost_mxn: string}  $change
+     * @param  array{id: int, boxes_count: int, weight_per_box_kg: string, price_per_kg_mxn: string, unit_cost_mxn: string}  $change
      * @return array<string, mixed> what changed in the group, for the audit log
      */
     private function applyChange(User $admin, Entry $entry, EntryItem $item, array $change, string $reason, CarbonInterface $date, int &$number, CarbonInterface $createdOn, CarbonInterface $now): array
@@ -178,30 +179,31 @@ class CorrectEntry extends InventoryOperation
 
         $item->loadMissing('product');
         $weight = $change['weight_per_box_kg'];
+        $price = $change['price_per_kg_mxn'];
         $cost = $change['unit_cost_mxn'];
         $reference = $entry->reference;
         $summary = [
             'item_id' => $item->id,
-            'before' => $item->only(['boxes_count', 'weight_per_box_kg', 'unit_cost_mxn']),
-            'after' => ['boxes_count' => $change['boxes_count'], 'weight_per_box_kg' => $weight, 'unit_cost_mxn' => $cost],
+            'before' => $item->only(['boxes_count', 'weight_per_box_kg', 'price_per_kg_mxn', 'unit_cost_mxn']),
+            'after' => ['boxes_count' => $change['boxes_count'], 'weight_per_box_kg' => $weight, 'price_per_kg_mxn' => $price, 'unit_cost_mxn' => $cost],
         ];
         $movements = [];
 
         // Weight and cost of the boxes that stay.
         $keep = $boxes->take(min($boxes->count(), $change['boxes_count']));
         $valuesChanged = Decimal::cmp($weight, $item->weight_per_box_kg, Decimal::WEIGHT_SCALE) !== 0
-            || Decimal::cmp($cost, $item->unit_cost_mxn, Decimal::MONEY_SCALE) !== 0;
+            || Decimal::cmp($price, $item->price_per_kg_mxn, Decimal::MONEY_SCALE) !== 0;
 
         if ($valuesChanged && $keep->isNotEmpty()) {
             Box::query()->whereIn('id', $keep->modelKeys())->update([
-                'initial_weight_kg' => $weight, 'current_weight_kg' => $weight, 'unit_cost_mxn' => $cost, 'updated_at' => $now,
+                'initial_weight_kg' => $weight, 'current_weight_kg' => $weight, 'price_per_kg_mxn' => $price, 'unit_cost_mxn' => $cost, 'updated_at' => $now,
             ]);
 
             foreach ($keep as $box) {
                 $movements[] = $this->movementRow($box, MovementType::Adjustment, $admin, $now, $box->current_weight_kg, $weight, BoxStatus::Available, BoxStatus::Available, [
                     'to_chamber_id' => $entry->chamber_id,
                     'entry_id' => $entry->id,
-                    'notes' => "Corrección de la entrada {$reference}: peso {$item->weight_per_box_kg} → {$weight} kg, costo {$item->unit_cost_mxn} → {$cost}. {$reason}",
+                    'notes' => "Corrección de la entrada {$reference}: peso {$item->weight_per_box_kg} → {$weight} kg, costo por kg {$item->price_per_kg_mxn} → {$price}. {$reason}",
                 ]);
             }
         }
@@ -242,6 +244,7 @@ class CorrectEntry extends InventoryOperation
                     'origin_chamber_id' => $entry->chamber_id,
                     'initial_weight_kg' => $weight,
                     'current_weight_kg' => $weight,
+                    'price_per_kg_mxn' => $price,
                     'unit_cost_mxn' => $cost,
                     'entered_at' => $date,
                     'status' => BoxStatus::Available->value,
@@ -271,6 +274,7 @@ class CorrectEntry extends InventoryOperation
         $item->update([
             'boxes_count' => $change['boxes_count'],
             'weight_per_box_kg' => $weight,
+            'price_per_kg_mxn' => $price,
             'unit_cost_mxn' => $cost,
             'total_weight_kg' => Decimal::mul($weight, (string) $change['boxes_count'], Decimal::WEIGHT_SCALE),
             'total_cost_mxn' => Decimal::mul($cost, (string) $change['boxes_count'], Decimal::MONEY_SCALE),

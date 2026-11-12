@@ -32,6 +32,7 @@ class EntryRequestFactory extends Factory
                 'product_id' => Product::factory()->create()->id,
                 'boxes_count' => 2,
                 'weight_per_box_kg' => '10.000',
+                'price_per_kg_mxn' => '5.00',
                 'unit_cost_mxn' => '50.00',
                 'manual_barcodes' => [],
                 'manual_barcode_origin' => null,

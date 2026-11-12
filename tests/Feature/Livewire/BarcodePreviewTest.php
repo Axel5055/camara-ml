@@ -82,7 +82,7 @@ it('registers the entry with exactly the barcodes that were previewed', function
 it('lists the barcodes taken in the exit table, under the product name', function () {
     $w = barcodeWorld();
     app(RegisterEntry::class)->handle($w['user'], $w['c1'], [
-        ['product_id' => $w['pollo']->id, 'boxes_count' => 6, 'weight_per_box_kg' => '10', 'unit_cost_mxn' => '50'],
+        ['product_id' => $w['pollo']->id, 'boxes_count' => 6, 'weight_per_box_kg' => '10', 'price_per_kg_mxn' => '5.00'],
     ]);
     $boxes = Box::query()->orderBy('id')->get();
 

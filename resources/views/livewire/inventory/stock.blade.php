@@ -100,7 +100,7 @@
                                 <flux:table.column align="end">Peso prom. por caja</flux:table.column>
                                 @if ($showCosts)
                                     <flux:table.column align="end">Costo total (MXN)</flux:table.column>
-                                    <flux:table.column align="end">Costo prom. por caja</flux:table.column>
+                                    <flux:table.column align="end">Costo prom. por kg</flux:table.column>
                                 @endif
                                 @if ($canAdjust)
                                     <flux:table.column></flux:table.column>
@@ -120,7 +120,7 @@
                                         <flux:table.cell align="end" class="tabular-nums">{{ number_format((float) $row->kg / $row->boxes, 3) }}</flux:table.cell>
                                         @if ($showCosts)
                                             <flux:table.cell align="end" class="tabular-nums font-medium">${{ number_format((float) $row->value, 2) }}</flux:table.cell>
-                                            <flux:table.cell align="end" class="tabular-nums">${{ number_format((float) $row->avg_cost, 2) }}</flux:table.cell>
+                                            <flux:table.cell align="end" class="tabular-nums">${{ number_format($row->kg > 0 ? (float) $row->value / (float) $row->kg : 0, 2) }}</flux:table.cell>
                                         @endif
                                         @if ($canAdjust)
                                             <flux:table.cell align="end">
@@ -218,7 +218,7 @@
                     <div class="grid gap-4 sm:grid-cols-3">
                         <flux:input wire:model="adjustBoxes" type="number" min="0" label="Cajas" icon="archive-box" />
                         <flux:input wire:model="adjustWeight" inputmode="decimal" label="Peso por caja (kg)" icon="scale" />
-                        <flux:input wire:model="adjustCost" inputmode="decimal" label="Costo por caja (MXN)" icon="currency-dollar" />
+                        <flux:input wire:model="adjustCost" inputmode="decimal" label="Costo por kg (MXN)" icon="currency-dollar" />
                     </div>
                 </div>
 
@@ -259,7 +259,7 @@
                     <div class="text-xs font-semibold uppercase tracking-wide text-zinc-500">Datos de la caja</div>
                     <div class="grid gap-4 sm:grid-cols-2">
                         <flux:input wire:model="editWeight" inputmode="decimal" label="Peso (kg)" icon="scale" />
-                        <flux:input wire:model="editCost" inputmode="decimal" label="Costo (MXN)" icon="currency-dollar" />
+                        <flux:input wire:model="editCost" inputmode="decimal" label="Costo por kg (MXN)" icon="currency-dollar" />
                     </div>
                 </div>
 

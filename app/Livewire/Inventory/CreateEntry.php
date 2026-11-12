@@ -76,7 +76,7 @@ class CreateEntry extends Component
             'productId' => 'el producto',
             'boxesCount' => 'la cantidad de cajas',
             'weight' => 'el peso por caja',
-            'cost' => 'el costo por caja',
+            'cost' => 'el costo por kg',
         ]);
 
         try {
@@ -184,7 +184,7 @@ class CreateEntry extends Component
             'product_id' => $line['product_id'],
             'boxes_count' => $line['boxes_count'],
             'weight_per_box_kg' => $line['weight'],
-            'unit_cost_mxn' => $line['cost'],
+            'price_per_kg_mxn' => $line['cost'],
             'manual_barcodes' => $line['manual'],
             'manual_barcode_origin' => $line['origin'],
         ], $this->lines);
@@ -267,7 +267,7 @@ class CreateEntry extends Component
             return [
                 'boxes' => (int) $this->boxesCount,
                 'weight' => Decimal::mul(Decimal::normalize($this->weight, Decimal::WEIGHT_SCALE), $this->boxesCount, Decimal::WEIGHT_SCALE),
-                'cost' => Decimal::mul(Decimal::normalize($this->cost, Decimal::MONEY_SCALE), $this->boxesCount, Decimal::MONEY_SCALE),
+                'cost' => Decimal::mul(Decimal::costOf(Decimal::normalize($this->weight, Decimal::WEIGHT_SCALE), Decimal::normalize($this->cost, Decimal::MONEY_SCALE)), $this->boxesCount, Decimal::MONEY_SCALE),
             ];
         } catch (InventoryException) {
             return null;
@@ -287,7 +287,7 @@ class CreateEntry extends Component
 
         foreach ($this->lines as $line) {
             $weight = Decimal::mul($line['weight'], (string) $line['boxes_count'], Decimal::WEIGHT_SCALE);
-            $cost = Decimal::mul($line['cost'], (string) $line['boxes_count'], Decimal::MONEY_SCALE);
+            $cost = Decimal::mul(Decimal::costOf($line['weight'], $line['cost']), (string) $line['boxes_count'], Decimal::MONEY_SCALE);
 
             // Same order the service uses: groups in sequence, manual labels keep their own code.
             $generated = $line['boxes_count'] - count($line['manual']);

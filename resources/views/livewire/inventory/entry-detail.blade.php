@@ -108,7 +108,7 @@
                     <flux:table.column>Producto</flux:table.column>
                     <flux:table.column align="end">Cajas</flux:table.column>
                     <flux:table.column align="end">Peso por caja</flux:table.column>
-                    <flux:table.column align="end">Costo por caja</flux:table.column>
+                    <flux:table.column align="end">Costo por kg</flux:table.column>
                     <flux:table.column align="end">Peso total</flux:table.column>
                     @if ($showCosts)
                         <flux:table.column align="end">Importe</flux:table.column>
@@ -120,7 +120,7 @@
                             <flux:table.cell><div class="font-medium">{{ $item->product->name }}</div><div class="text-xs text-zinc-500">{{ $item->product->category->name }}</div></flux:table.cell>
                             <flux:table.cell align="end" class="tabular-nums">{{ number_format($item->boxes_count) }}</flux:table.cell>
                             <flux:table.cell align="end" class="tabular-nums">{{ $item->weight_per_box_kg }} kg</flux:table.cell>
-                            <flux:table.cell align="end" class="tabular-nums">${{ number_format((float) $item->unit_cost_mxn, 2) }}</flux:table.cell>
+                            <flux:table.cell align="end" class="tabular-nums">${{ number_format((float) $item->price_per_kg_mxn, 2) }}</flux:table.cell>
                             <flux:table.cell align="end" class="tabular-nums">{{ $item->total_weight_kg }} kg</flux:table.cell>
                             @if ($showCosts)
                                 <flux:table.cell align="end" class="font-medium tabular-nums">${{ number_format((float) $item->total_cost_mxn, 2) }}</flux:table.cell>
@@ -207,13 +207,13 @@
                 class="space-y-5"
                 data-test="entry-edit-form"
                 x-data="{
-                    orig: @js($items->mapWithKeys(fn ($item) => [$item->id => ['boxes' => (int) $item->boxes_count, 'weight' => (float) $item->weight_per_box_kg, 'cost' => (float) $item->unit_cost_mxn]])->all()),
+                    orig: @js($items->mapWithKeys(fn ($item) => [$item->id => ['boxes' => (int) $item->boxes_count, 'weight' => (float) $item->weight_per_box_kg, 'weight' => (float) $item->weight_per_box_kg, 'price' => (float) $item->price_per_kg_mxn]])->all()),
                     boxes(id) { return parseInt($wire.editItems?.[id]?.boxes_count) || 0; },
                     weight(id) { const n = parseFloat($wire.editItems?.[id]?.weight_per_box_kg); return isNaN(n) ? 0 : n; },
-                    cost(id) { const n = parseFloat($wire.editItems?.[id]?.unit_cost_mxn); return isNaN(n) ? 0 : n; },
-                    amount(id) { return Math.round(this.boxes(id) * this.cost(id) * 100) / 100; },
+                    cost(id) { const n = parseFloat($wire.editItems?.[id]?.price_per_kg_mxn); return isNaN(n) ? 0 : n; },
+                    amount(id) { return Math.round(this.boxes(id) * Math.round(this.weight(id) * this.cost(id) * 100) / 100 * 100) / 100; },
                     get totalAmount() { return Math.round(Object.keys(this.orig).reduce((sum, id) => sum + this.amount(id), 0) * 100) / 100; },
-                    get origAmount() { return Math.round(Object.values(this.orig).reduce((sum, row) => sum + row.boxes * row.cost, 0) * 100) / 100; },
+                    get origAmount() { return Math.round(Object.values(this.orig).reduce((sum, row) => sum + row.boxes * Math.round(row.weight * row.price * 100) / 100, 0) * 100) / 100; },
                     money(value) { return new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN' }).format(value); },
                     delta(id) { return this.boxes(id) - this.orig[id].boxes; },
                     kg(id) { return Math.round(this.boxes(id) * this.weight(id) * 1000) / 1000; },
@@ -238,7 +238,7 @@
                 <div class="flex items-start gap-2 rounded-lg bg-sky-50 p-3 text-sm text-sky-800 dark:bg-sky-950/40 dark:text-sky-200">
                     <flux:icon name="information-circle" class="mt-0.5 size-4 shrink-0" />
                     <div class="space-y-1">
-                        <div>El peso, el costo y la cantidad de cajas solo se pueden cambiar mientras las cajas del grupo sigan intactas en la cámara (sin salidas, transferencias ni ajustes).</div>
+                        <div>El peso, el costo por kg y la cantidad de cajas solo se pueden cambiar mientras las cajas del grupo sigan intactas en la cámara (sin salidas, transferencias ni ajustes).</div>
                         <div>Si quitas cajas se dan de baja como anuladas; si agregas, se generan códigos nuevos.</div>
                     </div>
                 </div>
@@ -281,7 +281,7 @@
                                     <flux:input wire:model="editItems.{{ $item->id }}.boxes_count" type="number" min="1" label="Cajas" />
                                     <flux:input wire:model="editItems.{{ $item->id }}.weight_per_box_kg" inputmode="decimal" label="Peso por caja (kg)" />
                                     @if ($showCosts)
-                                        <flux:input wire:model="editItems.{{ $item->id }}.unit_cost_mxn" inputmode="decimal" label="Costo por caja (MXN)" />
+                                        <flux:input wire:model="editItems.{{ $item->id }}.price_per_kg_mxn" inputmode="decimal" label="Costo por kg (MXN)" />
                                     @endif
                                 </div>
                             </div>

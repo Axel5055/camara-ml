@@ -54,6 +54,14 @@ final class Decimal
     }
 
     /**
+     * Cost of a quantity of goods priced per kilo: $weightKg × $pricePerKg, rounded half-up to cents.
+     */
+    public static function costOf(string $weightKg, string $pricePerKg): string
+    {
+        return self::share($pricePerKg, $weightKg, '1', self::MONEY_SCALE);
+    }
+
+    /**
      * Proportional share: $amount × $part / $whole, rounded half-up to $scale.
      */
     public static function share(string $amount, string $part, string $whole, int $scale): string

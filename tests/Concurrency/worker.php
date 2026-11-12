@@ -41,7 +41,7 @@ try {
             'product_id' => $job['product_id'],
             'boxes_count' => $job['count'],
             'weight_per_box_kg' => '10',
-            'unit_cost_mxn' => '100',
+            'price_per_kg_mxn' => '10',
         ]])->reference,
     };
 

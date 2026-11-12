@@ -64,7 +64,7 @@ function widgetsWorld(): array
 function stockUp(array $w, Product $product, int $boxes, ?Chamber $chamber = null, ?User $user = null): void
 {
     app(RegisterEntry::class)->handle($user ?? $w['admin'], $chamber ?? $w['c1'], [
-        ['product_id' => $product->id, 'boxes_count' => $boxes, 'weight_per_box_kg' => '10', 'unit_cost_mxn' => '100'],
+        ['product_id' => $product->id, 'boxes_count' => $boxes, 'weight_per_box_kg' => '10', 'price_per_kg_mxn' => '10.00'],
     ]);
 }
 
@@ -147,10 +147,10 @@ it('charts entries and exits per day with zeros for quiet days', function () {
     $w = widgetsWorld();
 
     app(RegisterEntry::class)->handle($w['admin'], $w['c1'], [
-        ['product_id' => $w['pollo']->id, 'boxes_count' => 10, 'weight_per_box_kg' => '5', 'unit_cost_mxn' => '10'],
+        ['product_id' => $w['pollo']->id, 'boxes_count' => 10, 'weight_per_box_kg' => '5', 'price_per_kg_mxn' => '2.00'],
     ], occurredAt: Carbon::parse('2026-10-26 09:00:00'));
     app(RegisterEntry::class)->handle($w['admin'], $w['c1'], [
-        ['product_id' => $w['pollo']->id, 'boxes_count' => 4, 'weight_per_box_kg' => '5', 'unit_cost_mxn' => '10'],
+        ['product_id' => $w['pollo']->id, 'boxes_count' => 4, 'weight_per_box_kg' => '5', 'price_per_kg_mxn' => '2.00'],
     ], occurredAt: Carbon::parse('2026-10-28 09:00:00'));
     $ids = Box::query()->orderBy('id')->limit(3)->pluck('id')->all();
     app(RegisterExit::class)->handle($w['admin'], $w['c1'], $w['sur'], null, 'Ana', $ids, Carbon::parse('2026-10-27 10:00:00'));
@@ -351,7 +351,7 @@ it('summarises and filters the entries list', function () {
     expect((int) $component->viewData('summary')->entries)->toBe(0);
     $component->assertSee('No hay entradas que coincidan');
 
-    $storekeeper = Livewire::actingAs($w['centroUser'])->test(Entries::class)->assertDontSee('Importe')->assertSeeHtml('data-test="entry-unit-cost"')->assertSee('Precio por caja')->assertDontSee('Norte 1');
+    $storekeeper = Livewire::actingAs($w['centroUser'])->test(Entries::class)->assertDontSee('Importe')->assertSeeHtml('data-test="entry-unit-cost"')->assertSee('Costo por kg')->assertDontSee('Norte 1');
     expect((int) $storekeeper->viewData('summary')->boxes)->toBe(3);
 });
 

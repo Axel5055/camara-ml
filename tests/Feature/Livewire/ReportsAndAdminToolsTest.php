@@ -43,9 +43,9 @@ function reportsWorld(): array
 
     $product = Product::factory()->create(['code' => 'POLLO', 'name' => 'Pollo']);
     app(RegisterEntry::class)->handle($centroUser, $c1, [
-        ['product_id' => $product->id, 'boxes_count' => 10, 'weight_per_box_kg' => '20', 'unit_cost_mxn' => '500'],
-        ['product_id' => $product->id, 'boxes_count' => 15, 'weight_per_box_kg' => '22', 'unit_cost_mxn' => '550'],
-        ['product_id' => $product->id, 'boxes_count' => 8, 'weight_per_box_kg' => '18', 'unit_cost_mxn' => '470'],
+        ['product_id' => $product->id, 'boxes_count' => 10, 'weight_per_box_kg' => '20', 'price_per_kg_mxn' => '25.00'],
+        ['product_id' => $product->id, 'boxes_count' => 15, 'weight_per_box_kg' => '22', 'price_per_kg_mxn' => '25.00'],
+        ['product_id' => $product->id, 'boxes_count' => 8, 'weight_per_box_kg' => '18', 'price_per_kg_mxn' => '26.00'],
     ]);
 
     $boxes = Box::query()->orderBy('id')->get();
@@ -87,7 +87,7 @@ it('reports current inventory by chamber and consolidated by branch', function (
 
     $delivered = Livewire::actingAs($w['admin'])->test(InventoryReport::class)->set('status', 'dispatched');
     expect($delivered->viewData('totals')->boxes)->toBe(3)
-        ->and((float) $delivered->viewData('totals')->cost)->toBe(1570.0);
+        ->and((float) $delivered->viewData('totals')->cost)->toBe(1568.0);
 });
 
 it('reports entries with exact kilograms and amounts, filtered by product', function () {
@@ -97,7 +97,7 @@ it('reports entries with exact kilograms and amounts, filtered by product', func
     $report = Livewire::actingAs($w['admin'])->test(EntriesReport::class);
     expect((int) $report->viewData('totals')->boxes)->toBe(33)
         ->and((float) $report->viewData('totals')->kg)->toBe(674.0)
-        ->and((float) $report->viewData('totals')->cost)->toBe(17010.0)
+        ->and((float) $report->viewData('totals')->cost)->toBe(16994.0)
         ->and($report->viewData('rows'))->toHaveCount(3);
 
     $filtered = Livewire::actingAs($w['admin'])->test(EntriesReport::class)->set('productId', $other->id);
@@ -110,7 +110,7 @@ it('reports exits with the historic cost, by requester and destination branch', 
     $report = Livewire::actingAs($w['admin'])->test(ExitsReport::class);
     expect((int) $report->viewData('totals')->boxes)->toBe(3)
         ->and((float) $report->viewData('totals')->kg)->toBe(62.0)
-        ->and((float) $report->viewData('totals')->cost)->toBe(1570.0);
+        ->and((float) $report->viewData('totals')->cost)->toBe(1568.0);
 
     $report->set('requester', 'Pérez')->assertSee('Juan Pérez');
     expect((int) Livewire::actingAs($w['admin'])->test(ExitsReport::class)->set('destBranchId', $w['norte']->id)->viewData('totals')->boxes)->toBe(0);

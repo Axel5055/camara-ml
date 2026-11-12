@@ -37,7 +37,7 @@ function accessWorld(): array
 
     $product = Product::factory()->create();
     $entry = app(RegisterEntry::class)->handle($centroUser, $c1, [
-        ['product_id' => $product->id, 'boxes_count' => 2, 'weight_per_box_kg' => '10', 'unit_cost_mxn' => '100'],
+        ['product_id' => $product->id, 'boxes_count' => 2, 'weight_per_box_kg' => '10', 'price_per_kg_mxn' => '10.00'],
     ]);
     $boxes = Box::query()->orderBy('id')->get();
     $exit = app(RegisterExit::class)->handle($centroUser, $c1, $norte, $n1, 'Norte', [$boxes[0]->id]);
