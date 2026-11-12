@@ -28,9 +28,9 @@ class RegisterEntry extends InventoryOperation
 
     /**
      * Register a goods entry. Individual and bulk entries use this same path: a single group of one box,
-     * or several groups with different weights and costs.
+     * or several groups with different weights and prices per kilo.
      *
-     * @param  array<int, array{product_id: int, boxes_count: int, weight_per_box_kg: string|int|float, unit_cost_mxn: string|int|float, manual_barcodes?: array<int, string>, manual_barcode_origin?: string|null}>  $groups
+     * @param  array<int, array{product_id: int, boxes_count: int, weight_per_box_kg: string|int|float, price_per_kg_mxn: string|int|float, manual_barcodes?: array<int, string>, manual_barcode_origin?: string|null}>  $groups
      */
     public function handle(
         User $user,
@@ -104,6 +104,7 @@ class RegisterEntry extends InventoryOperation
                     'product_id' => $product->id,
                     'boxes_count' => $group['boxes_count'],
                     'weight_per_box_kg' => $group['weight_per_box_kg'],
+                    'price_per_kg_mxn' => $group['price_per_kg_mxn'],
                     'unit_cost_mxn' => $group['unit_cost_mxn'],
                     'total_weight_kg' => $groupWeight,
                     'total_cost_mxn' => $groupCost,
@@ -125,6 +126,7 @@ class RegisterEntry extends InventoryOperation
                         'origin_chamber_id' => $chamber->id,
                         'initial_weight_kg' => $group['weight_per_box_kg'],
                         'current_weight_kg' => $group['weight_per_box_kg'],
+                        'price_per_kg_mxn' => $group['price_per_kg_mxn'],
                         'unit_cost_mxn' => $group['unit_cost_mxn'],
                         'entered_at' => $occurredAt,
                         'status' => BoxStatus::Available->value,
@@ -160,7 +162,7 @@ class RegisterEntry extends InventoryOperation
      * Validates and normalizes the groups of boxes; also used to check an entry request before it is stored.
      *
      * @param  array<int, array<string, mixed>>  $groups
-     * @return list<array{product_id: int, boxes_count: int, weight_per_box_kg: string, unit_cost_mxn: string, manual_barcodes: list<string>, manual_barcode_origin: string|null}>
+     * @return list<array{product_id: int, boxes_count: int, weight_per_box_kg: string, price_per_kg_mxn: string, unit_cost_mxn: string, manual_barcodes: list<string>, manual_barcode_origin: string|null}>
      */
     public function normalizeGroups(array $groups): array
     {
@@ -174,7 +176,7 @@ class RegisterEntry extends InventoryOperation
         foreach ($groups as $group) {
             $count = (int) ($group['boxes_count'] ?? 0);
             $weight = Decimal::normalize($group['weight_per_box_kg'] ?? '', Decimal::WEIGHT_SCALE);
-            $cost = Decimal::normalize($group['unit_cost_mxn'] ?? '', Decimal::MONEY_SCALE);
+            $price = Decimal::normalize($group['price_per_kg_mxn'] ?? '', Decimal::MONEY_SCALE);
 
             if ($count < 1 || $count > 100000) {
                 throw new InventoryException('La cantidad de cajas debe estar entre 1 y 100,000.');
@@ -184,8 +186,8 @@ class RegisterEntry extends InventoryOperation
                 throw new InventoryException('El peso por caja debe ser mayor a cero.');
             }
 
-            if (Decimal::cmp($cost, '0', Decimal::MONEY_SCALE) < 0) {
-                throw new InventoryException('El costo unitario no puede ser negativo.');
+            if (Decimal::cmp($price, '0', Decimal::MONEY_SCALE) < 0) {
+                throw new InventoryException('El costo por kilo no puede ser negativo.');
             }
 
             $manual = array_map(fn (string $code): string => $this->barcodes->normalizeManual($code), array_values($group['manual_barcodes'] ?? []));
@@ -210,7 +212,8 @@ class RegisterEntry extends InventoryOperation
                 'product_id' => (int) ($group['product_id'] ?? 0),
                 'boxes_count' => $count,
                 'weight_per_box_kg' => $weight,
-                'unit_cost_mxn' => $cost,
+                'price_per_kg_mxn' => $price,
+                'unit_cost_mxn' => Decimal::costOf($weight, $price),
                 'manual_barcodes' => $manual,
                 'manual_barcode_origin' => $manual === [] ? null : $origin,
             ];

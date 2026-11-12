@@ -43,7 +43,7 @@ class EntriesReport extends Component
             ->select([
                 'entries.occurred_at', 'entries.reference', 'branches.name as branch', 'chambers.name as chamber',
                 'products.name as product', 'categories.name as category', 'entry_items.boxes_count',
-                'entry_items.total_weight_kg', 'entry_items.unit_cost_mxn', 'entry_items.total_cost_mxn', 'users.name as user',
+                'entry_items.total_weight_kg', 'entry_items.price_per_kg_mxn', 'entry_items.total_cost_mxn', 'users.name as user',
             ])
             ->orderByDesc('entries.occurred_at')->orderByDesc('entry_items.id');
     }
@@ -59,9 +59,9 @@ class EntriesReport extends Component
     {
         return CsvExport::download(
             'entradas-'.now()->format('Ymd-His').'.csv',
-            ['Fecha', 'Referencia', 'Sucursal', 'Cámara', 'Producto', 'Categoría', 'Cajas', 'Peso (kg)', 'Costo por caja (MXN)', 'Importe (MXN)', 'Registró'],
+            ['Fecha', 'Referencia', 'Sucursal', 'Cámara', 'Producto', 'Categoría', 'Cajas', 'Peso (kg)', 'Costo por kg (MXN)', 'Importe (MXN)', 'Registró'],
             $this->rowsQuery()->cursor(),
-            fn ($r): array => [$r->occurred_at, $r->reference, $r->branch, $r->chamber, $r->product, $r->category, $r->boxes_count, $r->total_weight_kg, $r->unit_cost_mxn, $r->total_cost_mxn, $r->user],
+            fn ($r): array => [$r->occurred_at, $r->reference, $r->branch, $r->chamber, $r->product, $r->category, $r->boxes_count, $r->total_weight_kg, $r->price_per_kg_mxn, $r->total_cost_mxn, $r->user],
         );
     }
 

@@ -159,7 +159,7 @@ class Stock extends Component
             ->where('current_chamber_id', $chamberId)
             ->where('product_id', $productId)
             ->where('status', BoxStatus::Available->value)
-            ->selectRaw('count(*) as boxes, avg(current_weight_kg) as weight, avg(unit_cost_mxn) as cost, min(current_weight_kg) as min_weight, max(current_weight_kg) as max_weight')
+            ->selectRaw('count(*) as boxes, avg(current_weight_kg) as weight, avg(price_per_kg_mxn) as cost, min(current_weight_kg) as min_weight, max(current_weight_kg) as max_weight')
             ->first();
 
         return [
@@ -178,7 +178,7 @@ class Stock extends Component
 
         $this->editBoxId = $box->id;
         $this->editWeight = $box->current_weight_kg;
-        $this->editCost = $box->unit_cost_mxn;
+        $this->editCost = $box->price_per_kg_mxn;
         $this->editOriginal = ['weight' => $this->editWeight, 'cost' => $this->editCost];
         $this->editReason = '';
 
@@ -194,7 +194,7 @@ class Stock extends Component
             'editWeight' => ['required', 'numeric', 'gt:0'],
             'editCost' => ['required', 'numeric', 'min:0'],
             'editReason' => ['required', 'string', 'min:5', 'max:500'],
-        ], attributes: ['editWeight' => 'peso', 'editCost' => 'costo', 'editReason' => 'motivo']);
+        ], attributes: ['editWeight' => 'peso', 'editCost' => 'costo por kg', 'editReason' => 'motivo']);
 
         $box = Box::query()->findOrFail($this->editBoxId);
 
@@ -241,7 +241,7 @@ class Stock extends Component
             'adjustWeight' => ['required', 'numeric', 'gt:0'],
             'adjustCost' => ['required', 'numeric', 'min:0'],
             'adjustReason' => ['required', 'string', 'min:5', 'max:500'],
-        ], attributes: ['adjustBoxes' => 'cajas', 'adjustWeight' => 'peso por caja', 'adjustCost' => 'costo por caja', 'adjustReason' => 'motivo']);
+        ], attributes: ['adjustBoxes' => 'cajas', 'adjustWeight' => 'peso por caja', 'adjustCost' => 'costo por kg', 'adjustReason' => 'motivo']);
 
         $chamber = Chamber::query()->findOrFail($this->adjustChamberId);
         $product = Product::query()->findOrFail($this->adjustProductId);

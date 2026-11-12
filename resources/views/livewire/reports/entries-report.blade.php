@@ -45,7 +45,7 @@
                 <flux:table.column>Producto</flux:table.column>
                 <flux:table.column align="end">Cajas</flux:table.column>
                 <flux:table.column align="end">Peso (kg)</flux:table.column>
-                <flux:table.column align="end">Costo por caja</flux:table.column>
+                <flux:table.column align="end">Costo por kg</flux:table.column>
                 <flux:table.column align="end">Importe</flux:table.column>
                 <flux:table.column>Registró</flux:table.column>
             </flux:table.columns>
@@ -69,7 +69,7 @@
                         </flux:table.cell>
                         <flux:table.cell align="end" class="tabular-nums">{{ number_format($row->boxes_count) }}</flux:table.cell>
                         <flux:table.cell align="end" class="tabular-nums">{{ $row->total_weight_kg }}</flux:table.cell>
-                        <flux:table.cell align="end" class="tabular-nums">${{ number_format((float) $row->unit_cost_mxn, 2) }}</flux:table.cell>
+                        <flux:table.cell align="end" class="tabular-nums">${{ number_format((float) $row->price_per_kg_mxn, 2) }}</flux:table.cell>
                         <flux:table.cell align="end" class="font-medium tabular-nums text-zinc-900 dark:text-white">${{ number_format((float) $row->total_cost_mxn, 2) }}</flux:table.cell>
                         <flux:table.cell class="whitespace-nowrap text-zinc-500">{{ $row->user }}</flux:table.cell>
                     </flux:table.row>

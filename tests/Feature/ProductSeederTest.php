@@ -42,7 +42,7 @@ it('renames products loaded with the previous code, except those that already ha
     $chamber = Chamber::factory()->for($branch)->create();
     $user = User::factory()->superAdmin()->create();
     app(RegisterEntry::class)->handle($user, $chamber, [
-        ['product_id' => $used->id, 'boxes_count' => 1, 'weight_per_box_kg' => '10', 'unit_cost_mxn' => '5'],
+        ['product_id' => $used->id, 'boxes_count' => 1, 'weight_per_box_kg' => '10', 'price_per_kg_mxn' => '0.50'],
     ]);
 
     $this->seed(ProductSeeder::class);

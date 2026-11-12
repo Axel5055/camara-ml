@@ -26,7 +26,7 @@ class EditBox extends InventoryOperation
         Box $box,
         string $reason,
         string|int|float|null $weight = null,
-        string|int|float|null $cost = null,
+        string|int|float|null $pricePerKg = null,
     ): Box {
         if (! $admin->isSuperAdmin()) {
             throw new AuthorizationException('Solo el super administrador puede editar una caja.');
@@ -39,17 +39,17 @@ class EditBox extends InventoryOperation
         }
 
         $weight = $weight === null ? null : Decimal::normalize($weight, Decimal::WEIGHT_SCALE);
-        $cost = $cost === null ? null : Decimal::normalize($cost, Decimal::MONEY_SCALE);
+        $price = $pricePerKg === null ? null : Decimal::normalize($pricePerKg, Decimal::MONEY_SCALE);
 
         if ($weight !== null && Decimal::cmp($weight, '0', Decimal::WEIGHT_SCALE) <= 0) {
             throw new InventoryException('El peso debe ser mayor a cero; para dar de baja una caja usa un ajuste.');
         }
 
-        if ($cost !== null && Decimal::cmp($cost, '0', Decimal::MONEY_SCALE) < 0) {
-            throw new InventoryException('El costo no puede ser negativo.');
+        if ($price !== null && Decimal::cmp($price, '0', Decimal::MONEY_SCALE) < 0) {
+            throw new InventoryException('El costo por kilo no puede ser negativo.');
         }
 
-        return DB::transaction(function () use ($admin, $box, $reason, $weight, $cost): Box {
+        return DB::transaction(function () use ($admin, $box, $reason, $weight, $price): Box {
             $locked = $this->lockBoxes([$box->id])->first() ?? throw new InventoryException('La caja no existe.');
 
             if ($locked->status !== BoxStatus::Available) {
@@ -74,9 +74,19 @@ class EditBox extends InventoryOperation
                 $notes[] = "peso {$locked->current_weight_kg} → {$weight} kg";
             }
 
-            if ($cost !== null && Decimal::cmp($cost, $locked->unit_cost_mxn, Decimal::MONEY_SCALE) !== 0) {
-                $update['unit_cost_mxn'] = $cost;
-                $notes[] = "costo {$locked->unit_cost_mxn} → {$cost}";
+            $priceChanged = $price !== null && Decimal::cmp($price, $locked->price_per_kg_mxn, Decimal::MONEY_SCALE) !== 0;
+
+            if ($priceChanged) {
+                $update['price_per_kg_mxn'] = $price;
+                $notes[] = "costo por kg {$locked->price_per_kg_mxn} → {$price}";
+            }
+
+            // The cost of the box follows its initial weight and its price per kilo.
+            if ($priceChanged || isset($update['initial_weight_kg'])) {
+                $update['unit_cost_mxn'] = Decimal::costOf(
+                    $update['initial_weight_kg'] ?? $locked->initial_weight_kg,
+                    $update['price_per_kg_mxn'] ?? $locked->price_per_kg_mxn,
+                );
             }
 
             if ($update === []) {
@@ -84,7 +94,7 @@ class EditBox extends InventoryOperation
             }
 
             $now = now();
-            $before = $locked->only(['initial_weight_kg', 'current_weight_kg', 'unit_cost_mxn']);
+            $before = $locked->only(['initial_weight_kg', 'current_weight_kg', 'price_per_kg_mxn', 'unit_cost_mxn']);
 
             $this->insertChunked('box_movements', [$this->movementRow(
                 $locked,
@@ -105,7 +115,7 @@ class EditBox extends InventoryOperation
             $locked->update($update);
 
             AuditLog::record($admin, 'box.edited', $locked, $before, [
-                ...$locked->only(['initial_weight_kg', 'current_weight_kg', 'unit_cost_mxn']),
+                ...$locked->only(['initial_weight_kg', 'current_weight_kg', 'price_per_kg_mxn', 'unit_cost_mxn']),
                 'reason' => $reason,
             ]);
 

@@ -25,7 +25,7 @@ class AdjustStockSummary extends InventoryOperation
     /**
      * Settle the stock of a product in a chamber to the numbers the super administrator counted (super administrators
      * only). Every box stays traceable: surplus boxes (the oldest first) are written off, missing boxes are created
-     * with the given or the average weight and cost, and the new weight / cost are applied to the boxes that remain
+     * with the given or the average weight and price per kilo, and the new weight / price are applied to the boxes that remain
      * (the weight only to intact boxes, so partial withdrawals are never undone). Each change is appended to the box
      * histories and to the audit log with the reason.
      *
@@ -38,7 +38,7 @@ class AdjustStockSummary extends InventoryOperation
         string $reason,
         ?int $totalBoxes = null,
         string|int|float|null $weightPerBox = null,
-        string|int|float|null $costPerBox = null,
+        string|int|float|null $pricePerKg = null,
     ): array {
         if (! $admin->isSuperAdmin()) {
             throw new AuthorizationException('Solo el super administrador puede ajustar las existencias.');
@@ -55,17 +55,17 @@ class AdjustStockSummary extends InventoryOperation
         }
 
         $weight = $weightPerBox === null ? null : Decimal::normalize($weightPerBox, Decimal::WEIGHT_SCALE);
-        $cost = $costPerBox === null ? null : Decimal::normalize($costPerBox, Decimal::MONEY_SCALE);
+        $price = $pricePerKg === null ? null : Decimal::normalize($pricePerKg, Decimal::MONEY_SCALE);
 
         if ($weight !== null && Decimal::cmp($weight, '0', Decimal::WEIGHT_SCALE) <= 0) {
             throw new InventoryException('El peso por caja debe ser mayor a cero.');
         }
 
-        if ($cost !== null && Decimal::cmp($cost, '0', Decimal::MONEY_SCALE) < 0) {
-            throw new InventoryException('El costo por caja no puede ser negativo.');
+        if ($price !== null && Decimal::cmp($price, '0', Decimal::MONEY_SCALE) < 0) {
+            throw new InventoryException('El costo por kilo no puede ser negativo.');
         }
 
-        if ($totalBoxes === null && $weight === null && $cost === null) {
+        if ($totalBoxes === null && $weight === null && $price === null) {
             throw new InventoryException('No hay cambios que guardar.');
         }
 
@@ -74,7 +74,7 @@ class AdjustStockSummary extends InventoryOperation
         $firstNumber = $needed > 0 ? $this->sequences->next('barcode', $needed) : 0;
         $createdOn = now();
 
-        return DB::transaction(function () use ($admin, $chamber, $product, $reason, $totalBoxes, $weight, $cost, $needed, $firstNumber, $createdOn): array {
+        return DB::transaction(function () use ($admin, $chamber, $product, $reason, $totalBoxes, $weight, $price, $needed, $firstNumber, $createdOn): array {
             $boxes = $this->group($chamber, $product, lock: true);
 
             if ($boxes->isEmpty()) {
@@ -95,7 +95,7 @@ class AdjustStockSummary extends InventoryOperation
             $name = $product->name;
 
             $averageWeight = $this->average($boxes->map(fn (Box $box): string => $box->current_weight_kg)->values()->all(), Decimal::WEIGHT_SCALE);
-            $averageCost = $this->average($boxes->map(fn (Box $box): string => $box->unit_cost_mxn)->values()->all(), Decimal::MONEY_SCALE);
+            $averagePrice = $this->average($boxes->map(fn (Box $box): string => $box->price_per_kg_mxn)->values()->all(), Decimal::MONEY_SCALE);
             $template = $boxes->sortByDesc(fn (Box $box): string => $box->entered_at->format('YmdHis').str_pad((string) $box->id, 12, '0', STR_PAD_LEFT))->first();
 
             // Surplus boxes leave the stock (the oldest first); they are written off, never deleted.
@@ -133,10 +133,18 @@ class AdjustStockSummary extends InventoryOperation
                     $result['skipped_partial']++;
                 }
 
-                if ($cost !== null && Decimal::cmp($cost, $box->unit_cost_mxn, Decimal::MONEY_SCALE) !== 0) {
-                    $update += ['unit_cost_mxn' => $cost];
-                    $notes[] = "costo {$box->unit_cost_mxn} → {$cost}";
+                if ($price !== null && Decimal::cmp($price, $box->price_per_kg_mxn, Decimal::MONEY_SCALE) !== 0) {
+                    $update += ['price_per_kg_mxn' => $price];
+                    $notes[] = "costo por kg {$box->price_per_kg_mxn} → {$price}";
                     $result['recosted']++;
+                }
+
+                // The cost of the box follows its initial weight and its price per kilo.
+                if (isset($update['price_per_kg_mxn']) || isset($update['initial_weight_kg'])) {
+                    $update['unit_cost_mxn'] = Decimal::costOf(
+                        $update['initial_weight_kg'] ?? $box->initial_weight_kg,
+                        $update['price_per_kg_mxn'] ?? $box->price_per_kg_mxn,
+                    );
                 }
 
                 if ($update === []) {
@@ -151,10 +159,11 @@ class AdjustStockSummary extends InventoryOperation
                 ]);
             }
 
-            // Missing boxes are created with the counted (or the average) weight and cost.
+            // Missing boxes are created with the counted (or the average) weight and price per kilo.
             if ($totalBoxes !== null && $totalBoxes > $count) {
                 $newWeight = $weight ?? $averageWeight;
-                $newCost = $cost ?? $averageCost;
+                $newPrice = $price ?? $averagePrice;
+                $newCost = Decimal::costOf($newWeight, $newPrice);
                 $number = $firstNumber;
                 $rows = [];
 
@@ -169,6 +178,7 @@ class AdjustStockSummary extends InventoryOperation
                         'origin_chamber_id' => $chamber->id,
                         'initial_weight_kg' => $newWeight,
                         'current_weight_kg' => $newWeight,
+                        'price_per_kg_mxn' => $newPrice,
                         'unit_cost_mxn' => $newCost,
                         'entered_at' => $now,
                         'status' => BoxStatus::Available->value,
@@ -224,7 +234,7 @@ class AdjustStockSummary extends InventoryOperation
 
     /**
      * @param  Collection<int, Box>  $boxes
-     * @return array{boxes: int, weight_kg: string, avg_cost_mxn: string}
+     * @return array{boxes: int, weight_kg: string, avg_cost_mxn: string, avg_price_per_kg_mxn: string}
      */
     private function snapshot($boxes): array
     {
@@ -232,6 +242,7 @@ class AdjustStockSummary extends InventoryOperation
             'boxes' => $boxes->count(),
             'weight_kg' => $boxes->reduce(fn (string $sum, Box $box): string => Decimal::add($sum, $box->current_weight_kg, Decimal::WEIGHT_SCALE), '0.000'),
             'avg_cost_mxn' => $this->average($boxes->map(fn (Box $box): string => $box->unit_cost_mxn)->values()->all(), Decimal::MONEY_SCALE),
+            'avg_price_per_kg_mxn' => $this->average($boxes->map(fn (Box $box): string => $box->price_per_kg_mxn)->values()->all(), Decimal::MONEY_SCALE),
         ];
     }
 

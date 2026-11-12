@@ -22,7 +22,7 @@ use Illuminate\Support\Carbon;
  * @property string $total_weight_kg
  * @property string $total_cost_mxn
  * @property string|null $notes
- * @property list<array{product_id: int, boxes_count: int, weight_per_box_kg: string, unit_cost_mxn: string, manual_barcodes: list<string>, manual_barcode_origin: string|null}> $groups
+ * @property list<array{product_id: int, boxes_count: int, weight_per_box_kg: string, price_per_kg_mxn: string, unit_cost_mxn: string, manual_barcodes: list<string>, manual_barcode_origin: string|null}> $groups
  * @property EntryRequestStatus $status
  * @property int|null $decided_by
  * @property Carbon|null $decided_at

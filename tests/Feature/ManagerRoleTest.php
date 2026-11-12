@@ -65,7 +65,7 @@ function managerWorld(): array
         $worker = User::factory()->warehouse($chamber->branch)->create();
         $worker->chambers()->attach($chamber);
         $entries[$chamber->name] = app(RegisterEntry::class)->handle($worker, $chamber, [
-            ['product_id' => $product->id, 'boxes_count' => 1, 'weight_per_box_kg' => '10', 'unit_cost_mxn' => '100'],
+            ['product_id' => $product->id, 'boxes_count' => 1, 'weight_per_box_kg' => '10', 'price_per_kg_mxn' => '10.00'],
         ]);
     }
 
@@ -434,7 +434,7 @@ function recordsFrom(Chamber $origin, Chamber $dest): array
     $boxes = Box::query()->where('current_chamber_id', $origin->id)->get();
     $product = Product::factory()->create();
     app(RegisterEntry::class)->handle($sender, $origin, [
-        ['product_id' => $product->id, 'boxes_count' => 2, 'weight_per_box_kg' => '10', 'unit_cost_mxn' => '100'],
+        ['product_id' => $product->id, 'boxes_count' => 2, 'weight_per_box_kg' => '10', 'price_per_kg_mxn' => '10.00'],
     ]);
     $fresh = Box::query()->where('current_chamber_id', $origin->id)->where('product_id', $product->id)->orderBy('id')->get();
 

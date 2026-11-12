@@ -31,7 +31,7 @@ function exportsWorld(): array
 
     $product = Product::factory()->create(['code' => 'POLLO', 'name' => 'Pollo']);
     $entry = app(RegisterEntry::class)->handle($centroUser, $c1, [
-        ['product_id' => $product->id, 'boxes_count' => 3, 'weight_per_box_kg' => '20', 'unit_cost_mxn' => '123.45'],
+        ['product_id' => $product->id, 'boxes_count' => 3, 'weight_per_box_kg' => '20', 'price_per_kg_mxn' => '6.00'],
     ], notes: '=cmd|calc');
     $boxes = Box::query()->orderBy('id')->get();
     $exit = app(RegisterExit::class)->handle($centroUser, $c1, $sur, null, 'Ana López', [$boxes[0]->id, $boxes[1]->id]);
@@ -77,7 +77,7 @@ it('downloads an entry as an Excel file with every box and the amounts for admin
 
     expect(array_keys($sheets))->toBe(['Resumen', 'Cajas'])
         ->and($flat)->toContain($w['boxes'][0]->barcode)->toContain($w['boxes'][2]->barcode)
-        ->toContain('123.45')->toContain('Importe')
+        ->toContain('120')->toContain('Importe')
         ->and($sheets['Cajas'])->toHaveCount(2 + 3);
     // The note starts like a formula and must be neutralized.
     expect($flat)->toContain("'=cmd|calc");
@@ -87,7 +87,7 @@ it('shows only the price per box, never an amount, to warehouse users in the Exc
     $w = exportsWorld();
 
     $xlsx = readXlsx($this->actingAs($w['centroUser'])->get(route('entries.export', [$w['entry'], 'xlsx']))->assertOk());
-    expect(json_encode($xlsx, JSON_UNESCAPED_UNICODE))->toContain('Precio por caja')->toContain('123.45')->not->toContain('Importe')->not->toContain('370.35')->toContain($w['boxes'][0]->barcode);
+    expect(json_encode($xlsx, JSON_UNESCAPED_UNICODE))->toContain('Precio por caja')->toContain('120')->not->toContain('Importe')->not->toContain('360.00')->toContain($w['boxes'][0]->barcode);
 
     $pdf = $this->get(route('entries.export', [$w['entry'], 'pdf']))->assertOk()->assertDownload('entrada-'.$w['entry']->reference.'.pdf');
     expect($pdf->streamedContent())->toStartWith('%PDF');
@@ -99,11 +99,11 @@ it('downloads an exit with full boxes, partial withdrawals and its costs', funct
     $sheets = readXlsx($this->actingAs($w['admin'])->get(route('exits.export', [$w['exit'], 'xlsx']))->assertOk());
     $flat = json_encode($sheets, JSON_UNESCAPED_UNICODE);
 
-    expect($flat)->toContain('Ana López')->toContain('Caja completa')->toContain($w['boxes'][0]->barcode)->toContain('246.9')
+    expect($flat)->toContain('Ana López')->toContain('Caja completa')->toContain($w['boxes'][0]->barcode)->toContain('240')
         ->and($sheets['Cajas'])->toHaveCount(2 + 2);
 
     $partial = readXlsx($this->get(route('exits.export', [$w['partial'], 'xlsx']))->assertOk());
-    expect(json_encode($partial, JSON_UNESCAPED_UNICODE))->toContain('Retiro parcial')->toContain('15')->toContain('30.86');
+    expect(json_encode($partial, JSON_UNESCAPED_UNICODE))->toContain('Retiro parcial')->toContain('15')->toContain('30');
 
     $this->get(route('exits.export', [$w['exit'], 'pdf']))->assertOk()->assertDownload('salida-'.$w['exit']->reference.'.pdf');
 });
@@ -113,18 +113,18 @@ it('hides the historic cost from warehouse users in an exit export', function ()
 
     $sheets = readXlsx($this->actingAs($w['centroUser'])->get(route('exits.export', [$w['exit'], 'xlsx']))->assertOk());
 
-    expect(json_encode($sheets, JSON_UNESCAPED_UNICODE))->not->toContain('246.9')->not->toContain('Costo histórico')->toContain('Precio por caja')->toContain('123.45')->toContain('Ana López');
+    expect(json_encode($sheets, JSON_UNESCAPED_UNICODE))->not->toContain('240')->not->toContain('Costo histórico')->toContain('Precio por caja')->toContain('120')->toContain('Ana López');
 });
 
 it('downloads a transfer with the price per box and no money total for anyone', function () {
     $w = exportsWorld();
-    app(RegisterEntry::class)->handle($w['centroUser'], $w['c1'], [['product_id' => $w['product']->id, 'boxes_count' => 1, 'weight_per_box_kg' => '10', 'unit_cost_mxn' => '123.45']]);
+    app(RegisterEntry::class)->handle($w['centroUser'], $w['c1'], [['product_id' => $w['product']->id, 'boxes_count' => 1, 'weight_per_box_kg' => '10', 'price_per_kg_mxn' => '12.00']]);
     $transfer = app(RegisterExit::class)->handle($w['centroUser'], $w['c1'], $w['norte'], $w['n1'], 'Luis', [Box::query()->latest('id')->firstOrFail()->id])->transfer;
 
     foreach (['centroUser', 'norteUser'] as $who) {
         $sheets = readXlsx($this->actingAs($w[$who])->get(route('transfers.export', [$transfer, 'xlsx']))->assertOk());
 
-        expect(json_encode($sheets, JSON_UNESCAPED_UNICODE))->toContain('Precio por caja')->toContain('123.45')->toContain($transfer->reference)->not->toContain('Costo histórico');
+        expect(json_encode($sheets, JSON_UNESCAPED_UNICODE))->toContain('Precio por caja')->toContain('120')->toContain($transfer->reference)->not->toContain('Costo histórico');
     }
 
     $this->actingAs($w['centroUser'])->get(route('transfers.export', [$transfer, 'pdf']))->assertOk();

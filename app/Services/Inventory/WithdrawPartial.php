@@ -76,7 +76,7 @@ class WithdrawPartial extends InventoryOperation
 
             $before = $locked->current_weight_kg;
             $after = Decimal::sub($before, $weightOut, Decimal::WEIGHT_SCALE);
-            $cost = Decimal::share($locked->unit_cost_mxn, $weightOut, $locked->initial_weight_kg, Decimal::MONEY_SCALE);
+            $cost = Decimal::costOf($weightOut, $locked->price_per_kg_mxn);
             $depleted = Decimal::cmp($after, '0', Decimal::WEIGHT_SCALE) === 0;
             $newStatus = $depleted ? BoxStatus::Depleted : BoxStatus::Available;
 

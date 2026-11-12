@@ -44,10 +44,10 @@ function readOnlyWorld(): array
 
     $product = Product::factory()->create(['code' => 'POLLO', 'name' => 'Pollo']);
     $entry = app(RegisterEntry::class)->handle($centroUser, $c1, [
-        ['product_id' => $product->id, 'boxes_count' => 4, 'weight_per_box_kg' => '10', 'unit_cost_mxn' => '123.45'],
+        ['product_id' => $product->id, 'boxes_count' => 4, 'weight_per_box_kg' => '10', 'price_per_kg_mxn' => '12.00'],
     ]);
     app(RegisterEntry::class)->handle($norteUser, $n1, [
-        ['product_id' => $product->id, 'boxes_count' => 2, 'weight_per_box_kg' => '10', 'unit_cost_mxn' => '99.99'],
+        ['product_id' => $product->id, 'boxes_count' => 2, 'weight_per_box_kg' => '10', 'price_per_kg_mxn' => '10.00'],
     ]);
     $boxes = Box::query()->orderBy('id')->get();
     $exit = app(RegisterExit::class)->handle($centroUser, $c1, $sur, null, 'Ana', [$boxes[0]->id]);
@@ -108,8 +108,8 @@ it('keeps warehouse users out of the catalogs and super administrators in everyw
 it('shows the administrator the records of every chamber with their costs', function () {
     $w = readOnlyWorld();
 
-    $this->actingAs($w['admin'])->get(route('entries.index'))->assertSee('Centro 1')->assertSee('Norte 1')->assertSee('493.80');
-    $this->get(route('stock'))->assertSee($w['boxes'][1]->barcode)->assertSee($w['boxes'][5]->barcode)->assertSee('99.99');
+    $this->actingAs($w['admin'])->get(route('entries.index'))->assertSee('Centro 1')->assertSee('Norte 1')->assertSee('680.00');
+    $this->get(route('stock'))->assertSee($w['boxes'][1]->barcode)->assertSee($w['boxes'][5]->barcode)->assertSee('100.00');
     $this->get(route('exits.index'))->assertSee('SAL-');
     $this->get(route('exits.show', $w['exit']))->assertSee('Costo histórico');
 });
@@ -177,7 +177,7 @@ it('denies the administrator in the services, not only on the screens', function
     $w = readOnlyWorld();
 
     expect(fn () => app(RegisterEntry::class)->handle($w['admin'], $w['c1'], [
-        ['product_id' => $w['product']->id, 'boxes_count' => 1, 'weight_per_box_kg' => '10', 'unit_cost_mxn' => '1'],
+        ['product_id' => $w['product']->id, 'boxes_count' => 1, 'weight_per_box_kg' => '10', 'price_per_kg_mxn' => '0.10'],
     ]))->toThrow(AuthorizationException::class)
         ->and(fn () => app(RegisterExit::class)->handle($w['admin'], $w['c1'], $w['sur'], null, 'Ana', [$w['boxes'][1]->id]))
         ->toThrow(AuthorizationException::class)

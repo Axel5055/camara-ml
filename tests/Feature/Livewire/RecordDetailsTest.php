@@ -47,8 +47,8 @@ function detailsWorld(): array
 
     $product = Product::factory()->create(['code' => 'POLLO', 'name' => 'Pollo']);
     $entry = app(RegisterEntry::class)->handle($centroUser, $c1, [
-        ['product_id' => $product->id, 'boxes_count' => 3, 'weight_per_box_kg' => '20', 'unit_cost_mxn' => '123.45'],
-        ['product_id' => $product->id, 'boxes_count' => 1, 'weight_per_box_kg' => '22', 'unit_cost_mxn' => '150'],
+        ['product_id' => $product->id, 'boxes_count' => 3, 'weight_per_box_kg' => '20', 'price_per_kg_mxn' => '6.00'],
+        ['product_id' => $product->id, 'boxes_count' => 1, 'weight_per_box_kg' => '22', 'price_per_kg_mxn' => '7.00'],
     ], notes: 'Lote de la mañana');
 
     return compact('centro', 'norte', 'sur', 'c1', 'n1', 'admin', 'centroUser', 'norteUser', 'product', 'entry') + ['boxes' => Box::query()->orderBy('id')->get()];
@@ -70,8 +70,8 @@ it('shows the detail of an entry with its groups and boxes', function () {
 it('shows the amounts of an entry only to administrators', function () {
     $w = detailsWorld();
 
-    Livewire::actingAs($w['admin'])->test(EntryDetail::class, ['entry' => $w['entry']])->assertSee('123.45')->assertSee('Importe');
-    Livewire::actingAs($w['centroUser'])->test(EntryDetail::class, ['entry' => $w['entry']])->assertSee('Costo por caja')->assertSee('123.45')->assertDontSee('Importe')->assertDontSee('370.35');
+    Livewire::actingAs($w['admin'])->test(EntryDetail::class, ['entry' => $w['entry']])->assertSee('6.00')->assertSee('Importe');
+    Livewire::actingAs($w['centroUser'])->test(EntryDetail::class, ['entry' => $w['entry']])->assertSee('Costo por kg')->assertSee('6.00')->assertDontSee('Importe')->assertDontSee('360.00');
 });
 
 it('does not show an entry to users of other chambers', function () {
@@ -113,12 +113,12 @@ it('shows the reversal of an exit and hides costs from warehouse users', functio
     Livewire::actingAs($w['admin'])->test(ExitDetail::class, ['exit' => $exit])
         ->assertSee('Captura equivocada')
         ->assertSee('Revertida')
-        ->assertSee('123.45');
+        ->assertSee('120.00');
 
     Livewire::actingAs($w['centroUser'])->test(ExitDetail::class, ['exit' => $exit])
         ->assertSee('Captura equivocada')
         ->assertSee('Precio por caja')
-        ->assertSee('123.45')
+        ->assertSee('120.00')
         ->assertDontSee('Costo histórico');
 });
 
@@ -239,8 +239,8 @@ it('also filters the boxes of an entry and of an exit by product', function () {
     $w = detailsWorld();
     $other = Product::factory()->create(['code' => 'RES', 'name' => 'Res molida']);
     $entry = app(RegisterEntry::class)->handle($w['centroUser'], $w['c1'], [
-        ['product_id' => $w['product']->id, 'boxes_count' => 1, 'weight_per_box_kg' => '20', 'unit_cost_mxn' => '100'],
-        ['product_id' => $other->id, 'boxes_count' => 1, 'weight_per_box_kg' => '20', 'unit_cost_mxn' => '100'],
+        ['product_id' => $w['product']->id, 'boxes_count' => 1, 'weight_per_box_kg' => '20', 'price_per_kg_mxn' => '5.00'],
+        ['product_id' => $other->id, 'boxes_count' => 1, 'weight_per_box_kg' => '20', 'price_per_kg_mxn' => '5.00'],
     ]);
     $pollo = Box::query()->whereIn('entry_item_id', $entry->items()->pluck('id'))->where('product_id', $w['product']->id)->first();
     $res = Box::query()->whereIn('entry_item_id', $entry->items()->pluck('id'))->where('product_id', $other->id)->first();
@@ -268,8 +268,8 @@ it('prints a ticket of an entry with boxes and kilograms per product and never t
             ->assertSee('4 cajas')
             ->assertSee('82.000 kg')
             ->assertSee('Cajas')
-            ->assertDontSee('123.45')
-            ->assertDontSee('150.00')
+            ->assertDontSee('120.00')
+            ->assertDontSee('154.00')
             ->assertDontSee('setTimeout', false);
     }
 
@@ -294,7 +294,7 @@ it('prints a ticket of an exit grouped by product without costs', function () {
         ->assertSee('2 cajas')
         ->assertSee('40.000 kg')
         ->assertSee('Ana')
-        ->assertDontSee('246.90');
+        ->assertDontSee('240.00');
 
     $this->actingAs($w['norteUser'])->get(route('exits.ticket', $exit))->assertForbidden();
 });
@@ -314,7 +314,7 @@ it('queues the ticket to print right after registering an entry or an exit', fun
 
     $single = Product::factory()->create(['code' => 'RES', 'name' => 'Res']);
     app(RegisterEntry::class)->handle($w['centroUser'], $w['c1'], [
-        ['product_id' => $single->id, 'boxes_count' => 2, 'weight_per_box_kg' => '15', 'unit_cost_mxn' => '90'],
+        ['product_id' => $single->id, 'boxes_count' => 2, 'weight_per_box_kg' => '15', 'price_per_kg_mxn' => '6.00'],
     ]);
 
     Livewire::actingAs($w['centroUser'])->test(CreateExit::class)
@@ -451,7 +451,7 @@ it('prints a ticket of a transfer right after creating it, without any money', f
         ->assertSee('2 cajas')
         ->assertSee('Norte 1')
         ->assertSee('Ana')
-        ->assertDontSee('123.45');
+        ->assertDontSee('120.00');
 
     $this->actingAs($w['admin'])->get(route('transfers.ticket', $transfer))->assertOk();
 });
@@ -466,7 +466,7 @@ it('shows the transfer detail page with its boxes, the price per box and the pri
         ->assertSeeHtml('data-test="transfer-print"')
         ->assertSeeHtml('data-test="transfer-boxes-table"')
         ->assertSee($w['boxes'][0]->barcode)
-        ->assertSee('123.45')
+        ->assertSee('120.00')
         ->assertDontSee('Costo histórico')
         ->assertDontSeeHtml('data-test="transfer-receive"')
         ->set('search', $w['boxes'][1]->barcode)
@@ -505,12 +505,12 @@ it('shows the stock grouped by chamber and product, with the costs only for thos
 
     Livewire::actingAs($w['admin'])->test(Stock::class)
         ->call('showView', 'summary')
-        ->assertSee('Centro 1')->assertSee('Pollo')->assertSee('130.09')
+        ->assertSee('Centro 1')->assertSee('Pollo')->assertSee('Costo prom. por kg')
         ->assertSee('Ajustar');
 
     Livewire::actingAs($w['centroUser'])->test(Stock::class)
         ->call('showView', 'summary')
-        ->assertSee('Pollo')->assertDontSee('130.09')
+        ->assertSee('Pollo')->assertDontSee('Costo prom. por kg')
         ->assertDontSee('Ajustar')
         ->call('openAdjust', $w['c1']->id, $w['product']->id)->assertForbidden();
 });
@@ -571,7 +571,7 @@ it('lets the super administrator edit a box from the stock list', function () {
         ->call('saveEditBox')
         ->assertHasNoErrors();
 
-    expect($box->fresh()->current_weight_kg)->toBe('18.500')->and($box->fresh()->unit_cost_mxn)->toBe('123.45');
+    expect($box->fresh()->current_weight_kg)->toBe('18.500')->and($box->fresh()->unit_cost_mxn)->toBe('111.00');
 });
 
 it('lets the super administrator skip the ticket when registering, but nobody else', function () {
@@ -590,7 +590,7 @@ it('lets the super administrator skip the ticket when registering, but nobody el
     expect(session('print_ticket'))->toBeNull();
 
     app(RegisterEntry::class)->handle($w['centroUser'], $w['c1'], [
-        ['product_id' => $single->id, 'boxes_count' => 2, 'weight_per_box_kg' => '15', 'unit_cost_mxn' => '90'],
+        ['product_id' => $single->id, 'boxes_count' => 2, 'weight_per_box_kg' => '15', 'price_per_kg_mxn' => '6.00'],
     ]);
 
     Livewire::actingAs($w['admin'])->test(CreateExit::class)

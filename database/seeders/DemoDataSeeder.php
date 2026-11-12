@@ -74,7 +74,7 @@ class DemoDataSeeder extends Seeder
                 'product_id' => $this->product($g[0])->id,
                 'boxes_count' => $g[1],
                 'weight_per_box_kg' => (string) $g[2],
-                'unit_cost_mxn' => (string) $g[3],
+                'price_per_kg_mxn' => number_format($g[3] / $g[2], 2, '.', ''),
             ], $groups), now()->subDays($daysAgo)->setTime(9, 30), $daysAgo === 0 ? 'Recepción de proveedor' : null);
         }
 

@@ -47,7 +47,7 @@ it('never deletes a product that already has movements', function () {
     $worker->chambers()->attach($chamber);
     $product = Product::factory()->create();
     app(RegisterEntry::class)->handle($worker, $chamber, [
-        ['product_id' => $product->id, 'boxes_count' => 1, 'weight_per_box_kg' => '10', 'unit_cost_mxn' => '50'],
+        ['product_id' => $product->id, 'boxes_count' => 1, 'weight_per_box_kg' => '10', 'price_per_kg_mxn' => '5.00'],
     ]);
 
     $admin = User::factory()->superAdmin()->create();
@@ -64,7 +64,7 @@ it('never deletes a product that already has movements', function () {
 it('does not delete a product that is part of a pending entry request', function () {
     $product = Product::factory()->create();
     EntryRequest::factory()->create(['groups' => [
-        ['product_id' => $product->id, 'boxes_count' => 1, 'weight_per_box_kg' => '10', 'unit_cost_mxn' => '50', 'manual_barcodes' => [], 'manual_barcode_origin' => null],
+        ['product_id' => $product->id, 'boxes_count' => 1, 'weight_per_box_kg' => '10', 'price_per_kg_mxn' => '5.00', 'manual_barcodes' => [], 'manual_barcode_origin' => null],
     ]]);
 
     Livewire::actingAs(User::factory()->superAdmin()->create())->test(Products::class)

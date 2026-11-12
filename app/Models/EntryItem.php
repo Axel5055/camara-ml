@@ -13,6 +13,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
  * @property int $product_id
  * @property int $boxes_count
  * @property string $weight_per_box_kg
+ * @property string $price_per_kg_mxn
  * @property string $unit_cost_mxn
  * @property string $total_weight_kg
  * @property string $total_cost_mxn
@@ -27,6 +28,7 @@ class EntryItem extends Model
     {
         return [
             'weight_per_box_kg' => 'decimal:3',
+            'price_per_kg_mxn' => 'decimal:2',
             'unit_cost_mxn' => 'decimal:2',
             'total_weight_kg' => 'decimal:3',
             'total_cost_mxn' => 'decimal:2',

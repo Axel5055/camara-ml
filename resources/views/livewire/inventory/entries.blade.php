@@ -77,7 +77,7 @@
                 <flux:table.column>Cámara</flux:table.column>
                 <flux:table.column align="end">Cajas</flux:table.column>
                 <flux:table.column align="end">Peso (kg)</flux:table.column>
-                <flux:table.column align="end">Precio por caja</flux:table.column>
+                <flux:table.column align="end">Costo por kg</flux:table.column>
                 @if ($showCosts)
                     <flux:table.column align="end">Importe (MXN)</flux:table.column>
                 @endif
