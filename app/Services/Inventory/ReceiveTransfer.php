@@ -9,6 +9,7 @@ use App\Enums\MovementType;
 use App\Enums\TransferItemStatus;
 use App\Enums\TransferStatus;
 use App\Exceptions\InventoryException;
+use App\Models\AuditLog;
 use App\Models\Box;
 use App\Models\ExitItem;
 use App\Models\Transfer;
@@ -121,6 +122,13 @@ class ReceiveTransfer extends InventoryOperation
                 'received_at' => $now,
                 'received_by' => $user->id,
                 'receive_notes' => filled($notes) ? trim($notes) : null,
+            ]);
+
+            AuditLog::record($user, 'transfer.received', $locked, ['status' => TransferStatus::InTransit->value], [
+                'status' => TransferStatus::Received->value,
+                'received_boxes' => count($receivedIds),
+                'missing_boxes' => count($missingIds),
+                'incidents' => count($incidents),
             ]);
 
             return $locked->refresh();

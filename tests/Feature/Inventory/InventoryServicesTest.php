@@ -8,6 +8,7 @@ use App\Enums\MovementType;
 use App\Enums\TransferItemStatus;
 use App\Enums\TransferStatus;
 use App\Exceptions\InventoryException;
+use App\Models\AuditLog;
 use App\Models\Box;
 use App\Models\Branch;
 use App\Models\Chamber;
@@ -699,4 +700,35 @@ it('calculates the cost per kilo: 7 boxes of 20 kg at $200 per kg is $28,000', f
 
     $partial = app(WithdrawPartial::class)->handle($w['centroUser'], $edited->fresh(), '5', $w['sur'], 'Ana');
     expect($partial->total_cost_mxn)->toBe('1000.00');
+});
+
+it('audits every entry, exit, partial withdrawal and transfer reception with the user who did it', function () {
+    $w = warehouseWorld();
+    $entry = registerExampleEntry($w);
+    $boxes = Box::query()->orderBy('id')->limit(4)->get();
+
+    $partial = app(WithdrawPartial::class)->handle($w['centroUser'], $boxes[3], '5', $w['sur'], 'Ana');
+    $exit = app(RegisterExit::class)->handle($w['centroUser'], $w['c1'], $w['norte'], $w['n2'], 'Sucursal Norte', [$boxes[0]->id, $boxes[1]->id]);
+    app(ReceiveTransfer::class)->handle($w['norteUser'], $exit->transfer, [$boxes[0]->id]);
+
+    $audit = fn (string $event, $model) => AuditLog::query()->where('event', $event)
+        ->where('auditable_type', $model->getMorphClass())->where('auditable_id', $model->getKey())->sole();
+
+    expect($audit('entry.registered', $entry)->user_id)->toBe($w['centroUser']->id)
+        ->and($audit('entry.registered', $entry)->new_values['total_boxes'])->toBe(33)
+        ->and($audit('exit.registered', $exit)->new_values['transfer'])->toBe($exit->transfer->reference)
+        ->and($audit('exit.partial', $partial)->new_values['weight_out_kg'])->toBe('5.000')
+        ->and($audit('transfer.received', $exit->transfer)->user_id)->toBe($w['norteUser']->id)
+        ->and($audit('transfer.received', $exit->transfer)->new_values['missing_boxes'])->toBe(1);
+});
+
+it('does not audit an entry that was rolled back', function () {
+    $w = warehouseWorld();
+    $w['product']->update(['is_active' => false]);
+
+    expect(fn () => app(RegisterEntry::class)->handle($w['centroUser'], $w['c1'], [
+        ['product_id' => $w['product']->id, 'boxes_count' => 1, 'weight_per_box_kg' => '10', 'price_per_kg_mxn' => '10.00'],
+    ]))->toThrow(InventoryException::class);
+
+    expect(AuditLog::query()->where('event', 'entry.registered')->count())->toBe(0);
 });

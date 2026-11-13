@@ -7,6 +7,7 @@ use App\Enums\DocumentStatus;
 use App\Enums\ExitItemKind;
 use App\Enums\MovementType;
 use App\Exceptions\InventoryException;
+use App\Models\AuditLog;
 use App\Models\Box;
 use App\Models\Branch;
 use App\Models\StockExit;
@@ -124,6 +125,15 @@ class WithdrawPartial extends InventoryOperation
                 $newStatus,
                 ['from_chamber_id' => $chamber->id, 'to_branch_id' => $destBranch->id, 'exit_id' => $exit->id],
             )]);
+
+            AuditLog::record($user, 'exit.partial', $exit, null, [
+                'reference' => $exit->reference,
+                'box_id' => $locked->id,
+                'weight_before_kg' => $before,
+                'weight_out_kg' => $weightOut,
+                'weight_after_kg' => $after,
+                'dest_branch_id' => $destBranch->id,
+            ]);
 
             return $exit->refresh();
         }, 3);

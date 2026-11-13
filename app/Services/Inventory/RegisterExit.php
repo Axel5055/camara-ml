@@ -9,6 +9,7 @@ use App\Enums\MovementType;
 use App\Enums\TransferItemStatus;
 use App\Enums\TransferStatus;
 use App\Exceptions\InventoryException;
+use App\Models\AuditLog;
 use App\Models\Box;
 use App\Models\Branch;
 use App\Models\Chamber;
@@ -188,6 +189,15 @@ class RegisterExit extends InventoryOperation
                     'transfer_id' => $transfer?->id,
                 ],
             ))->values()->all());
+
+            AuditLog::record($user, 'exit.registered', $exit, null, [
+                'reference' => $exit->reference,
+                'origin_chamber_id' => $origin->id,
+                'dest_branch_id' => $destBranch->id,
+                'dest_chamber_id' => $destChamber?->id,
+                'transfer' => $transfer?->reference,
+                'total_boxes' => $exit->total_boxes,
+            ]);
 
             return $exit->refresh();
         }, 3);

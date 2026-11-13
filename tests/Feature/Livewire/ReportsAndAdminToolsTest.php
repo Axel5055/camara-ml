@@ -221,8 +221,11 @@ it('filters the audit log by event and user', function () {
     $logs = Livewire::actingAs($w['admin'])->test(AuditLogs::class)->set('event', 'inventory');
     expect($logs->viewData('logs')->total())->toBe(1);
 
-    $none = Livewire::actingAs($w['admin'])->test(AuditLogs::class)->set('userId', $w['centroUser']->id);
+    $none = Livewire::actingAs($w['admin'])->test(AuditLogs::class)->set('event', 'inventory')->set('userId', $w['centroUser']->id);
     expect($none->viewData('logs')->total())->toBe(0);
+
+    $entries = Livewire::actingAs($w['admin'])->test(AuditLogs::class)->set('event', 'entry.registered')->set('userId', $w['centroUser']->id);
+    expect($entries->viewData('logs')->total())->toBeGreaterThan(0);
 });
 
 it('clears the inventory report filters and shows an empty state', function () {
