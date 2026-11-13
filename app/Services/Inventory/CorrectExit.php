@@ -218,7 +218,7 @@ class CorrectExit extends InventoryOperation
                     'weight_out_kg' => $box->current_weight_kg,
                     'weight_after_kg' => '0.000',
                     'unit_cost_snapshot_mxn' => $box->unit_cost_mxn,
-                    'cost_out_mxn' => $box->unit_cost_mxn,
+                    'cost_out_mxn' => Decimal::costOf($box->current_weight_kg, $box->price_per_kg_mxn),
                     'is_active' => true,
                     'created_at' => $now,
                     'updated_at' => $now,
