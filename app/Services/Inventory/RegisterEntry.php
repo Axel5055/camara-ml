@@ -7,6 +7,7 @@ use App\Enums\BoxStatus;
 use App\Enums\DocumentStatus;
 use App\Enums\MovementType;
 use App\Exceptions\InventoryException;
+use App\Models\AuditLog;
 use App\Models\Box;
 use App\Models\Chamber;
 use App\Models\Entry;
@@ -153,6 +154,13 @@ class RegisterEntry extends InventoryOperation
 
                 $this->insertChunked('box_movements', $movements);
             }
+
+            AuditLog::record($user, 'entry.registered', $entry, null, [
+                'reference' => $entry->reference,
+                'chamber_id' => $chamber->id,
+                'total_boxes' => $totalBoxes,
+                'total_weight_kg' => $totalWeight,
+            ]);
 
             return $entry->refresh();
         }, 3);
