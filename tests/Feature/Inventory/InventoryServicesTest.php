@@ -732,3 +732,40 @@ it('does not audit an entry that was rolled back', function () {
 
     expect(AuditLog::query()->where('event', 'entry.registered')->count())->toBe(0);
 });
+
+it('costs an exit of a partially withdrawn box by the kilos that really leave', function () {
+    $w = warehouseWorld();
+    app(RegisterEntry::class)->handle($w['centroUser'], $w['c1'], [
+        ['product_id' => $w['product']->id, 'boxes_count' => 2, 'weight_per_box_kg' => '20', 'price_per_kg_mxn' => '25.00'],
+    ]);
+    $boxes = Box::query()->orderBy('id')->get();
+
+    // 5 kg leave first ($125); the 15 kg left must cost $375, not the $500 of the whole box.
+    app(WithdrawPartial::class)->handle($w['centroUser'], $boxes[0], '5', $w['sur'], 'Ana');
+    $exit = app(RegisterExit::class)->handle($w['centroUser'], $w['c1'], $w['sur'], null, 'Juan', [$boxes[0]->id, $boxes[1]->id]);
+
+    $item = $exit->items()->where('box_id', $boxes[0]->id)->sole();
+
+    expect($exit->total_weight_kg)->toBe('35.000')
+        ->and($exit->total_cost_mxn)->toBe('875.00')
+        ->and($item->cost_out_mxn)->toBe('375.00')
+        ->and($item->unit_cost_snapshot_mxn)->toBe('500.00');
+});
+
+it('costs a partial box added while correcting an exit by its remaining kilos', function () {
+    $w = warehouseWorld();
+    app(RegisterEntry::class)->handle($w['centroUser'], $w['c1'], [
+        ['product_id' => $w['product']->id, 'boxes_count' => 2, 'weight_per_box_kg' => '20', 'price_per_kg_mxn' => '25.00'],
+    ]);
+    $boxes = Box::query()->orderBy('id')->get();
+
+    app(WithdrawPartial::class)->handle($w['centroUser'], $boxes[0], '5', $w['sur'], 'Ana');
+    $exit = app(RegisterExit::class)->handle($w['centroUser'], $w['c1'], $w['sur'], null, 'Juan', [$boxes[1]->id]);
+
+    $corrected = app(CorrectExit::class)->handle(
+        $w['admin'], $exit, 'Faltó una caja', 'Juan', null, null, null, [], [$boxes[0]->id],
+    );
+
+    expect($corrected->total_cost_mxn)->toBe('875.00')
+        ->and($corrected->items()->where('box_id', $boxes[0]->id)->where('is_active', true)->sole()->cost_out_mxn)->toBe('375.00');
+});
