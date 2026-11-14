@@ -257,12 +257,8 @@
                             <flux:select.option :value="$chamber->id">{{ $chamber->branch->name }} · {{ $chamber->name }}</flux:select.option>
                         @endforeach
                     </flux:select>
-                    <flux:select wire:model="addProductId" label="Producto">
-                        <flux:select.option value="">Selecciona un producto</flux:select.option>
-                        @foreach ($allProducts as $product)
-                            <flux:select.option :value="$product->id">{{ $product->name }}</flux:select.option>
-                        @endforeach
-                    </flux:select>
+                    <x-product-search :products="$allProducts" model="addProductId" emptyMessage="No hay productos con ese nombre." data-test="add-boxes-product-search" wire:key="add-boxes-product-search" />
+                    <flux:error name="addProductId" />
                     <div class="grid gap-4 sm:grid-cols-3">
                         <flux:input wire:model="addBoxes" type="number" min="1" label="Cajas" icon="archive-box" />
                         <flux:input wire:model="addWeight" inputmode="decimal" label="Peso por caja (kg)" icon="scale" />
