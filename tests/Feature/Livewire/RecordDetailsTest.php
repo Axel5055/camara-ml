@@ -533,6 +533,33 @@ it('lets the super administrator adjust the boxes of a product from the summary'
         ->and(Box::query()->where('status', 'written_off')->count())->toBe(1);
 });
 
+it('lets only the super administrator add boxes to a chamber without an entry', function () {
+    $w = detailsWorld();
+    $other = Product::factory()->create(['name' => 'Res']);
+
+    Livewire::actingAs($w['centroUser'])->test(Stock::class)
+        ->call('openAddBoxes')->assertForbidden();
+
+    Livewire::actingAs($w['admin'])->test(Stock::class)
+        ->call('openAddBoxes')
+        ->set('addChamberId', $w['c1']->id)
+        ->set('addProductId', $other->id)
+        ->set('addBoxes', '3')
+        ->set('addWeight', '20')
+        ->set('addCost', '50')
+        ->set('addReason', 'x')
+        ->call('saveAddBoxes')->assertHasErrors(['addReason'])
+        ->set('addReason', 'Mercancía sin captura previa')
+        ->call('saveAddBoxes')
+        ->assertHasNoErrors();
+
+    $boxes = Box::query()->where('product_id', $other->id)->get();
+
+    expect($boxes)->toHaveCount(3)
+        ->and($boxes->every(fn (Box $box): bool => $box->entry_item_id === null && $box->current_chamber_id === $w['c1']->id && $box->status === BoxStatus::Available))->toBeTrue()
+        ->and($boxes->first()->unit_cost_mxn)->toBe('1000.00');
+});
+
 it('shows the history of a box as a timeline with links to its entry and exit', function () {
     $w = detailsWorld();
     $exit = app(RegisterExit::class)->handle($w['centroUser'], $w['c1'], $w['sur'], null, 'Ana', [$w['boxes'][0]->id]);

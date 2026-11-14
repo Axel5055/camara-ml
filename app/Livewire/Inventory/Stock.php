@@ -9,6 +9,7 @@ use App\Models\Box;
 use App\Models\Category;
 use App\Models\Chamber;
 use App\Models\Product;
+use App\Services\Inventory\AddBoxesToChamber;
 use App\Services\Inventory\AdjustStockSummary;
 use App\Services\Inventory\EditBox;
 use Flux\Flux;
@@ -69,6 +70,60 @@ class Stock extends Component
 
     /** @var array{weight: string, cost: string} */
     public array $editOriginal = ['weight' => '', 'cost' => ''];
+
+    public ?int $addChamberId = null;
+
+    public ?int $addProductId = null;
+
+    public string $addBoxes = '';
+
+    public string $addWeight = '';
+
+    public string $addCost = '';
+
+    public string $addReason = '';
+
+    public function openAddBoxes(): void
+    {
+        abort_unless(Auth::user()->isSuperAdmin(), 403);
+
+        $this->addChamberId = $this->chamberId;
+        $this->addProductId = $this->productId;
+        $this->addBoxes = '';
+        $this->addWeight = '';
+        $this->addCost = '';
+        $this->addReason = '';
+
+        $this->resetErrorBag();
+        Flux::modal('add-boxes')->show();
+    }
+
+    public function saveAddBoxes(AddBoxesToChamber $addBoxes): void
+    {
+        abort_unless(Auth::user()->isSuperAdmin(), 403);
+
+        $this->validate([
+            'addChamberId' => ['required', 'integer', 'exists:chambers,id'],
+            'addProductId' => ['required', 'integer', 'exists:products,id'],
+            'addBoxes' => ['required', 'integer', 'min:1', 'max:10000'],
+            'addWeight' => ['required', 'numeric', 'gt:0'],
+            'addCost' => ['required', 'numeric', 'min:0'],
+            'addReason' => ['required', 'string', 'min:5', 'max:500'],
+        ], attributes: ['addChamberId' => 'cámara', 'addProductId' => 'producto', 'addBoxes' => 'cajas', 'addWeight' => 'peso por caja', 'addCost' => 'costo por kg', 'addReason' => 'motivo']);
+
+        $chamber = Chamber::query()->findOrFail($this->addChamberId);
+        $product = Product::query()->findOrFail($this->addProductId);
+        $created = 0;
+
+        $done = $this->attempt(function () use ($addBoxes, $chamber, $product, &$created): void {
+            $created = $addBoxes->handle(Auth::user(), $chamber, $product, (int) $this->addBoxes, $this->addWeight, $this->addCost, $this->addReason);
+        });
+
+        if ($done) {
+            Flux::modal('add-boxes')->close();
+            Flux::toast(text: "{$created} cajas de {$product->name} agregadas a {$chamber->name}.", variant: 'success');
+        }
+    }
 
     public function updated(string $property): void
     {
@@ -304,6 +359,9 @@ class Stock extends Component
                 ->paginate(25),
             'summary' => $summary,
             'chambers' => $this->accessibleChambers(),
+            'allProducts' => Auth::user()->isSuperAdmin()
+                ? Product::query()->orderBy('name')->get(['id', 'name', 'code'])
+                : collect(),
             'categories' => Category::query()->orderBy('name')->get(['id', 'name']),
             'products' => Product::query()
                 ->when($this->categoryId, fn (Builder $query) => $query->where('category_id', $this->categoryId))

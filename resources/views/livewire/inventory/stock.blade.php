@@ -1,9 +1,15 @@
 <section class="w-full space-y-6">
     <x-page-header icon="archive-box" title="Existencias" :description="$showCosts ? 'Consulta las cajas disponibles, su peso y su valor.' : 'Consulta las cajas disponibles, su peso y su precio por caja.'" />
 
-    <div class="inline-flex rounded-lg border border-zinc-200 bg-white p-1 shadow-xs dark:border-zinc-700 dark:bg-zinc-800" data-test="stock-view-toggle">
-        <flux:button size="sm" :variant="$isSummary ? 'ghost' : 'primary'" icon="queue-list" wire:click="showView('boxes')">Por caja</flux:button>
-        <flux:button size="sm" :variant="$isSummary ? 'primary' : 'ghost'" icon="building-storefront" wire:click="showView('summary')" data-test="stock-view-summary">Concentrado por cámara</flux:button>
+    <div class="flex flex-wrap items-center justify-between gap-3">
+        <div class="inline-flex rounded-lg border border-zinc-200 bg-white p-1 shadow-xs dark:border-zinc-700 dark:bg-zinc-800" data-test="stock-view-toggle">
+            <flux:button size="sm" :variant="$isSummary ? 'ghost' : 'primary'" icon="queue-list" wire:click="showView('boxes')">Por caja</flux:button>
+            <flux:button size="sm" :variant="$isSummary ? 'primary' : 'ghost'" icon="building-storefront" wire:click="showView('summary')" data-test="stock-view-summary">Concentrado por cámara</flux:button>
+        </div>
+
+        @if ($canAdjust)
+            <flux:button size="sm" variant="primary" icon="plus" wire:click="openAddBoxes" data-test="stock-add-boxes">Agregar cajas sin entrada</flux:button>
+        @endif
     </div>
 
     <div class="grid gap-4 {{ $showCosts ? 'lg:grid-cols-3' : 'lg:grid-cols-2' }}">
@@ -230,6 +236,48 @@
                 <div class="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
                     <flux:modal.close><flux:button variant="ghost" type="button">Cancelar</flux:button></flux:modal.close>
                     <flux:button type="submit" variant="primary" icon="check">Guardar ajuste</flux:button>
+                </div>
+            </form>
+        </flux:modal>
+
+        <flux:modal name="add-boxes" class="w-full md:w-[36rem]">
+            <form wire:submit="saveAddBoxes" class="space-y-6" data-test="stock-add-boxes-form">
+                <div>
+                    <flux:heading size="lg">Agregar cajas sin entrada</flux:heading>
+                    <flux:text class="mt-1">Las cajas se crean disponibles en la cámara, con su código de barras e historial.</flux:text>
+                </div>
+
+                <flux:error name="operation" />
+
+                <div class="space-y-4 rounded-xl border border-zinc-200 p-4 dark:border-zinc-700">
+                    <div class="text-xs font-semibold uppercase tracking-wide text-zinc-500">Destino</div>
+                    <flux:select wire:model="addChamberId" label="Cámara">
+                        <flux:select.option value="">Selecciona una cámara</flux:select.option>
+                        @foreach ($chambers as $chamber)
+                            <flux:select.option :value="$chamber->id">{{ $chamber->branch->name }} · {{ $chamber->name }}</flux:select.option>
+                        @endforeach
+                    </flux:select>
+                    <flux:select wire:model="addProductId" label="Producto">
+                        <flux:select.option value="">Selecciona un producto</flux:select.option>
+                        @foreach ($allProducts as $product)
+                            <flux:select.option :value="$product->id">{{ $product->name }}</flux:select.option>
+                        @endforeach
+                    </flux:select>
+                    <div class="grid gap-4 sm:grid-cols-3">
+                        <flux:input wire:model="addBoxes" type="number" min="1" label="Cajas" icon="archive-box" />
+                        <flux:input wire:model="addWeight" inputmode="decimal" label="Peso por caja (kg)" icon="scale" />
+                        <flux:input wire:model="addCost" inputmode="decimal" label="Costo por kg (MXN)" icon="currency-dollar" />
+                    </div>
+                </div>
+
+                <div class="space-y-4 rounded-xl border border-zinc-200 p-4 dark:border-zinc-700">
+                    <div class="text-xs font-semibold uppercase tracking-wide text-zinc-500">Justificación</div>
+                    <flux:textarea wire:model="addReason" label="Motivo" rows="2" placeholder="Por qué se agregan sin entrada." required />
+                </div>
+
+                <div class="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+                    <flux:modal.close><flux:button variant="ghost" type="button">Cancelar</flux:button></flux:modal.close>
+                    <flux:button type="submit" variant="primary" icon="plus">Agregar cajas</flux:button>
                 </div>
             </form>
         </flux:modal>
