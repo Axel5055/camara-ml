@@ -11,6 +11,7 @@ use App\Livewire\Inventory\EntryDetail;
 use App\Livewire\Inventory\ExitDetail;
 use App\Livewire\Inventory\Stock;
 use App\Livewire\Inventory\TransferDetail;
+use App\Livewire\Reports\MovementsReport;
 use App\Models\Box;
 use App\Models\Branch;
 use App\Models\Chamber;
@@ -18,6 +19,8 @@ use App\Models\Entry;
 use App\Models\Product;
 use App\Models\Transfer;
 use App\Models\User;
+use App\Actions\Users\AssignManagerScope;
+use App\Services\Inventory\AddBoxesToChamber;
 use App\Services\Inventory\CorrectTransfer;
 use App\Services\Inventory\ReceiveTransfer;
 use App\Services\Inventory\RegisterEntry;
@@ -558,6 +561,22 @@ it('lets only the super administrator add boxes to a chamber without an entry', 
     expect($boxes)->toHaveCount(3)
         ->and($boxes->every(fn (Box $box): bool => $box->entry_item_id === null && $box->current_chamber_id === $w['c1']->id && $box->status === BoxStatus::Available))->toBeTrue()
         ->and($boxes->first()->unit_cost_mxn)->toBe('1000.00');
+});
+
+it('keeps the boxes added without an entry out of the movements and history of everyone but the super administrator', function () {
+    $w = detailsWorld();
+    $manager = User::factory()->manager()->create();
+    app(AssignManagerScope::class)->handle($w['admin'], $manager, [], [$w['c1']->id]);
+
+    app(AddBoxesToChamber::class)->handle($w['admin'], $w['c1'], $w['product'], 2, '10', '50', 'Mercancía sin captura previa');
+    $box = Box::query()->whereNull('entry_item_id')->firstOrFail();
+    $note = 'Caja agregada sin entrada';
+    $withNote = fn ($report) => $report->viewData('rows')->getCollection()->pluck('notes')->filter(fn ($n) => str_contains((string) $n, $note));
+
+    expect($withNote(Livewire::actingAs($manager)->test(MovementsReport::class)))->toBeEmpty()
+        ->and($withNote(Livewire::actingAs($w['admin'])->test(MovementsReport::class)))->toHaveCount(2)
+        ->and(Livewire::actingAs($manager)->test(BoxHistory::class, ['box' => $box])->viewData('movements'))->toHaveCount(0)
+        ->and(Livewire::actingAs($w['admin'])->test(BoxHistory::class, ['box' => $box])->viewData('movements'))->toHaveCount(1);
 });
 
 it('shows the history of a box as a timeline with links to its entry and exit', function () {

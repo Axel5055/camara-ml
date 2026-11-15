@@ -36,6 +36,21 @@ class BoxMovement extends Model
 {
     public const UPDATED_AT = null;
 
+    /** Notes prefix of the movements created when a super administrator adds boxes without an entry. */
+    public const ADDED_WITHOUT_ENTRY = 'Caja agregada sin entrada';
+
+    /**
+     * Movements the user may see: the ones created by adding boxes without an entry are exclusive to super administrators.
+     *
+     * @param  \Illuminate\Database\Eloquent\Builder<BoxMovement>|\Illuminate\Database\Query\Builder  $query
+     */
+    public static function hideRestricted($query, User $user, string $column = 'notes'): void
+    {
+        if (! $user->isSuperAdmin()) {
+            $query->where(fn ($q) => $q->whereNull($column)->orWhere($column, 'not like', self::ADDED_WITHOUT_ENTRY.'%'));
+        }
+    }
+
     /**
      * @return array<string, string>
      */

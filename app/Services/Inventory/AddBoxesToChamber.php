@@ -8,6 +8,7 @@ use App\Enums\MovementType;
 use App\Exceptions\InventoryException;
 use App\Models\AuditLog;
 use App\Models\Box;
+use App\Models\BoxMovement;
 use App\Models\Chamber;
 use App\Models\Product;
 use App\Models\User;
@@ -101,7 +102,7 @@ class AddBoxesToChamber extends InventoryOperation
             foreach (Box::query()->whereIn('barcode', array_column($rows, 'barcode'))->orderBy('id')->get() as $box) {
                 $movements[] = $this->movementRow($box, MovementType::Adjustment, $admin, $now, '0.000', $weight, null, BoxStatus::Available, [
                     'to_chamber_id' => $chamber->id,
-                    'notes' => "Caja agregada sin entrada de {$product->name}. {$reason}",
+                    'notes' => BoxMovement::ADDED_WITHOUT_ENTRY." de {$product->name}. {$reason}",
                 ]);
             }
 

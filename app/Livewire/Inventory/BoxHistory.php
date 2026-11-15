@@ -6,6 +6,7 @@ use App\Enums\BoxStatus;
 use App\Livewire\Concerns\InteractsWithChambers;
 use App\Livewire\Concerns\ReportsInventoryErrors;
 use App\Models\Box;
+use App\Models\BoxMovement;
 use App\Models\Branch;
 use App\Models\Chamber;
 use App\Models\Entry;
@@ -67,7 +68,9 @@ class BoxHistory extends Component
 
     public function render(): View
     {
-        $movements = $this->box->movements()->with('user:id,name')->get();
+        $movementsQuery = $this->box->movements()->with('user:id,name');
+        BoxMovement::hideRestricted($movementsQuery, Auth::user());
+        $movements = $movementsQuery->get();
         $chamberIds = $movements->pluck('from_chamber_id')->merge($movements->pluck('to_chamber_id'))->filter()->unique();
         $branchIds = $movements->pluck('to_branch_id')->filter()->unique();
 
