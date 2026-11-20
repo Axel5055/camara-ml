@@ -123,7 +123,7 @@ class RegisterExit extends InventoryOperation
             ]);
 
             $now = now();
-            $this->insertChunked('exit_items', $boxes->map(fn (Box $b): array => [
+            $this->insertChunked('exit_items', collect($boxIds)->map(fn (int $id): Box => $boxes[$id])->map(fn (Box $b): array => [
                 'exit_id' => $exit->id,
                 'box_id' => $b->id,
                 'kind' => ExitItemKind::Full->value,

@@ -23,7 +23,7 @@ class TicketController extends Controller
             ->join('products', 'products.id', '=', 'entry_items.product_id')
             ->where('entry_items.entry_id', $entry->id)
             ->groupBy('products.id', 'products.name')
-            ->orderBy('products.name')
+            ->orderByRaw('min(entry_items.id)')
             ->selectRaw('products.name as product, sum(entry_items.boxes_count) as boxes, sum(entry_items.total_weight_kg) as kg')
             ->get();
 
@@ -47,7 +47,7 @@ class TicketController extends Controller
             ->where('exit_items.exit_id', $exit->id)
             ->where('exit_items.is_active', true)
             ->groupBy('products.id', 'products.name')
-            ->orderBy('products.name')
+            ->orderByRaw('min(exit_items.id)')
             ->selectRaw('products.name as product, count(*) as boxes, sum(exit_items.weight_out_kg) as kg')
             ->get();
 
