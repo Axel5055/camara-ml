@@ -4,7 +4,7 @@
     <div class="flex flex-wrap items-center justify-between gap-3">
         <div class="inline-flex rounded-lg border border-zinc-200 bg-white p-1 shadow-xs dark:border-zinc-700 dark:bg-zinc-800" data-test="stock-view-toggle">
             <flux:button size="sm" :variant="$isSummary ? 'ghost' : 'primary'" icon="queue-list" wire:click="showView('boxes')">Por caja</flux:button>
-            <flux:button size="sm" :variant="$isSummary ? 'primary' : 'ghost'" icon="building-storefront" wire:click="showView('summary')" data-test="stock-view-summary">Concentrado por cámara</flux:button>
+            <flux:button size="sm" :variant="$isSummary ? 'primary' : 'ghost'" icon="building-storefront" wire:click="showView('summary')" data-test="stock-view-summary">Total de cajas en cámara</flux:button>
         </div>
 
         @if ($canAdjust)
