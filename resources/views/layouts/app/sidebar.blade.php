@@ -45,15 +45,20 @@
                             @endcan
                         </div>
                     </div>
+                    @php($pendingExitRequests = \App\Models\ExitRequest::query()->visibleTo(auth()->user())->where('status', \App\Enums\ExitRequestStatus::Pending)->count())
                     <div x-data='{ open: {{ $warehouseNav ? "true" : '(window.navOpen ??= {}).exits ?? false' }} }' x-effect="(window.navOpen ??= {}).exits = open" data-test="nav-exits">
                         <flux:sidebar.item as="button" type="button" icon="arrow-up-tray" x-on:click="open = ! open" x-bind:aria-expanded="open" class="w-full">
                             <span class="flex w-full items-center justify-between gap-2">
                                 Salidas
+                                @if ($pendingExitRequests > 0)
+                                    <flux:badge size="sm" color="amber" class="ms-auto" x-show="! open" data-test="nav-exits-badge">{{ $pendingExitRequests }}</flux:badge>
+                                @endif
                                 <flux:icon name="chevron-down" class="size-4 text-zinc-400 transition-transform duration-200" x-bind:class="open ? '' : '-rotate-90'" />
                             </span>
                         </flux:sidebar.item>
                         <div x-show="open" x-collapse class="ms-5 mt-0.5 grid gap-0.5 border-s border-zinc-700 ps-2">
                             <flux:sidebar.item icon="list-bullet" :href="route('exits.index')" :current="request()->routeIs('exits.index', 'exits.show')" wire:navigate>Todas las salidas</flux:sidebar.item>
+                            <flux:sidebar.item icon="clipboard-document-list" :href="route('exit-requests.index')" :current="request()->routeIs('exit-requests.index')" :badge="$pendingExitRequests > 0 ? $pendingExitRequests : null" badge-color="amber" wire:navigate data-test="nav-exit-requests">Solicitudes</flux:sidebar.item>
                             @can('operate-inventory')
                                 <flux:sidebar.item icon="plus-circle" :href="route('exits.create')" :current="request()->routeIs('exits.create')" wire:navigate>Nueva salida</flux:sidebar.item>
                             @endcan
@@ -79,8 +84,6 @@
                             </div>
                         </div>
                     @endcan
-                    @php($pendingExitRequests = \App\Models\ExitRequest::query()->visibleTo(auth()->user())->where('status', \App\Enums\ExitRequestStatus::Pending)->count())
-                    <flux:sidebar.item icon="clipboard-document-list" :href="route('exit-requests.index')" :current="request()->routeIs('exit-requests.index')" :badge="$pendingExitRequests > 0 ? $pendingExitRequests : null" badge-color="amber" wire:navigate data-test="nav-exit-requests">Solicitudes de salida</flux:sidebar.item>
                 </flux:sidebar.group>
                 @endcan
 

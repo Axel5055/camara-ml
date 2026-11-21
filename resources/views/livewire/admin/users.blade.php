@@ -3,13 +3,13 @@
         <flux:button variant="primary" icon="plus" wire:click="create">Nuevo usuario</flux:button>
     </x-page-header>
 
-    <div class="grid gap-4 sm:grid-cols-2 xl:grid-cols-4 2xl:grid-cols-7">
+    <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <div class="flex items-center gap-4 rounded-xl border border-zinc-200 bg-white p-4 shadow-xs dark:border-zinc-700 dark:bg-zinc-800" data-test="users-total">
             <div class="flex size-12 shrink-0 items-center justify-center rounded-xl bg-indigo-500/10 text-indigo-600 dark:text-indigo-300">
                 <flux:icon.users class="size-6" />
             </div>
             <div class="min-w-0">
-                <div class="text-xs font-medium uppercase tracking-wide text-zinc-500">Usuarios</div>
+                <div class="text-xs font-medium uppercase leading-tight tracking-wide text-zinc-500">Usuarios</div>
                 <div class="text-2xl font-semibold text-zinc-900 dark:text-white">{{ number_format($totals['total']) }}</div>
             </div>
         </div>
@@ -18,7 +18,7 @@
                 <flux:icon.shield-check class="size-6" />
             </div>
             <div class="min-w-0">
-                <div class="text-xs font-medium uppercase tracking-wide text-zinc-500">Super administradores</div>
+                <div class="text-xs font-medium uppercase leading-tight tracking-wide text-zinc-500">Super administradores</div>
                 <div class="text-2xl font-semibold text-zinc-900 dark:text-white">{{ number_format($totals['super_admin']) }}</div>
             </div>
         </div>
@@ -27,7 +27,7 @@
                 <flux:icon.eye class="size-6" />
             </div>
             <div class="min-w-0">
-                <div class="text-xs font-medium uppercase tracking-wide text-zinc-500">Administradores</div>
+                <div class="text-xs font-medium uppercase leading-tight tracking-wide text-zinc-500">Administradores</div>
                 <div class="text-2xl font-semibold text-zinc-900 dark:text-white">{{ number_format($totals['admin']) }}</div>
             </div>
         </div>
@@ -36,7 +36,7 @@
                 <flux:icon.building-storefront class="size-6" />
             </div>
             <div class="min-w-0">
-                <div class="text-xs font-medium uppercase tracking-wide text-zinc-500">Gerentes</div>
+                <div class="text-xs font-medium uppercase leading-tight tracking-wide text-zinc-500">Gerentes</div>
                 <div class="text-2xl font-semibold text-zinc-900 dark:text-white">{{ number_format($totals['manager']) }}</div>
             </div>
         </div>
@@ -45,7 +45,7 @@
                 <flux:icon.archive-box class="size-6" />
             </div>
             <div class="min-w-0">
-                <div class="text-xs font-medium uppercase tracking-wide text-zinc-500">Almacenistas</div>
+                <div class="text-xs font-medium uppercase leading-tight tracking-wide text-zinc-500">Almacenistas</div>
                 <div class="text-2xl font-semibold text-zinc-900 dark:text-white">{{ number_format($totals['warehouse']) }}</div>
             </div>
         </div>
@@ -54,7 +54,7 @@
                 <flux:icon.clipboard-document-list class="size-6" />
             </div>
             <div class="min-w-0">
-                <div class="text-xs font-medium uppercase tracking-wide text-zinc-500">Solicitantes</div>
+                <div class="text-xs font-medium uppercase leading-tight tracking-wide text-zinc-500">Solicitantes</div>
                 <div class="text-2xl font-semibold text-zinc-900 dark:text-white">{{ number_format($totals['requester']) }}</div>
             </div>
         </div>
@@ -63,7 +63,7 @@
                 <flux:icon.pause-circle class="size-6" />
             </div>
             <div class="min-w-0">
-                <div class="text-xs font-medium uppercase tracking-wide text-zinc-500">Inactivos</div>
+                <div class="text-xs font-medium uppercase leading-tight tracking-wide text-zinc-500">Inactivos</div>
                 <div class="text-2xl font-semibold text-zinc-900 dark:text-white">{{ number_format($totals['inactive']) }}</div>
             </div>
         </div>
