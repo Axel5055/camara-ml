@@ -73,6 +73,17 @@ class UserFactory extends Factory
     }
 
     /**
+     * A requester: a branch without chambers that asks others for product.
+     */
+    public function requester(?Branch $branch = null): static
+    {
+        return $this->state(fn (array $attributes) => [
+            'role' => UserRole::Requester,
+            'branch_id' => $branch === null ? Branch::factory() : $branch->id,
+        ]);
+    }
+
+    /**
      * Indicate that the model's email address should be unverified.
      */
     public function unverified(): static

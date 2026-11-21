@@ -11,7 +11,16 @@
             </flux:sidebar.header>
 
             <flux:sidebar.nav>
-                @php($warehouseNav = auth()->user()->role === \App\Enums\UserRole::Warehouse)                <flux:sidebar.group heading="Inventario" class="grid">
+                @php($warehouseNav = auth()->user()->role === \App\Enums\UserRole::Warehouse)
+                @can('request-exits')
+                    @php($pendingExitRequests = \App\Models\ExitRequest::query()->visibleTo(auth()->user())->where('status', \App\Enums\ExitRequestStatus::Pending)->count())
+                    <flux:sidebar.group heading="Solicitudes" class="grid" data-test="nav-requester">
+                        <flux:sidebar.item icon="clipboard-document-list" :href="route('exit-requests.index')" :current="request()->routeIs('exit-requests.index')" :badge="$pendingExitRequests > 0 ? $pendingExitRequests : null" badge-color="amber" wire:navigate data-test="nav-my-requests">Mis solicitudes</flux:sidebar.item>
+                        <flux:sidebar.item icon="plus-circle" :href="route('exit-requests.create')" :current="request()->routeIs('exit-requests.create')" wire:navigate data-test="nav-new-request">Nueva solicitud</flux:sidebar.item>
+                    </flux:sidebar.group>
+                @endcan
+                @can('use-inventory-area')
+                <flux:sidebar.group heading="Inventario" class="grid">
                     <flux:sidebar.item icon="home" :href="route('dashboard')" :current="request()->routeIs('dashboard')" wire:navigate>Panel</flux:sidebar.item>
                     <flux:sidebar.item icon="archive-box" :href="route('stock')" :current="request()->routeIs('stock', 'boxes.show')" wire:navigate>Existencias</flux:sidebar.item>
                     @if (auth()->user()->role === \App\Enums\UserRole::Warehouse)
@@ -70,7 +79,10 @@
                             </div>
                         </div>
                     @endcan
+                    @php($pendingExitRequests = \App\Models\ExitRequest::query()->visibleTo(auth()->user())->where('status', \App\Enums\ExitRequestStatus::Pending)->count())
+                    <flux:sidebar.item icon="clipboard-document-list" :href="route('exit-requests.index')" :current="request()->routeIs('exit-requests.index')" :badge="$pendingExitRequests > 0 ? $pendingExitRequests : null" badge-color="amber" wire:navigate data-test="nav-exit-requests">Solicitudes de salida</flux:sidebar.item>
                 </flux:sidebar.group>
+                @endcan
 
                 @can('view-catalogs')
                     <flux:sidebar.group heading="Administración" class="grid">
@@ -104,9 +116,11 @@
                     </flux:sidebar.group>
                 @endcan
 
+                @can('use-inventory-area')
                 <flux:sidebar.group heading="Configuración" class="grid">
                     <flux:sidebar.item icon="printer" :href="route('printers')" :current="request()->routeIs('printers')" wire:navigate>Impresoras</flux:sidebar.item>
                 </flux:sidebar.group>
+                @endcan
             </flux:sidebar.nav>
 
             <flux:spacer />

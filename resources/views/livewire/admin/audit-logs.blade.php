@@ -10,6 +10,7 @@
             'user.created' => 'Usuario creado', 'user.updated' => 'Usuario actualizado',
             'exit.reversed' => 'Salida revertida', 'transfer.cancelled' => 'Transferencia cancelada',
             'inventory.adjusted' => 'Inventario ajustado', 'stock.adjusted' => 'Existencias ajustadas', 'box.edited' => 'Caja editada', 'entry.corrected' => 'Entrada corregida', 'exit.corrected' => 'Salida corregida', 'incident.resolved' => 'Incidencia resuelta',
+            'exit_request.created' => 'Solicitud de salida creada', 'exit_request.approved' => 'Solicitud de salida autorizada', 'exit_request.rejected' => 'Solicitud de salida rechazada', 'exit_request.cancelled' => 'Solicitud de salida cancelada',
         ];
         $eventLabel = fn (string $event): string => $eventLabels[$event] ?? str_replace(['.', '_'], ' ', $event);
         $eventColor = fn (string $event): string => match (true) {
@@ -17,7 +18,8 @@
             str_ends_with($event, '.updated') => 'sky',
             str_ends_with($event, '.reversed'), str_ends_with($event, '.cancelled') => 'red',
             str_ends_with($event, '.adjusted'), str_ends_with($event, '.corrected'), str_ends_with($event, '.edited') => 'amber',
-            str_ends_with($event, '.resolved') => 'emerald',
+            str_ends_with($event, '.resolved'), str_ends_with($event, '.approved') => 'emerald',
+            str_ends_with($event, '.rejected') => 'red',
             default => 'zinc',
         };
         $show = fn (mixed $value): string => is_scalar($value) || $value === null ? (is_bool($value) ? ($value ? 'sí' : 'no') : (string) ($value ?? '—')) : json_encode($value, JSON_UNESCAPED_UNICODE);

@@ -3,10 +3,12 @@
 namespace App\Livewire;
 
 use App\Enums\EntryRequestStatus;
+use App\Enums\ExitRequestStatus;
 use App\Enums\TransferStatus;
 use App\Enums\UserRole;
 use App\Models\Chamber;
 use App\Models\EntryRequest;
+use App\Models\ExitRequest;
 use App\Models\Transfer;
 use App\Models\User;
 use App\Services\Inventory\LowStockAlerts;
@@ -47,6 +49,10 @@ class NotificationsBell extends Component
      */
     private function entryRequests(User $user): Collection
     {
+        if ($user->role === UserRole::Requester) {
+            return new Collection;
+        }
+
         $query = EntryRequest::query()->with(['chamber:id,name,branch_id', 'chamber.branch:id,name', 'user:id,name']);
 
         if ($user->role === UserRole::Warehouse) {
@@ -57,6 +63,32 @@ class NotificationsBell extends Component
             $query->where('status', EntryRequestStatus::Pending)
                 ->when($user->isManager(), fn (Builder $inner) => $inner
                     ->whereIn('chamber_id', Chamber::query()->accessibleBy($user)->select('id')));
+        }
+
+        return $query->orderByDesc('created_at')->limit(15)->get();
+    }
+
+    /**
+     * Exit requests worth a look: warehouse users and super administrators see the ones waiting for their
+     * decision; requesters see their branch's pending ones and those decided in the last few days. Administrators
+     * and managers only read them in the list.
+     *
+     * @return Collection<int, ExitRequest>
+     */
+    private function exitRequests(User $user): Collection
+    {
+        if (! in_array($user->role, [UserRole::Requester, UserRole::Warehouse, UserRole::SuperAdmin], true)) {
+            return new Collection;
+        }
+
+        $query = ExitRequest::query()->visibleTo($user)->with(['branch:id,name', 'chamber:id,name']);
+
+        if ($user->role === UserRole::Requester) {
+            $query->where(fn (Builder $inner) => $inner
+                ->where('status', ExitRequestStatus::Pending)
+                ->orWhere(fn (Builder $decided) => $decided->whereIn('status', [ExitRequestStatus::Approved, ExitRequestStatus::Rejected])->where('decided_at', '>=', now()->subDays(3))));
+        } else {
+            $query->where('status', ExitRequestStatus::Pending);
         }
 
         return $query->orderByDesc('created_at')->limit(15)->get();
@@ -77,8 +109,18 @@ class NotificationsBell extends Component
             ? $requests->where('status', '!=', EntryRequestStatus::Pending)->count()
             : $requests->count();
 
+        $isRequester = $user->role === UserRole::Requester;
+        $exitRequests = $this->exitRequests($user);
+        $exitRequestsToAttend = $isRequester
+            ? $exitRequests->where('status', '!=', ExitRequestStatus::Pending)->count()
+            : $exitRequests->count();
+
         return view('livewire.notifications-bell', [
-            'count' => $low->count() + $transfers->count() + $requestsToAttend,
+            'count' => $low->count() + $transfers->count() + $requestsToAttend + $exitRequestsToAttend,
+            'isRequester' => $isRequester,
+            'showExitRequests' => in_array($user->role, [UserRole::Requester, UserRole::Warehouse, UserRole::SuperAdmin], true),
+            'exitRequests' => $exitRequests,
+            'exitRequestsToAttend' => $exitRequestsToAttend,
             'requests' => $requests,
             'requestsToAttend' => $requestsToAttend,
             'items' => $low,

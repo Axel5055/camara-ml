@@ -3,7 +3,7 @@
         <flux:button variant="primary" icon="plus" wire:click="create">Nuevo usuario</flux:button>
     </x-page-header>
 
-    <div class="grid gap-4 sm:grid-cols-2 xl:grid-cols-6">
+    <div class="grid gap-4 sm:grid-cols-2 xl:grid-cols-4 2xl:grid-cols-7">
         <div class="flex items-center gap-4 rounded-xl border border-zinc-200 bg-white p-4 shadow-xs dark:border-zinc-700 dark:bg-zinc-800" data-test="users-total">
             <div class="flex size-12 shrink-0 items-center justify-center rounded-xl bg-indigo-500/10 text-indigo-600 dark:text-indigo-300">
                 <flux:icon.users class="size-6" />
@@ -47,6 +47,15 @@
             <div class="min-w-0">
                 <div class="text-xs font-medium uppercase tracking-wide text-zinc-500">Almacenistas</div>
                 <div class="text-2xl font-semibold text-zinc-900 dark:text-white">{{ number_format($totals['warehouse']) }}</div>
+            </div>
+        </div>
+        <div class="flex items-center gap-4 rounded-xl border border-zinc-200 bg-white p-4 shadow-xs dark:border-zinc-700 dark:bg-zinc-800" data-test="users-requester">
+            <div class="flex size-12 shrink-0 items-center justify-center rounded-xl bg-rose-500/10 text-rose-600 dark:text-rose-300">
+                <flux:icon.clipboard-document-list class="size-6" />
+            </div>
+            <div class="min-w-0">
+                <div class="text-xs font-medium uppercase tracking-wide text-zinc-500">Solicitantes</div>
+                <div class="text-2xl font-semibold text-zinc-900 dark:text-white">{{ number_format($totals['requester']) }}</div>
             </div>
         </div>
         <div class="flex items-center gap-4 rounded-xl border border-zinc-200 bg-white p-4 shadow-xs dark:border-zinc-700 dark:bg-zinc-800" data-test="users-inactive">
@@ -108,7 +117,7 @@
                             </div>
                         </flux:table.cell>
                         <flux:table.cell>
-                            <flux:badge size="sm" :color="match ($user->role->value) { 'super_admin' => 'purple', 'admin' => 'sky', 'manager' => 'teal', default => 'amber' }">{{ $user->role->label() }}</flux:badge>
+                            <flux:badge size="sm" :color="match ($user->role->value) { 'super_admin' => 'purple', 'admin' => 'sky', 'manager' => 'teal', 'requester' => 'rose', default => 'amber' }">{{ $user->role->label() }}</flux:badge>
                         </flux:table.cell>
                         <flux:table.cell>
                             @if ($user->role->value === 'manager')
@@ -234,6 +243,24 @@
                             </div>
                         </flux:checkbox.group>
                     @endif
+                @endif
+
+                @if ($role === 'requester')
+                    <flux:select wire:model.live="branch_id" label="Sucursal solicitante" data-test="requester-branch">
+                        <flux:select.option value="">Selecciona una sucursal</flux:select.option>
+                        @foreach ($branches as $branch)
+                            <flux:select.option :value="$branch->id">{{ $branch->name }}</flux:select.option>
+                        @endforeach
+                    </flux:select>
+                    <flux:text class="text-xs">Es la sucursal que recibe lo que pide. No necesita tener cámaras propias.</flux:text>
+
+                    <flux:checkbox.group wire:model="chamberIds" label="Cámaras a las que puede pedir producto">
+                        <div class="grid max-h-48 gap-2 overflow-y-auto rounded-lg bg-zinc-50 p-3 sm:grid-cols-2 dark:bg-zinc-900/40">
+                            @foreach ($allChambers as $chamber)
+                                <flux:checkbox :value="$chamber->id" :label="$chamber->branch->name.' · '.$chamber->name" wire:key="requester-chamber-{{ $chamber->id }}" />
+                            @endforeach
+                        </div>
+                    </flux:checkbox.group>
                 @endif
 
                 @if ($role === 'manager')

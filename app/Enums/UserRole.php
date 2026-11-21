@@ -16,6 +16,9 @@ enum UserRole: string
     /** Works in the chambers assigned to them. */
     case Warehouse = 'warehouse';
 
+    /** A branch without chambers that only asks the chambers assigned to it for product. */
+    case Requester = 'requester';
+
     public function label(): string
     {
         return match ($this) {
@@ -23,6 +26,7 @@ enum UserRole: string
             self::Admin => 'Administrador',
             self::Manager => 'Gerente',
             self::Warehouse => 'Almacenista',
+            self::Requester => 'Solicitante',
         };
     }
 
@@ -33,6 +37,7 @@ enum UserRole: string
             self::Manager => 'Igual que el administrador, pero solo ve las sucursales y cámaras que se le asignen.',
             self::Admin => 'Solo consulta: panel, existencias, registros de entradas y salidas, productos, categorías, sucursales y cámaras.',
             self::Warehouse => 'Registra entradas, salidas y recepciones en las cámaras que se le asignen.',
+            self::Requester => 'Sucursal sin cámara: solo pide producto a las cámaras que se le asignen y consulta sus solicitudes.',
         };
     }
 }

@@ -137,7 +137,7 @@ class Users extends Component
             'password' => [$user->exists ? 'nullable' : 'required', 'string', Password::defaults()],
             'role' => ['required', Rule::enum(UserRole::class)],
             'is_active' => ['boolean'],
-            'branch_id' => [Rule::requiredIf($this->role === UserRole::Warehouse->value), 'nullable', Rule::exists('branches', 'id')],
+            'branch_id' => [Rule::requiredIf(in_array($this->role, [UserRole::Warehouse->value, UserRole::Requester->value], true)), 'nullable', Rule::exists('branches', 'id')],
         ]);
 
         if ($user->is(Auth::user()) && ($validated['role'] !== $user->role->value || ! $validated['is_active'])) {
@@ -156,7 +156,7 @@ class Users extends Component
                     'email' => $validated['email'],
                     'role' => $validated['role'],
                     'is_active' => $validated['is_active'],
-                    'branch_id' => $validated['role'] === UserRole::Warehouse->value ? $validated['branch_id'] : null,
+                    'branch_id' => in_array($validated['role'], [UserRole::Warehouse->value, UserRole::Requester->value], true) ? $validated['branch_id'] : null,
                 ]);
 
                 if (($validated['password'] ?? '') !== '') {
@@ -169,7 +169,7 @@ class Users extends Component
 
                 $user->save();
 
-                if ($user->role === UserRole::Warehouse) {
+                if (in_array($user->role, [UserRole::Warehouse, UserRole::Requester], true)) {
                     $assignChambers->handle(Auth::user(), $user, array_map('intval', $this->chamberIds));
                     $user->managedBranches()->sync([]);
                 } elseif ($user->role === UserRole::Manager) {
@@ -219,13 +219,14 @@ class Users extends Component
                 'admin' => $countOf(UserRole::Admin),
                 'manager' => $countOf(UserRole::Manager),
                 'warehouse' => $countOf(UserRole::Warehouse),
+                'requester' => $countOf(UserRole::Requester),
                 'inactive' => (int) $byRole->sum('total') - (int) $byRole->sum('active'),
             ],
             'branches' => Branch::query()->orderBy('name')->get(),
             'branchChambers' => $this->branch_id
                 ? Chamber::query()->where('branch_id', $this->branch_id)->orderBy('name')->get()
                 : collect(),
-            'allChambers' => $this->role === UserRole::Manager->value
+            'allChambers' => in_array($this->role, [UserRole::Manager->value, UserRole::Requester->value], true)
                 ? Chamber::query()->with('branch')->orderBy('branch_id')->orderBy('name')->get()
                 : collect(),
             'hasFilters' => trim($this->search) !== '' || $this->roleFilter !== 'all' || $this->status !== 'all',

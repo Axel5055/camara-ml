@@ -54,8 +54,25 @@ class Chamber extends Model
             return;
         }
 
+        if ($user->role === UserRole::Requester) {
+            $query->whereRaw('1 = 0');
+
+            return;
+        }
+
         $query->where('branch_id', $user->branch_id)
             ->whereIn('id', $user->chambers()->select('chambers.id'));
+    }
+
+    /**
+     * Active chambers a requester may ask for product: the ones assigned to them, wherever they are.
+     *
+     * @param  Builder<Chamber>  $query
+     */
+    public function scopeRequestableBy(Builder $query, User $user): void
+    {
+        $query->where('is_active', true)
+            ->whereIn('id', $user->role === UserRole::Requester ? $user->chambers()->select('chambers.id') : []);
     }
 
     /**

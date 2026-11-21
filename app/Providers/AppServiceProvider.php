@@ -9,6 +9,7 @@ use App\Models\Category;
 use App\Models\Chamber;
 use App\Models\Entry;
 use App\Models\EntryRequest;
+use App\Models\ExitRequest;
 use App\Models\Product;
 use App\Models\StockExit;
 use App\Models\Transfer;
@@ -56,6 +57,8 @@ class AppServiceProvider extends ServiceProvider
                 UserRole::Admin => $this->readOnlyAdminMay($ability, $arguments) ? true : null,
                 // Managers read like administrators, but only what is assigned to them: the policies check that.
                 UserRole::Manager, UserRole::Warehouse => null,
+                // Requesters only ask for product: everything outside their own requests is denied.
+                UserRole::Requester => $this->requesterMay($ability, $arguments) ? null : false,
             };
         });
 
@@ -67,6 +70,25 @@ class AppServiceProvider extends ServiceProvider
         Gate::define('view-reports', fn (User $user): bool => $user->role === UserRole::Manager);
         Gate::define('view-products', fn (User $user): bool => in_array($user->role, [UserRole::Admin, UserRole::Manager, UserRole::Warehouse], true));
         Gate::define('operate-inventory', fn (User $user): bool => $user->role === UserRole::Warehouse);
+        Gate::define('request-exits', fn (User $user): bool => $user->role === UserRole::Requester && $user->branch_id !== null);
+        // The panel, stock and the entry, exit and transfer records: everyone except requesters.
+        Gate::define('use-inventory-area', fn (User $user): bool => true);
+    }
+
+    /**
+     * What a requester may do: ask for product and look at the requests of their branch.
+     *
+     * @param  array<int, mixed>  $arguments
+     */
+    private function requesterMay(string $ability, array $arguments): bool
+    {
+        if ($ability === 'request-exits') {
+            return true;
+        }
+
+        $subject = $arguments[0] ?? null;
+
+        return (is_object($subject) ? $subject::class : $subject) === ExitRequest::class;
     }
 
     /**
@@ -84,7 +106,7 @@ class AppServiceProvider extends ServiceProvider
         $subject = $arguments[0] ?? null;
 
         return in_array(is_object($subject) ? $subject::class : $subject, [
-            Entry::class, EntryRequest::class, StockExit::class, Transfer::class, Box::class, Chamber::class, Branch::class, Category::class, Product::class,
+            Entry::class, EntryRequest::class, ExitRequest::class, StockExit::class, Transfer::class, Box::class, Chamber::class, Branch::class, Category::class, Product::class,
         ], true);
     }
 

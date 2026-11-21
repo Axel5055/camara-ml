@@ -5,6 +5,7 @@ namespace App\Livewire;
 use App\Enums\BoxStatus;
 use App\Enums\IncidentStatus;
 use App\Enums\TransferStatus;
+use App\Enums\UserRole;
 use App\Livewire\Concerns\InteractsWithChambers;
 use App\Models\Category;
 use App\Models\Entry;
@@ -45,6 +46,16 @@ class Dashboard extends Component
     public ?int $tableCategoryId = null;
 
     public string $tableSearch = '';
+
+    /**
+     * Requesters have no panel: their home is the list of their requests.
+     */
+    public function mount(): void
+    {
+        if (Auth::user()->role === UserRole::Requester) {
+            $this->redirectRoute('exit-requests.index', navigate: true);
+        }
+    }
 
     public function updatedTableChamberId(): void
     {

@@ -2,7 +2,7 @@
     wire:poll.60s
     class="relative"
     data-test="notifications-bell"
-    x-data="{ open: false, tab: '{{ $requestsToAttend > 0 ? 'requests' : ($canSeeTransfers && $transfers->isNotEmpty() ? 'transfers' : ($requests->isNotEmpty() ? 'requests' : 'stock')) }}' }"
+    x-data="{ open: false, tab: '{{ $isRequester ? 'exit-requests' : ($requestsToAttend > 0 ? 'requests' : ($canSeeTransfers && $transfers->isNotEmpty() ? 'transfers' : ($requests->isNotEmpty() ? 'requests' : ($exitRequestsToAttend > 0 ? 'exit-requests' : 'stock')))) }}' }"
     x-on:keydown.escape.window="open = false"
     x-on:click.outside="open = false"
 >
@@ -24,6 +24,15 @@
         </div>
 
         <div class="flex gap-1 px-1 pb-2" role="tablist">
+            @if ($showExitRequests)
+                <button type="button" role="tab" x-on:click="tab = 'exit-requests'" x-bind:class="tab === 'exit-requests' ? 'bg-zinc-200 text-zinc-900 dark:bg-zinc-600 dark:text-white' : 'text-zinc-500 hover:bg-zinc-100 dark:hover:bg-zinc-600/60'" class="flex flex-1 items-center justify-center gap-2 rounded-md px-3 py-1.5 text-sm font-medium" data-test="bell-tab-exit-requests">
+                    Solicitudes
+                    @if ($exitRequestsToAttend > 0)
+                        <span class="rounded-full bg-amber-600 px-1.5 text-[10px] font-semibold leading-4 text-white">{{ $exitRequestsToAttend }}</span>
+                    @endif
+                </button>
+            @endif
+            @unless ($isRequester)
             <button type="button" role="tab" x-on:click="tab = 'requests'" x-bind:class="tab === 'requests' ? 'bg-zinc-200 text-zinc-900 dark:bg-zinc-600 dark:text-white' : 'text-zinc-500 hover:bg-zinc-100 dark:hover:bg-zinc-600/60'" class="flex flex-1 items-center justify-center gap-2 rounded-md px-3 py-1.5 text-sm font-medium" data-test="bell-tab-requests">
                 Entradas
                 @if ($requestsToAttend > 0)
@@ -44,10 +53,37 @@
                         <span class="rounded-full bg-red-600 px-1.5 text-[10px] font-semibold leading-4 text-white">{{ $items->count() }}</span>
                     @endif
                 </button>
+            @endunless
         </div>
 
         <div class="my-1 h-px bg-zinc-200 dark:bg-zinc-600"></div>
 
+        @if ($showExitRequests)
+            <div x-show="tab === 'exit-requests'" style="display: none;" class="max-h-80 overflow-y-auto" data-test="bell-exit-requests">
+                <flux:text class="px-3 pt-2 text-xs">{{ $isRequester ? 'Tus solicitudes de salida.' : 'Solicitudes de salida que esperan tu decisión.' }}</flux:text>
+                @forelse ($exitRequests as $exitRequest)
+                    <a href="{{ route('exit-requests.index', ['estado' => $exitRequest->isPending() ? 'pending' : 'all']) }}" wire:navigate wire:key="bell-exit-request-{{ $exitRequest->id }}" x-on:click="open = false" class="block rounded-md px-3 py-2 text-sm hover:bg-zinc-100 dark:hover:bg-zinc-600/60">
+                        <div class="flex w-full items-center justify-between gap-3">
+                            <div class="min-w-0">
+                                <div class="truncate font-medium text-zinc-900 dark:text-white">
+                                    @if ($isRequester)
+                                        {{ $exitRequest->reference() }} · {{ $exitRequest->total_boxes_requested }} {{ $exitRequest->total_boxes_requested === 1 ? 'caja' : 'cajas' }}
+                                    @else
+                                        {{ $exitRequest->branch->name }} pide {{ $exitRequest->total_boxes_requested }} {{ $exitRequest->total_boxes_requested === 1 ? 'caja' : 'cajas' }}
+                                    @endif
+                                </div>
+                                <div class="truncate text-xs text-zinc-500 dark:text-zinc-300">{{ $exitRequest->chamber->name }} · {{ $exitRequest->created_at->format('d/m/Y H:i') }}</div>
+                            </div>
+                            <flux:badge size="sm" :color="$exitRequest->status->color()">{{ $exitRequest->status->label() }}</flux:badge>
+                        </div>
+                    </a>
+                @empty
+                    <div class="px-3 py-6 text-center text-sm text-zinc-500">No hay solicitudes de salida.</div>
+                @endforelse
+            </div>
+        @endif
+
+        @unless ($isRequester)
         <div x-show="tab === 'requests'" style="display: none;" class="max-h-80 overflow-y-auto" data-test="bell-requests">
             <flux:text class="px-3 pt-2 text-xs">{{ $canSeeTransfers ? 'Tus solicitudes de entrada.' : 'Entradas que esperan tu autorización.' }}</flux:text>
             @forelse ($requests as $request)
@@ -116,12 +152,13 @@
                 <div class="px-3 py-6 text-center text-sm text-zinc-500">No hay productos con stock bajo.</div>
             @endforelse
         </div>
+        @endunless
 
         <div class="my-1 h-px bg-zinc-200 dark:bg-zinc-600"></div>
 
-        <a href="{{ route('dashboard') }}" wire:navigate x-on:click="open = false" class="flex items-center gap-2 rounded-md px-3 py-2 text-sm text-zinc-800 hover:bg-zinc-100 dark:text-white dark:hover:bg-zinc-600/60">
+        <a href="{{ $isRequester ? route('exit-requests.index') : route('dashboard') }}" wire:navigate x-on:click="open = false" class="flex items-center gap-2 rounded-md px-3 py-2 text-sm text-zinc-800 hover:bg-zinc-100 dark:text-white dark:hover:bg-zinc-600/60">
             <flux:icon.chart-bar class="size-4 text-zinc-500 dark:text-zinc-300" />
-            Ver el panel
+            {{ $isRequester ? 'Ver mis solicitudes' : 'Ver el panel' }}
         </a>
     </div>
 </div>

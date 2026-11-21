@@ -140,11 +140,22 @@ class User extends Authenticatable implements MustVerifyEmail, PasskeyUser
             return true;
         }
 
-        if ($this->role === UserRole::Manager) {
+        if (in_array($this->role, [UserRole::Manager, UserRole::Requester], true)) {
             return false;
         }
 
         return $this->branch_id === $chamber->branch_id
+            && $this->chambers()->whereKey($chamber->getKey())->exists();
+    }
+
+    /**
+     * Whether a requester may ask this chamber for product: only the chambers the super administrator assigned
+     * to them (which, unlike warehouse users, belong to other branches). It never allows looking inside it.
+     */
+    public function canRequestFrom(Chamber $chamber): bool
+    {
+        return $this->is_active
+            && $this->role === UserRole::Requester
             && $this->chambers()->whereKey($chamber->getKey())->exists();
     }
 

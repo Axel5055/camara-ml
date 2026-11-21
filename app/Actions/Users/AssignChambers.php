@@ -11,7 +11,8 @@ use Illuminate\Auth\Access\AuthorizationException;
 class AssignChambers
 {
     /**
-     * Replace the chambers a warehouse user may work in. They must belong to the user's own branch.
+     * Replace the chambers a warehouse user may work in (they must belong to the user's own branch) or a requester
+     * may ask for product (they are in other branches, since the requester's branch has no chambers).
      *
      * @param  array<int, int>  $chamberIds
      */
@@ -21,12 +22,12 @@ class AssignChambers
             throw new AuthorizationException('Solo un administrador puede asignar cámaras.');
         }
 
-        if ($user->role !== UserRole::Warehouse) {
-            throw new InventoryException('Solo los almacenistas tienen cámaras asignadas.');
+        if (! in_array($user->role, [UserRole::Warehouse, UserRole::Requester], true)) {
+            throw new InventoryException('Solo los almacenistas y los solicitantes tienen cámaras asignadas.');
         }
 
         if ($user->branch_id === null) {
-            throw new InventoryException('Asigna primero una sucursal al almacenista.');
+            throw new InventoryException('Asigna primero una sucursal al usuario.');
         }
 
         $chambers = Chamber::query()->whereKey($chamberIds)->get();
@@ -35,7 +36,7 @@ class AssignChambers
             throw new InventoryException('Alguna de las cámaras seleccionadas no existe.');
         }
 
-        if ($chambers->contains(fn (Chamber $chamber): bool => $chamber->branch_id !== $user->branch_id)) {
+        if ($user->role === UserRole::Warehouse && $chambers->contains(fn (Chamber $chamber): bool => $chamber->branch_id !== $user->branch_id)) {
             throw new InventoryException('Las cámaras deben pertenecer a la sucursal del almacenista.');
         }
 

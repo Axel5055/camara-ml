@@ -16,11 +16,13 @@ use App\Livewire\Dashboard;
 use App\Livewire\Inventory\BoxHistory;
 use App\Livewire\Inventory\CreateEntry;
 use App\Livewire\Inventory\CreateExit;
+use App\Livewire\Inventory\CreateExitRequest;
 use App\Livewire\Inventory\CreateTransfer;
 use App\Livewire\Inventory\Entries;
 use App\Livewire\Inventory\EntryDetail;
 use App\Livewire\Inventory\EntryRequests;
 use App\Livewire\Inventory\ExitDetail;
+use App\Livewire\Inventory\ExitRequests;
 use App\Livewire\Inventory\Exits;
 use App\Livewire\Inventory\Stock;
 use App\Livewire\Inventory\TransferDetail;
@@ -31,6 +33,7 @@ use App\Livewire\Reports\ExitsReport;
 use App\Livewire\Reports\InventoryReport;
 use App\Livewire\Reports\LowStock;
 use App\Livewire\Reports\MovementsReport;
+use App\Models\ExitRequest;
 use App\Models\Transfer;
 use Illuminate\Support\Facades\Route;
 
@@ -48,66 +51,74 @@ Route::middleware(['auth', 'active', 'verified'])->group(function () {
     // Every signed-in role: the panel and the stock and entry/exit records (scoped to what each role may see).
     Route::livewire('dashboard', Dashboard::class)->name('dashboard');
 
-    Route::livewire('impresoras', Printers::class)->name('printers');
-    Route::get('impresoras/certificado', [QzSigningController::class, 'certificate'])->name('qz.certificate');
-    Route::post('impresoras/firmar', [QzSigningController::class, 'sign'])->name('qz.sign');
+    // Exit requests: requesters (branches without chambers) ask a chamber for product and follow their requests;
+    // warehouse users and super administrators decide them; administrators and managers only look.
+    Route::livewire('inventario/solicitudes-salida/nueva', CreateExitRequest::class)->name('exit-requests.create')->middleware('can:request-exits');
+    Route::livewire('inventario/solicitudes-salida', ExitRequests::class)->name('exit-requests.index')->can('viewAny', ExitRequest::class);
 
-    Route::livewire('inventario/existencias', Stock::class)->name('stock');
-    Route::livewire('inventario/cajas/{box}', BoxHistory::class)->name('boxes.show');
+    // Everything else is closed to requesters.
+    Route::middleware('can:use-inventory-area')->group(function () {
+        Route::livewire('impresoras', Printers::class)->name('printers');
+        Route::get('impresoras/certificado', [QzSigningController::class, 'certificate'])->name('qz.certificate');
+        Route::post('impresoras/firmar', [QzSigningController::class, 'sign'])->name('qz.sign');
 
-    // Registering and moving stock: warehouse users and super administrators. The read-only administrator is
-    // kept out of these routes (declared first so "nueva" is never taken for an id).
-    Route::middleware('can:operate-inventory')->group(function () {
-        Route::livewire('inventario/entradas/nueva', CreateEntry::class)->name('entries.create');
-        Route::livewire('inventario/salidas/nueva', CreateExit::class)->name('exits.create');
-        Route::livewire('inventario/transferencias/nueva', CreateTransfer::class)->name('transfers.create');
-    });
+        Route::livewire('inventario/existencias', Stock::class)->name('stock');
+        Route::livewire('inventario/cajas/{box}', BoxHistory::class)->name('boxes.show');
 
-    // Transfers: operated by warehouse users and super administrators; the read-only administrator can only list them.
-    Route::livewire('inventario/transferencias', Transfers::class)->name('transfers.index')->can('viewAny', Transfer::class);
-    Route::livewire('inventario/transferencias/{transfer}', TransferDetail::class)->name('transfers.show');
-    Route::get('inventario/transferencias/{transfer}/ticket', [TicketController::class, 'transfer'])->name('transfers.ticket');
-    Route::get('inventario/transferencias/{transfer}/descargar/{format}', [RecordExportController::class, 'transfer'])->whereIn('format', ['pdf', 'xlsx'])->name('transfers.export');
-
-    Route::livewire('inventario/entradas/solicitudes', EntryRequests::class)->name('entry-requests.index');
-    Route::livewire('inventario/entradas', Entries::class)->name('entries.index');
-    Route::livewire('inventario/entradas/{entry}', EntryDetail::class)->name('entries.show');
-    Route::get('inventario/entradas/{entry}/descargar/{format}', [RecordExportController::class, 'entry'])->whereIn('format', ['pdf', 'xlsx'])->name('entries.export');
-    Route::get('inventario/entradas/{entry}/ticket', [TicketController::class, 'entry'])->name('entries.ticket');
-    Route::get('inventario/salidas/{exit}/ticket', [TicketController::class, 'exit'])->name('exits.ticket');
-    Route::livewire('inventario/salidas', Exits::class)->name('exits.index');
-    Route::livewire('inventario/salidas/{exit}', ExitDetail::class)->name('exits.show');
-    Route::get('inventario/salidas/{exit}/descargar/{format}', [RecordExportController::class, 'exit'])->whereIn('format', ['pdf', 'xlsx'])->name('exits.export');
-
-    // Products: warehouse users can also open them to register new ones; administrators only look.
-    Route::livewire('administracion/productos', Products::class)->name('admin.products')->middleware('can:view-products');
-
-    // Catalogs: super administrators manage them, administrators can only look at them.
-    Route::middleware('can:view-catalogs')->prefix('administracion')->group(function () {
-        Route::livewire('sucursales', Branches::class)->name('admin.branches')->middleware('can:view-branches');
-        Route::livewire('camaras', Chambers::class)->name('admin.chambers');
-        Route::livewire('categorias', Categories::class)->name('admin.categories');
-    });
-
-    // Super administrators only.
-    Route::middleware('super-admin')->group(function () {
-        Route::prefix('administracion')->group(function () {
-            Route::livewire('usuarios', Users::class)->name('admin.users');
-            Route::livewire('ajustes', Adjustments::class)->name('admin.adjustments');
-            Route::livewire('auditoria', AuditLogs::class)->name('admin.audit');
+        // Registering and moving stock: warehouse users and super administrators. The read-only administrator is
+        // kept out of these routes (declared first so "nueva" is never taken for an id).
+        Route::middleware('can:operate-inventory')->group(function () {
+            Route::livewire('inventario/entradas/nueva', CreateEntry::class)->name('entries.create');
+            Route::livewire('inventario/salidas/nueva', CreateExit::class)->name('exits.create');
+            Route::livewire('inventario/transferencias/nueva', CreateTransfer::class)->name('transfers.create');
         });
-    });
 
-    // Incidents: super administrators resolve them; administrators and managers (within their scope) only look.
-    Route::livewire('administracion/incidencias', Incidents::class)->name('admin.incidents')->middleware('can:view-incidents');
+        // Transfers: operated by warehouse users and super administrators; the read-only administrator can only list them.
+        Route::livewire('inventario/transferencias', Transfers::class)->name('transfers.index')->can('viewAny', Transfer::class);
+        Route::livewire('inventario/transferencias/{transfer}', TransferDetail::class)->name('transfers.show');
+        Route::get('inventario/transferencias/{transfer}/ticket', [TicketController::class, 'transfer'])->name('transfers.ticket');
+        Route::get('inventario/transferencias/{transfer}/descargar/{format}', [RecordExportController::class, 'transfer'])->whereIn('format', ['pdf', 'xlsx'])->name('transfers.export');
 
-    // Reports: super administrators, and managers limited to their branches and chambers.
-    Route::middleware('can:view-reports')->prefix('reportes')->group(function () {
-        Route::livewire('inventario', InventoryReport::class)->name('reports.inventory');
-        Route::livewire('entradas', EntriesReport::class)->name('reports.entries');
-        Route::livewire('salidas', ExitsReport::class)->name('reports.exits');
-        Route::livewire('movimientos', MovementsReport::class)->name('reports.movements');
-        Route::livewire('existencias-bajas', LowStock::class)->name('reports.low-stock');
+        Route::livewire('inventario/entradas/solicitudes', EntryRequests::class)->name('entry-requests.index');
+        Route::livewire('inventario/entradas', Entries::class)->name('entries.index');
+        Route::livewire('inventario/entradas/{entry}', EntryDetail::class)->name('entries.show');
+        Route::get('inventario/entradas/{entry}/descargar/{format}', [RecordExportController::class, 'entry'])->whereIn('format', ['pdf', 'xlsx'])->name('entries.export');
+        Route::get('inventario/entradas/{entry}/ticket', [TicketController::class, 'entry'])->name('entries.ticket');
+        Route::get('inventario/salidas/{exit}/ticket', [TicketController::class, 'exit'])->name('exits.ticket');
+        Route::livewire('inventario/salidas', Exits::class)->name('exits.index');
+        Route::livewire('inventario/salidas/{exit}', ExitDetail::class)->name('exits.show');
+        Route::get('inventario/salidas/{exit}/descargar/{format}', [RecordExportController::class, 'exit'])->whereIn('format', ['pdf', 'xlsx'])->name('exits.export');
+
+        // Products: warehouse users can also open them to register new ones; administrators only look.
+        Route::livewire('administracion/productos', Products::class)->name('admin.products')->middleware('can:view-products');
+
+        // Catalogs: super administrators manage them, administrators can only look at them.
+        Route::middleware('can:view-catalogs')->prefix('administracion')->group(function () {
+            Route::livewire('sucursales', Branches::class)->name('admin.branches')->middleware('can:view-branches');
+            Route::livewire('camaras', Chambers::class)->name('admin.chambers');
+            Route::livewire('categorias', Categories::class)->name('admin.categories');
+        });
+
+        // Super administrators only.
+        Route::middleware('super-admin')->group(function () {
+            Route::prefix('administracion')->group(function () {
+                Route::livewire('usuarios', Users::class)->name('admin.users');
+                Route::livewire('ajustes', Adjustments::class)->name('admin.adjustments');
+                Route::livewire('auditoria', AuditLogs::class)->name('admin.audit');
+            });
+        });
+
+        // Incidents: super administrators resolve them; administrators and managers (within their scope) only look.
+        Route::livewire('administracion/incidencias', Incidents::class)->name('admin.incidents')->middleware('can:view-incidents');
+
+        // Reports: super administrators, and managers limited to their branches and chambers.
+        Route::middleware('can:view-reports')->prefix('reportes')->group(function () {
+            Route::livewire('inventario', InventoryReport::class)->name('reports.inventory');
+            Route::livewire('entradas', EntriesReport::class)->name('reports.entries');
+            Route::livewire('salidas', ExitsReport::class)->name('reports.exits');
+            Route::livewire('movimientos', MovementsReport::class)->name('reports.movements');
+            Route::livewire('existencias-bajas', LowStock::class)->name('reports.low-stock');
+        });
     });
 });
 
