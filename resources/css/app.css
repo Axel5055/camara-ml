@@ -64,3 +64,15 @@ select:focus[data-flux-control] {
 /* \[:where(&)\]:size-4 {
     @apply size-4;
 } */
+
+/* Tablas con scroll horizontal que se pueden arrastrar con el mouse (resources/js/app.js) */
+ui-table-scroll-area.drag-scroll,
+.overflow-x-auto.drag-scroll {
+    cursor: grab;
+}
+
+ui-table-scroll-area.drag-scrolling,
+.overflow-x-auto.drag-scrolling {
+    cursor: grabbing;
+    user-select: none;
+}
