@@ -154,6 +154,10 @@ class User extends Authenticatable implements MustVerifyEmail, PasskeyUser
      */
     public function canRequestFrom(Chamber $chamber): bool
     {
+        if ($this->isSuperAdmin()) {
+            return true;
+        }
+
         return $this->is_active
             && $this->role === UserRole::Requester
             && $this->chambers()->whereKey($chamber->getKey())->exists();

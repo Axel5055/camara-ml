@@ -71,8 +71,13 @@ class Chamber extends Model
      */
     public function scopeRequestableBy(Builder $query, User $user): void
     {
-        $query->where('is_active', true)
-            ->whereIn('id', $user->role === UserRole::Requester ? $user->chambers()->select('chambers.id') : []);
+        $query->where('is_active', true);
+
+        if ($user->isSuperAdmin()) {
+            return;
+        }
+
+        $query->whereIn('id', $user->role === UserRole::Requester ? $user->chambers()->select('chambers.id') : []);
     }
 
     /**

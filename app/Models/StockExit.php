@@ -106,4 +106,14 @@ class StockExit extends Model
     {
         return $this->hasOne(Transfer::class, 'exit_id');
     }
+
+    /**
+     * The branch request this exit was registered from; null when the warehouse user registered it directly.
+     *
+     * @return HasOne<ExitRequest, $this>
+     */
+    public function exitRequest(): HasOne
+    {
+        return $this->hasOne(ExitRequest::class, 'exit_id');
+    }
 }

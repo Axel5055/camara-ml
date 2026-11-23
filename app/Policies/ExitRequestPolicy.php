@@ -32,10 +32,15 @@ class ExitRequestPolicy
     }
 
     /**
-     * Asking a chamber for product: requesters, for the chambers assigned to them.
+     * Asking a chamber for product: requesters, for the chambers assigned to them, and super administrators for
+     * any chamber on behalf of a branch.
      */
     public function create(User $user, ?Chamber $chamber = null): bool
     {
+        if ($user->isSuperAdmin()) {
+            return $chamber !== null;
+        }
+
         return $user->role === UserRole::Requester
             && $user->branch_id !== null
             && $chamber !== null
@@ -56,10 +61,11 @@ class ExitRequestPolicy
     }
 
     /**
-     * Requesters can withdraw their own request while it is still pending.
+     * Whoever made a request (a requester, or a super administrator on behalf of a branch) can withdraw it while
+     * it is still pending.
      */
     public function cancel(User $user, ExitRequest $request): bool
     {
-        return $request->isPending() && $request->user_id === $user->id && $user->role === UserRole::Requester;
+        return $request->isPending() && $request->user_id === $user->id;
     }
 }

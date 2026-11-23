@@ -8,7 +8,10 @@ use App\Exceptions\InventoryException;
 use App\Livewire\Admin\Users;
 use App\Livewire\Dashboard;
 use App\Livewire\Inventory\CreateExitRequest;
+use App\Livewire\Inventory\ExitDetail;
 use App\Livewire\Inventory\ExitRequests;
+use App\Livewire\Inventory\ExitRequestSummaryPrint;
+use App\Livewire\Inventory\Exits;
 use App\Livewire\NotificationsBell;
 use App\Models\AuditLog;
 use App\Models\Box;
@@ -19,6 +22,7 @@ use App\Models\Product;
 use App\Models\StockExit;
 use App\Models\User;
 use App\Services\Inventory\RegisterEntry;
+use App\Services\Inventory\RegisterExit;
 use App\Services\Inventory\RequestExit;
 use App\Services\Inventory\ReviewExitRequest;
 use Illuminate\Auth\Access\AuthorizationException;
@@ -111,11 +115,15 @@ it('keeps requesters from asking a chamber that was not assigned to them', funct
     expect(ExitRequest::query()->count())->toBe(0);
 });
 
-it('only lets requesters ask, never other roles', function () {
+it('only lets requesters and super administrators ask, never other roles', function () {
     $w = exitRequestWorld();
 
-    foreach (['warehouse', 'super'] as $who) {
+    foreach (['warehouse', 'otherWarehouse'] as $who) {
         expect(fn () => askForBoxes($w, 1, $w[$who]))->toThrow(AuthorizationException::class);
+    }
+
+    foreach ([User::factory()->admin()->create(), User::factory()->manager()->create()] as $reader) {
+        expect(fn () => askForBoxes($w, 1, $reader))->toThrow(AuthorizationException::class);
     }
 
     $this->actingAs($w['warehouse'])->get(route('exit-requests.create'))->assertForbidden();
@@ -447,4 +455,129 @@ it('lets the user skip the ticket after authorizing and keeps requesters from pr
         ->set('printExitId', StockExit::query()->value('id'))
         ->call('printTicket')
         ->assertNotDispatched('print-ticket');
+});
+
+it('tells apart in the exits list and the detail the exits authorized from a request and the direct ones', function () {
+    $w = exitRequestWorld();
+    $request = askForBoxes($w, 2);
+    $boxIds = Box::query()->orderBy('id')->pluck('id')->all();
+
+    $fromRequest = app(ReviewExitRequest::class)->approve($w['warehouse'], $request, [$w['product']->id => array_slice($boxIds, 0, 2)]);
+    $direct = app(RegisterExit::class)->handle($w['warehouse'], $w['chamber'], $w['sur'], null, 'Luis', [$boxIds[2]]);
+
+    expect($fromRequest->exitRequest->is($request))->toBeTrue()->and($direct->exitRequest)->toBeNull();
+
+    Livewire::actingAs($w['warehouse'])->test(Exits::class)
+        ->assertSee('Por solicitud · '.$request->reference())
+        ->assertSee('Directa')
+        ->set('origin', 'request')->assertSee($fromRequest->reference)->assertDontSee($direct->reference)
+        ->set('origin', 'direct')->assertSee($direct->reference)->assertDontSee($fromRequest->reference)
+        ->call('clearFilters')->assertSet('origin', 'all');
+
+    Livewire::actingAs($w['warehouse'])->test(ExitDetail::class, ['exit' => $fromRequest])->assertSee('Por solicitud · '.$request->reference());
+    Livewire::actingAs($w['warehouse'])->test(ExitDetail::class, ['exit' => $direct])->assertSee('Directa del almacenista');
+});
+
+it('prints one summary ticket adding up only what was authorized from requests, within the dates and chambers of whoever prints it', function () {
+    $w = exitRequestWorld();
+    $request = askForBoxes($w, 2);
+    $boxIds = Box::query()->orderBy('id')->pluck('id')->all();
+
+    app(ReviewExitRequest::class)->approve($w['warehouse'], $request, [$w['product']->id => array_slice($boxIds, 0, 2)]);
+    app(RegisterExit::class)->handle($w['warehouse'], $w['chamber'], $w['sur'], null, 'Luis', [$boxIds[2]]);
+
+    $today = now()->toDateString();
+    $url = fn (array $query = []) => route('exit-requests.summary-ticket', ['desde' => $today, 'hasta' => $today, ...$query]);
+
+    $this->actingAs($w['warehouse'])->get($url())->assertOk()
+        ->assertSee('CONCENTRADO DE SOLICITUDES DE SALIDAS')->assertSee('SUCURSAL: Sur')->assertSee('POLLO')->assertSee('2 cajas')->assertSee('20.000 kg')->assertDontSee('3 cajas')->assertDontSee('Subtotal');
+
+    $norte = Branch::factory()->create(['name' => 'Norte']);
+    $norteRequester = User::factory()->requester($norte)->create();
+    $norteRequester->chambers()->attach($w['chamber']);
+    $norteRequest = askForBoxes($w, 1, $norteRequester);
+    app(ReviewExitRequest::class)->approve($w['warehouse'], $norteRequest, [$w['product']->id => [$boxIds[3]]]);
+
+    $this->actingAs($w['warehouse'])->get($url())->assertOk()
+        ->assertSeeInOrder(['SUCURSAL: Norte', '1 caja', 'SUCURSAL: Sur', '2 cajas'])->assertSee('Subtotal 1 caja')->assertSee('Subtotal 2 cajas')->assertSee('30.000 kg');
+
+    $this->actingAs($w['warehouse'])->get($url(['sucursal' => $norte->id]))->assertOk()
+        ->assertSee('SUCURSAL: Norte')->assertDontSee('SUCURSAL: Sur')->assertDontSee('Subtotal')->assertSee('10.000 kg');
+    $this->actingAs($w['super'])->get($url(['camara' => $w['chamber']->id, 'sucursal' => $w['sur']->id]))->assertOk()
+        ->assertSee('SUCURSAL: Sur')->assertDontSee('SUCURSAL: Norte')->assertSee('20.000 kg');
+    $this->actingAs($w['super'])->get($url(['sucursal' => 999999]))->assertSessionHasErrors('sucursal');
+
+    $this->actingAs($w['super'])->get($url())->assertOk()->assertSee('2 cajas');
+
+    $manager = User::factory()->manager()->create();
+    $manager->chambers()->attach($w['chamber']);
+    $this->actingAs($manager)->get($url())->assertOk()->assertSee('2 cajas');
+    $this->actingAs(User::factory()->manager()->create())->get($url())->assertOk()->assertSee('Sin solicitudes autorizadas');
+
+    $this->actingAs($w['warehouse'])->get($url(['desde' => now()->subDays(3)->toDateString(), 'hasta' => now()->subDay()->toDateString()]))
+        ->assertOk()->assertSee('Sin solicitudes autorizadas');
+
+    $this->actingAs($w['otherWarehouse'])->get($url())->assertOk()->assertSee('Sin solicitudes autorizadas')->assertDontSee('POLLO');
+    $this->actingAs($w['otherWarehouse'])->get($url(['camara' => $w['chamber']->id]))->assertForbidden();
+
+    $this->actingAs($w['requester'])->get($url())->assertForbidden();
+    $this->actingAs(User::factory()->admin()->create())->get($url())->assertForbidden();
+    $this->actingAs($w['warehouse'])->get(route('exit-requests.summary-ticket', ['desde' => $today, 'hasta' => now()->subDay()->toDateString()]))->assertSessionHasErrors('hasta');
+});
+
+it('asks for the dates of the summary ticket and sends it to print', function () {
+    $w = exitRequestWorld();
+
+    Livewire::actingAs($w['warehouse'])->test(ExitRequestSummaryPrint::class)
+        ->assertSet('from', now()->toDateString())->assertSet('to', now()->toDateString())
+        ->call('yesterday')->assertSet('from', now()->subDay()->toDateString())
+        ->set('to', now()->subDays(5)->toDateString())->call('print')->assertHasErrors('to')->assertNotDispatched('print-ticket')
+        ->set('from', now()->subDays(200)->toDateString())->set('to', now()->toDateString())->call('print')->assertHasErrors('to')->assertNotDispatched('print-ticket')
+        ->call('today')->set('chamberId', $w['otherChamber']->id)->call('print')->assertHasErrors('chamberId')->assertNotDispatched('print-ticket')
+        ->set('chamberId', null)->set('branchId', 999999)->call('print')->assertHasErrors('branchId')->assertNotDispatched('print-ticket')
+        ->set('branchId', $w['sur']->id)->set('ticketCopies', 2)->call('print')->assertHasNoErrors()
+        ->assertDispatched('print-ticket', url: route('exit-requests.summary-ticket', ['desde' => now()->toDateString(), 'hasta' => now()->toDateString(), 'sucursal' => $w['sur']->id, 'auto' => 1, 'copies' => 2]));
+
+    Livewire::actingAs($w['requester'])->test(ExitRequestSummaryPrint::class)->assertForbidden();
+
+    Livewire::actingAs($w['super'])->test(ExitRequests::class)->assertSeeHtml('data-test="summary-open"');
+    Livewire::actingAs($w['warehouse'])->test(Exits::class)->assertSeeHtml('data-test="summary-open"');
+    Livewire::actingAs($w['requester'])->test(ExitRequests::class)->assertDontSeeHtml('data-test="summary-open"');
+});
+
+it('lets a super administrator ask any chamber for product on behalf of a branch', function () {
+    $w = exitRequestWorld();
+
+    $component = Livewire::actingAs($w['super'])->test(CreateExitRequest::class)
+        ->assertSeeHtml('data-test="request-branch"')
+        ->assertSee($w['chamber']->name)->assertSee($w['otherChamber']->name)
+        ->set('chamberId', $w['chamber']->id)
+        ->set('productId', $w['product']->id)->set('quantity', '2')->call('addProduct')
+        ->call('save')->assertHasErrors('branchId');
+
+    expect(ExitRequest::query()->count())->toBe(0);
+
+    $component->set('branchId', $w['sur']->id)->call('save')->assertHasNoErrors()->assertRedirect(route('exit-requests.index'));
+
+    $request = ExitRequest::query()->sole();
+
+    expect($request->branch_id)->toBe($w['sur']->id)
+        ->and($request->user_id)->toBe($w['super']->id)
+        ->and($request->chamber_id)->toBe($w['chamber']->id)
+        ->and($w['super']->can('create', [ExitRequest::class, $w['otherChamber']]))->toBeTrue()
+        ->and($w['super']->can('decide', $request))->toBeFalse()
+        ->and($w['warehouse']->can('decide', $request))->toBeTrue();
+
+    expect(fn () => app(ReviewExitRequest::class)->approve($w['super'], $request, [$w['product']->id => [Box::query()->value('id')]]))->toThrow(AuthorizationException::class);
+
+    app(ReviewExitRequest::class)->approve($w['warehouse'], $request, [$w['product']->id => Box::query()->limit(2)->pluck('id')->all()]);
+
+    expect($request->fresh()->status)->toBe(ExitRequestStatus::Approved);
+
+    $another = app(RequestExit::class)->handle($w['super'], $w['otherChamber'], [['product_id' => $w['product']->id, 'boxes' => 1]], null, null, $w['sur']);
+    expect($w['super']->can('cancel', $another))->toBeTrue();
+    app(ReviewExitRequest::class)->cancel($w['super'], $another);
+    expect($another->fresh()->status)->toBe(ExitRequestStatus::Cancelled);
+
+    expect(fn () => app(RequestExit::class)->handle($w['super'], $w['chamber'], [['product_id' => $w['product']->id, 'boxes' => 1]]))->toThrow(InventoryException::class);
 });

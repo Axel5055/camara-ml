@@ -5,7 +5,7 @@
 
     <x-draft-recovery
         draft-key="exit-request"
-        :fields="['chamberId', 'notes', 'clientToken', 'lines', 'productId', 'quantity']"
+        :fields="['branchId', 'chamberId', 'notes', 'clientToken', 'lines', 'productId', 'quantity']"
         noun="solicitud"
     />
 
@@ -17,6 +17,16 @@
                 <span class="flex size-7 items-center justify-center rounded-full bg-accent/10 text-sm font-semibold text-accent-content">1</span>
                 <flux:heading size="lg">¿Qué necesitas?</flux:heading>
             </div>
+
+            @if ($isSuperAdmin)
+                <flux:select wire:model="branchId" label="Sucursal que solicita" data-test="request-branch">
+                    <flux:select.option value="">Selecciona una sucursal</flux:select.option>
+                    @foreach ($branches as $branch)
+                        <flux:select.option :value="$branch->id">{{ $branch->name }}</flux:select.option>
+                    @endforeach
+                </flux:select>
+                <flux:error name="branchId" />
+            @endif
 
             <flux:select wire:model.live="chamberId" label="Cámara a la que le pides" data-test="request-chamber">
                 <flux:select.option value="">Selecciona una cámara</flux:select.option>

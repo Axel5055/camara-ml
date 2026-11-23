@@ -3,6 +3,9 @@
         @can('request-exits')
             <flux:button variant="primary" icon="plus" :href="route('exit-requests.create')" wire:navigate data-test="request-new">Nueva solicitud</flux:button>
         @endcan
+        @can('print-exit-summary')
+            <livewire:inventory.exit-request-summary-print />
+        @endcan
     </x-page-header>
 
     @if ($flash !== '')

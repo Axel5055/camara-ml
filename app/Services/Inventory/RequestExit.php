@@ -6,6 +6,7 @@ use App\Enums\ExitRequestStatus;
 use App\Enums\UserRole;
 use App\Exceptions\InventoryException;
 use App\Models\AuditLog;
+use App\Models\Branch;
 use App\Models\Chamber;
 use App\Models\ExitRequest;
 use App\Models\Product;
@@ -25,9 +26,11 @@ class RequestExit
      *
      * @param  array<int, array{product_id: int|string, boxes: int|string}>  $lines
      */
-    public function handle(User $user, Chamber $chamber, array $lines, ?string $notes = null, ?string $clientToken = null): ExitRequest
+    public function handle(User $user, Chamber $chamber, array $lines, ?string $notes = null, ?string $clientToken = null, ?Branch $branch = null): ExitRequest
     {
-        if (! $user->is_active || $user->role !== UserRole::Requester || $user->branch_id === null) {
+        $onBehalfOfBranch = $user->isSuperAdmin();
+
+        if (! $user->is_active || (! $onBehalfOfBranch && ($user->role !== UserRole::Requester || $user->branch_id === null))) {
             throw new AuthorizationException('Solo una sucursal solicitante puede pedir producto.');
         }
 
@@ -39,7 +42,9 @@ class RequestExit
             throw new InventoryException("La cámara {$chamber->name} está inactiva.");
         }
 
-        $branch = $user->branch()->firstOrFail();
+        $branch = $onBehalfOfBranch
+            ? ($branch ?? throw new InventoryException('Elige la sucursal que solicita el producto.'))
+            : $user->branch()->firstOrFail();
 
         if (! $branch->is_active) {
             throw new InventoryException("La sucursal {$branch->name} está inactiva.");

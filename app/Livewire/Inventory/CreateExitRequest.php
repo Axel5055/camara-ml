@@ -4,6 +4,7 @@ namespace App\Livewire\Inventory;
 
 use App\Livewire\Concerns\ReportsInventoryErrors;
 use App\Models\Box;
+use App\Models\Branch;
 use App\Models\Chamber;
 use App\Models\ExitRequest;
 use App\Models\Product;
@@ -22,6 +23,9 @@ class CreateExitRequest extends Component
     use ReportsInventoryErrors;
 
     public ?int $chamberId = null;
+
+    /** Only a super administrator chooses it: the branch the request is made for. A requester always asks for their own. */
+    public ?int $branchId = null;
 
     public string $notes = '';
 
@@ -55,6 +59,18 @@ class CreateExitRequest extends Component
     private function chambers(): Collection
     {
         return Chamber::query()->requestableBy(Auth::user())->with('branch')->orderBy('name')->get();
+    }
+
+    /**
+     * Active branches a super administrator may make the request for; none for a requester.
+     *
+     * @return Collection<int, Branch>
+     */
+    private function branches(): Collection
+    {
+        return Auth::user()->isSuperAdmin()
+            ? Branch::query()->where('is_active', true)->orderBy('name')->get()
+            : new Collection;
     }
 
     /**
@@ -119,22 +135,33 @@ class CreateExitRequest extends Component
     {
         $this->resetErrorBag();
 
+        $isSuperAdmin = Auth::user()->isSuperAdmin();
+
         $this->validate([
+            'branchId' => [$isSuperAdmin ? 'required' : 'nullable', 'integer'],
             'chamberId' => ['required', 'integer'],
             'notes' => ['nullable', 'string', 'max:500'],
-        ], attributes: ['chamberId' => 'cámara', 'notes' => 'comentario']);
+        ], attributes: ['branchId' => 'sucursal', 'chamberId' => 'cámara', 'notes' => 'comentario']);
 
         $chamber = Chamber::query()->findOrFail($this->chamberId);
         Gate::authorize('create', [ExitRequest::class, $chamber]);
+        $branch = $isSuperAdmin ? $this->branches()->firstWhere('id', $this->branchId) : null;
+
+        if ($isSuperAdmin && $branch === null) {
+            $this->addError('branchId', 'Elige una sucursal de la lista.');
+
+            return;
+        }
 
         $request = null;
-        $done = $this->attempt(function () use ($requestExit, $chamber, &$request): void {
+        $done = $this->attempt(function () use ($requestExit, $chamber, $branch, &$request): void {
             $request = $requestExit->handle(
                 Auth::user(),
                 $chamber,
                 array_map(fn (array $line): array => ['product_id' => $line['product_id'], 'boxes' => $line['boxes']], $this->lines),
                 $this->notes,
                 $this->clientToken,
+                $branch,
             );
         });
 
@@ -158,6 +185,12 @@ class CreateExitRequest extends Component
 
         if ($chamberId !== null && $this->chambers()->contains('id', $chamberId)) {
             $this->chamberId = $chamberId;
+        }
+
+        $branchId = is_numeric($draft['branchId'] ?? null) ? (int) $draft['branchId'] : null;
+
+        if ($branchId !== null && $this->branches()->contains('id', $branchId)) {
+            $this->branchId = $branchId;
         }
 
         $this->notes = is_string($draft['notes'] ?? null) ? mb_substr($draft['notes'], 0, 500) : '';
@@ -200,6 +233,8 @@ class CreateExitRequest extends Component
 
         return view('livewire.inventory.create-exit-request', [
             'chambers' => $this->chambers(),
+            'branches' => $this->branches(),
+            'isSuperAdmin' => Auth::user()->isSuperAdmin(),
             'products' => $this->products(),
             'available' => $available,
             'totalBoxes' => array_sum(array_column($this->lines, 'boxes')),

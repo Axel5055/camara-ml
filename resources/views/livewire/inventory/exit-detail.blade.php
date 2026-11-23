@@ -85,7 +85,17 @@
             </div>
             <div class="flex items-start gap-3">
                 <flux:icon name="hand-raised" class="mt-0.5 size-5 text-zinc-400" />
-                <div><div class="text-xs uppercase tracking-wide text-zinc-500">Solicitante</div><div class="font-medium">{{ $stockExit->requester_name }}</div></div>
+                <div>
+                    <div class="text-xs uppercase tracking-wide text-zinc-500">Solicitante</div>
+                    <div class="font-medium">{{ $stockExit->requester_name }}</div>
+                    <div class="mt-1" data-test="exit-origin">
+                        @if ($stockExit->exitRequest)
+                            <flux:badge size="sm" color="sky" icon="clipboard-document-check">Por solicitud · {{ $stockExit->exitRequest->reference() }}</flux:badge>
+                        @else
+                            <flux:badge size="sm" color="zinc" icon="hand-raised">Directa del almacenista</flux:badge>
+                        @endif
+                    </div>
+                </div>
             </div>
             <div class="flex items-start gap-3">
                 <flux:icon name="user" class="mt-0.5 size-5 text-zinc-400" />
