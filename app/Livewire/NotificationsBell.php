@@ -123,6 +123,7 @@ class NotificationsBell extends Component
             'exitRequestsToAttend' => $exitRequestsToAttend,
             'requests' => $requests,
             'requestsToAttend' => $requestsToAttend,
+            'pendingCount' => $exitRequestsToAttend + $requestsToAttend + $transfers->count(),
             'items' => $low,
             'transfers' => $transfers,
             'chamberIds' => $chamberIds,

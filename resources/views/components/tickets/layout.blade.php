@@ -9,17 +9,17 @@
     <style>
         @page { size: 72mm auto; margin: 0; }
         * { box-sizing: border-box; }
-        body { margin: 0; padding: 3mm; width: 72mm; font: bold 13px/1.35 Arial, "Helvetica Neue", Helvetica, sans-serif; color: #000; background: #fff; -webkit-font-smoothing: none; text-rendering: geometricPrecision; }
+        body { margin: 0; padding: 2mm 3mm; width: 72mm; font: normal 10px/1.2 Tahoma, Verdana, Arial, sans-serif; color: #000; background: #fff; -webkit-font-smoothing: none; text-rendering: geometricPrecision; }
         .center { text-align: center; }
-        .title { font-size: 17px; font-weight: 900; }
-        .logo { display: block; width: 23mm; height: auto; margin: 0 auto 2mm; }
-        .rule { border: 0; border-top: 1px dashed #000; margin: 2mm 0; }
+        .title { font-size: 13px; font-weight: bold; }
+        .logo { display: block; width: 20mm; height: auto; margin: 0 auto 1mm; }
+        .rule { border: 0; border-top: 1px dashed #000; margin: 1.5mm 0; }
         .row { display: flex; justify-content: space-between; gap: 2mm; }
         .row span:last-child { text-align: right; }
-        .group { margin-bottom: 1.5mm; }
-        .name { font-size: 14px; font-weight: 900; word-break: break-word; }
-        .total { font-size: 16px; font-weight: 900; }
-        .small { font-size: 11px; }
+        .group { margin-bottom: 1mm; }
+        .name { font-size: 11px; font-weight: bold; word-break: break-word; }
+        .total { font-size: 12px; font-weight: bold; }
+        .small { font-size: 9px; }
         .actions { margin-top: 4mm; text-align: center; }
         @media print { .actions { display: none; } }
     </style>

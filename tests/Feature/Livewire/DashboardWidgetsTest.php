@@ -569,12 +569,12 @@ it('notifies the destination of incoming transfers and the origin of its pending
     $reference = $exit->transfer->reference;
 
     Livewire::actingAs($w['norteUser'])->test(NotificationsBell::class)
-        ->assertSee($reference)->assertSee('Centro te envió 2 cajas')->assertSee('Por recibir')->assertSeeHtml('data-test="bell-tab-transfers"');
+        ->assertSee($reference)->assertSee('Centro te envió 2 cajas')->assertSee('Por recibir')->assertSeeHtml('data-test="bell-transfers"');
 
     Livewire::actingAs($w['centroUser'])->test(NotificationsBell::class)
         ->assertSee('Enviaste 2 cajas a Norte')->assertSee('Esperando recepción');
 
-    $superAdmin = Livewire::actingAs($w['admin'])->test(NotificationsBell::class)->assertDontSeeHtml('data-test="bell-tab-transfers"');
+    $superAdmin = Livewire::actingAs($w['admin'])->test(NotificationsBell::class)->assertDontSeeHtml('data-test="bell-transfers"');
     expect($superAdmin->viewData('transfers'))->toHaveCount(0);
 
     app(ReceiveTransfer::class)->handle($w['norteUser'], $exit->transfer, $exit->transfer->items()->pluck('box_id')->all());
