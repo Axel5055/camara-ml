@@ -114,7 +114,7 @@ class ExitRequestSummaryPrint extends Component
             'chambers' => $this->accessibleChambers(),
             'branches' => Branch::query()->where('is_active', true)->orderBy('name')->get(['id', 'name']),
             'requesters' => User::query()
-                ->whereIn('id', ExitRequest::query()->whereNotNull('exit_id')
+                ->whereIn('id', ExitRequest::query()->whereNotNull('exit_id')->whereNull('validated_at')
                     ->whereIn('chamber_id', Chamber::query()->accessibleBy(auth()->user())->select('chambers.id'))
                     ->select('user_id'))
                 ->orderBy('name')->get(['id', 'name']),

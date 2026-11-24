@@ -58,7 +58,9 @@
                         </flux:sidebar.item>
                         <div x-show="open" x-collapse class="ms-5 mt-0.5 grid gap-0.5 border-s border-zinc-700 ps-2">
                             <flux:sidebar.item icon="list-bullet" :href="route('exits.index')" :current="request()->routeIs('exits.index', 'exits.requested', 'exits.show')" wire:navigate>Todas las salidas</flux:sidebar.item>
-                            <flux:sidebar.item icon="clipboard-document-list" :href="route('exit-requests.index')" :current="request()->routeIs('exit-requests.index')" :badge="$pendingExitRequests > 0 ? $pendingExitRequests : null" badge-color="amber" wire:navigate data-test="nav-exit-requests">Solicitudes</flux:sidebar.item>
+                            @can('viewAny', \App\Models\ExitRequest::class)
+                                <flux:sidebar.item icon="clipboard-document-list" :href="route('exit-requests.index')" :current="request()->routeIs('exit-requests.index')" :badge="$pendingExitRequests > 0 ? $pendingExitRequests : null" badge-color="amber" wire:navigate data-test="nav-exit-requests">Solicitudes</flux:sidebar.item>
+                            @endcan
                             @can('operate-inventory')
                                 <flux:sidebar.item icon="plus-circle" :href="route('exits.create')" :current="request()->routeIs('exits.create')" wire:navigate>Nueva salida</flux:sidebar.item>
                             @endcan

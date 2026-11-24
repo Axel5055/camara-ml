@@ -67,8 +67,16 @@
                             @if ($item->decider)
                                 <div class="mt-1 text-xs text-zinc-500">{{ $item->decider->name }}</div>
                             @endif
+                            @if ($item->awaitsValidation())
+                                <div class="mt-1 text-xs font-medium text-amber-700 dark:text-amber-300" data-test="request-awaits-validation">Por validar</div>
+                            @elseif ($item->validated_at)
+                                <div class="mt-1 text-xs font-medium text-emerald-700 dark:text-emerald-300" data-test="request-validated">Validada</div>
+                            @endif
                         </flux:table.cell>
                         <flux:table.cell align="end" class="whitespace-nowrap">
+                            @can('validate', $item)
+                                <flux:button size="sm" variant="primary" icon="check-badge" wire:click="validateRequest({{ $item->id }})" wire:confirm="¿Validar esta solicitud? Su salida pasará a Salidas directas y dejará de contar en el ticket de solicitudes." data-test="request-validate">Validar</flux:button>
+                            @endcan
                             @can('cancel', $item)
                                 <flux:button size="sm" variant="ghost" wire:click="cancelRequest({{ $item->id }})" wire:confirm="¿Cancelar esta solicitud de salida?" data-test="request-cancel">Cancelar</flux:button>
                             @endcan
@@ -121,6 +129,9 @@
                     @if ($viewing->decision_notes)
                         <div class="px-3 py-2" data-test="request-decision-notes"><dt class="text-zinc-500">{{ $viewing->status === \App\Enums\ExitRequestStatus::Rejected ? 'Motivo del rechazo' : 'Comentario de quien resolvió' }}</dt><dd class="mt-1 whitespace-pre-line">{{ $viewing->decision_notes }}</dd></div>
                     @endif
+                    @if ($viewing->validated_at)
+                        <div class="flex justify-between gap-4 px-3 py-2" data-test="request-validated-by"><dt class="text-zinc-500">Validada por</dt><dd class="text-right font-medium">{{ $viewing->validator?->name }} · {{ $viewing->validated_at->format('d/m/Y H:i') }}</dd></div>
+                    @endif
                     @if ($viewing->exit)
                         <div class="flex justify-between gap-4 px-3 py-2"><dt class="text-zinc-500">Salida generada</dt><dd class="font-mono font-medium">{{ $viewing->exit->reference }}</dd></div>
                     @endif
@@ -149,6 +160,15 @@
                 </div>
 
                 <flux:error name="operation" />
+
+                @if ($printExitId === null)
+                    @can('validate', $viewing)
+                        <div class="flex flex-col gap-3 rounded-xl border border-amber-300 bg-amber-50 p-4 sm:flex-row sm:items-center sm:justify-between dark:border-amber-500/40 dark:bg-amber-500/10" data-test="request-validate-step">
+                            <p class="text-sm text-zinc-700 dark:text-zinc-200">Al validarla, su salida pasa a <span class="font-medium">Salidas directas</span> y deja de contar en el ticket de solicitudes.</p>
+                            <flux:button variant="primary" icon="check-badge" wire:click="validateRequest({{ $viewing->id }})" wire:confirm="¿Validar esta solicitud?" wire:loading.attr="disabled" wire:target="validateRequest" class="w-full sm:w-auto" data-test="request-validate-detail">Validar</flux:button>
+                        </div>
+                    @endcan
+                @endif
 
                 @if ($printExitId !== null && $viewing->exit)
                     <div class="space-y-5 rounded-xl border border-emerald-300 bg-emerald-50 p-5 text-center dark:border-emerald-500/40 dark:bg-emerald-500/10" data-test="request-print-step">

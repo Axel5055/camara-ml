@@ -97,7 +97,7 @@ class TicketController extends Controller
         $to = Carbon::parse($data['hasta'])->endOfDay();
 
         $exits = fn () => DB::table('exits')
-            ->whereIn('exits.id', ExitRequest::query()->whereNotNull('exit_id')
+            ->whereIn('exits.id', ExitRequest::query()->whereNotNull('exit_id')->whereNull('validated_at')
                 ->when(isset($data['solicitante']), fn ($query) => $query->where('user_id', (int) $data['solicitante']))
                 ->select('exit_id'))
             ->where('exits.status', DocumentStatus::Confirmed->value)

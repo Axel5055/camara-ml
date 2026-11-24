@@ -2,6 +2,7 @@
 
 namespace App\Services\Inventory;
 
+use App\Enums\DocumentStatus;
 use App\Enums\ExitRequestStatus;
 use App\Exceptions\InventoryException;
 use App\Models\AuditLog;
@@ -99,6 +100,42 @@ class ReviewExitRequest
         }
 
         return $this->close($request, ExitRequestStatus::Cancelled, null, null, 'exit_request.cancelled', $user);
+    }
+
+    /**
+     * The warehouse user of the chamber (or a super administrator) checks an authorized request: its exit stops
+     * being listed under "Salidas por solicitud" and becomes one more direct exit. Nothing moves in the stock.
+     */
+    public function validate(User $user, ExitRequest $request): ExitRequest
+    {
+        if (! $user->canAccessChamber($request->chamber)) {
+            throw new AuthorizationException('Solo el almacenista de la cámara o un super administrador puede validar solicitudes de salida.');
+        }
+
+        return DB::transaction(function () use ($user, $request): ExitRequest {
+            $locked = ExitRequest::query()->whereKey($request->id)->lockForUpdate()->firstOrFail();
+
+            if ($locked->validated_at !== null) {
+                throw new InventoryException('Esta solicitud ya fue validada.');
+            }
+
+            if (! $locked->awaitsValidation()) {
+                throw new InventoryException('Solo se pueden validar solicitudes autorizadas.');
+            }
+
+            if ($locked->exit()->firstOrFail()->status !== DocumentStatus::Confirmed) {
+                throw new InventoryException('La salida de esta solicitud fue revertida y ya no se puede validar.');
+            }
+
+            $locked->update(['validated_at' => now(), 'validated_by' => $user->id]);
+
+            AuditLog::record($user, 'exit_request.validated', $locked, null, [
+                'reference' => $locked->reference(),
+                'exit_id' => $locked->exit_id,
+            ]);
+
+            return $locked;
+        });
     }
 
     private function assertMayDecide(User $reviewer, ExitRequest $request): void

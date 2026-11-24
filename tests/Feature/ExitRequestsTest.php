@@ -24,6 +24,7 @@ use App\Models\User;
 use App\Services\Inventory\RegisterEntry;
 use App\Services\Inventory\RegisterExit;
 use App\Services\Inventory\RequestExit;
+use App\Services\Inventory\ReverseExit;
 use App\Services\Inventory\ReviewExitRequest;
 use Illuminate\Auth\Access\AuthorizationException;
 use Livewire\Livewire;
@@ -307,23 +308,26 @@ it('lets the requester cancel their pending request and nobody else', function (
         ->and(AuditLog::query()->where('event', 'exit_request.cancelled')->exists())->toBeTrue();
 });
 
-it('lets administrators and scoped managers read the requests without deciding them', function () {
+it('lets administrators read the requests without deciding them and hides them from managers', function () {
     $w = exitRequestWorld();
     $request = askForBoxes($w);
     $admin = User::factory()->admin()->create();
     $managerIn = User::factory()->manager()->create();
     $managerIn->managedBranches()->attach($w['centro']);
-    $managerOut = User::factory()->manager()->create();
 
     Livewire::actingAs($admin)->test(ExitRequests::class)->assertSee($request->reference());
-    Livewire::actingAs($managerIn)->test(ExitRequests::class)->assertSee($request->reference());
-    Livewire::actingAs($managerOut)->test(ExitRequests::class)->assertDontSee($request->reference());
 
     expect($admin->can('view', $request))->toBeTrue()
-        ->and($managerIn->can('view', $request))->toBeTrue()
-        ->and($managerOut->can('view', $request))->toBeFalse()
         ->and($admin->can('decide', $request))->toBeFalse()
-        ->and($managerIn->can('decide', $request))->toBeFalse();
+        ->and($managerIn->can('view', $request))->toBeFalse()
+        ->and($managerIn->can('viewAny', ExitRequest::class))->toBeFalse()
+        ->and($managerIn->can('decide', $request))->toBeFalse()
+        ->and(ExitRequest::query()->visibleTo($managerIn)->count())->toBe(0);
+
+    $this->actingAs($managerIn)->get(route('exit-requests.index'))->assertForbidden();
+    $this->actingAs($managerIn)->get(route('exits.requested'))->assertForbidden();
+    $this->actingAs($managerIn)->get(route('exits.index'))->assertOk()
+        ->assertDontSeeHtml('data-test="exits-tab-requested"')->assertDontSeeHtml('data-test="nav-exit-requests"');
 });
 
 it('keeps the warehouse users of other chambers from seeing the request', function () {
@@ -535,8 +539,7 @@ it('prints one summary ticket adding up only what was authorized from requests, 
 
     $manager = User::factory()->manager()->create();
     $manager->chambers()->attach($w['chamber']);
-    $this->actingAs($manager)->get($url())->assertOk()->assertSee('2 cajas');
-    $this->actingAs(User::factory()->manager()->create())->get($url())->assertOk()->assertSee('Sin solicitudes autorizadas');
+    $this->actingAs($manager)->get($url())->assertForbidden();
 
     $this->actingAs($w['warehouse'])->get($url(['desde' => now()->subDays(3)->toDateString(), 'hasta' => now()->subDay()->toDateString()]))
         ->assertOk()->assertSee('Sin solicitudes autorizadas');
@@ -634,4 +637,85 @@ it('only offers products with boxes in the chamber being asked when requesting a
 
     $super->set('chamberId', $w['otherChamber']->id);
     expect($super->instance()->render()->getData()['products']->pluck('id')->all())->toBe([$inOtherChamber->id]);
+});
+
+it('lets the warehouse user validate an authorized request so its exit moves to the direct ones', function () {
+    $w = exitRequestWorld();
+    $request = askForBoxes($w, 2);
+    $boxIds = Box::query()->orderBy('id')->pluck('id')->all();
+    $exit = app(ReviewExitRequest::class)->approve($w['warehouse'], $request, [$w['product']->id => array_slice($boxIds, 0, 2)]);
+    $today = now()->toDateString();
+
+    expect($request->fresh()->awaitsValidation())->toBeTrue()
+        ->and($w['warehouse']->can('validate', $request->fresh()))->toBeTrue()
+        ->and($w['super']->can('validate', $request->fresh()))->toBeTrue();
+
+    foreach (['otherWarehouse' => $w['otherWarehouse'], 'requester' => $w['requester'], 'admin' => User::factory()->admin()->create(), 'manager' => User::factory()->manager()->create()] as $who) {
+        expect($who->can('validate', $request->fresh()))->toBeFalse();
+    }
+
+    Livewire::actingAs($w['warehouse'])->test(Exits::class, ['source' => 'requested'])->assertSee($exit->reference);
+    Livewire::actingAs($w['warehouse'])->test(Exits::class)->assertDontSee($exit->reference);
+
+    Livewire::actingAs($w['otherWarehouse'])->test(ExitRequests::class)->call('validateRequest', $request->id)->assertNotFound();
+    expect($request->fresh()->validated_at)->toBeNull();
+
+    Livewire::actingAs($w['warehouse'])->test(ExitRequests::class)->set('status', 'approved')
+        ->assertSeeHtml('data-test="request-validate"')->assertSeeHtml('data-test="request-awaits-validation"')
+        ->call('validateRequest', $request->id)->assertHasNoErrors();
+
+    $request->refresh();
+
+    expect($request->validated_at)->not->toBeNull()->and($request->validated_by)->toBe($w['warehouse']->id)
+        ->and($request->awaitsValidation())->toBeFalse()
+        ->and($request->exit_id)->toBe($exit->id)
+        ->and($w['warehouse']->can('validate', $request))->toBeFalse()
+        ->and(AuditLog::query()->where('event', 'exit_request.validated')->count())->toBe(1);
+
+    Livewire::actingAs($w['warehouse'])->test(Exits::class)->assertSee($exit->reference);
+    Livewire::actingAs($w['warehouse'])->test(Exits::class, ['source' => 'requested'])->assertDontSee($exit->reference);
+    Livewire::actingAs($w['warehouse'])->test(ExitDetail::class, ['exit' => $exit])->assertSee('Directa · validada de '.$request->reference());
+    Livewire::actingAs($w['warehouse'])->test(ExitRequests::class)->set('status', 'approved')
+        ->assertSeeHtml('data-test="request-validated"')->assertDontSeeHtml('data-test="request-validate"');
+
+    $this->actingAs($w['warehouse'])->get(route('exit-requests.summary-ticket', ['desde' => $today, 'hasta' => $today]))->assertOk()->assertSee('Sin solicitudes autorizadas');
+
+    expect(fn () => app(ReviewExitRequest::class)->validate($w['warehouse'], $request->fresh()))->toThrow(InventoryException::class);
+});
+
+it('does not validate pending requests or requests whose exit was reversed', function () {
+    $w = exitRequestWorld();
+    $pending = askForBoxes($w, 1);
+    $boxIds = Box::query()->orderBy('id')->pluck('id')->all();
+
+    expect($w['warehouse']->can('validate', $pending))->toBeFalse()
+        ->and(fn () => app(ReviewExitRequest::class)->validate($w['warehouse'], $pending))->toThrow(InventoryException::class);
+
+    $exit = app(ReviewExitRequest::class)->approve($w['warehouse'], $pending, [$w['product']->id => [$boxIds[0]]]);
+    app(ReverseExit::class)->handle($w['super'], $exit, 'Se devolvió la mercancía');
+
+    expect(fn () => app(ReviewExitRequest::class)->validate($w['warehouse'], $pending->fresh()))->toThrow(InventoryException::class)
+        ->and($pending->fresh()->validated_at)->toBeNull();
+
+    expect(fn () => app(ReviewExitRequest::class)->validate($w['requester'], $pending->fresh()))->toThrow(AuthorizationException::class);
+});
+
+it('confirms an exit from the "Por solicitud" table so it moves to the direct ones', function () {
+    $w = exitRequestWorld();
+    $request = askForBoxes($w, 2);
+    $boxIds = Box::query()->orderBy('id')->pluck('id')->all();
+    $exit = app(ReviewExitRequest::class)->approve($w['warehouse'], $request, [$w['product']->id => array_slice($boxIds, 0, 2)]);
+
+    Livewire::actingAs($w['warehouse'])->test(Exits::class)->assertDontSee($exit->reference);
+
+    Livewire::actingAs($w['otherWarehouse'])->test(Exits::class, ['source' => 'requested'])->call('askToConfirm', $exit->id)->assertNotFound();
+
+    Livewire::actingAs($w['warehouse'])->test(Exits::class, ['source' => 'requested'])
+        ->assertSeeHtml('data-test="exit-confirm"')
+        ->call('askToConfirm', $exit->id)->assertSet('confirmingId', $exit->id)
+        ->call('confirmRequested')->assertHasNoErrors()->assertSet('confirmingId', null)
+        ->assertDontSee($exit->reference);
+
+    expect($request->fresh()->validated_by)->toBe($w['warehouse']->id);
+    Livewire::actingAs($w['warehouse'])->test(Exits::class)->assertSee($exit->reference);
 });

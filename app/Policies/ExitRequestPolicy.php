@@ -11,7 +11,7 @@ class ExitRequestPolicy
 {
     public function viewAny(User $user): bool
     {
-        return true;
+        return $user->role !== UserRole::Manager;
     }
 
     /**
@@ -26,6 +26,10 @@ class ExitRequestPolicy
 
         if ($user->role === UserRole::Requester) {
             return $user->id === $request->user_id;
+        }
+
+        if ($user->role === UserRole::Manager) {
+            return false;
         }
 
         return $user->canViewChamber($request->chamber);
@@ -59,6 +63,15 @@ class ExitRequestPolicy
         }
 
         return $user->canAccessChamber($request->chamber);
+    }
+
+    /**
+     * Validating an authorized request, which moves its exit to the direct ones: the warehouse user of the chamber
+     * and super administrators, once and only while the exit still stands.
+     */
+    public function validate(User $user, ExitRequest $request): bool
+    {
+        return $request->awaitsValidation() && $user->canAccessChamber($request->chamber);
     }
 
     /**

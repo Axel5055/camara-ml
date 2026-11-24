@@ -11,10 +11,12 @@
         @endif
     </x-page-header>
 
+    @can('viewAny', \App\Models\ExitRequest::class)
     <div class="inline-flex rounded-lg border border-zinc-200 bg-white p-1 shadow-xs dark:border-zinc-700 dark:bg-zinc-800" data-test="exits-source-tabs">
         <flux:button size="sm" :variant="$isRequested ? 'ghost' : 'primary'" icon="hand-raised" :href="route('exits.index')" wire:navigate data-test="exits-tab-direct">Directas</flux:button>
         <flux:button size="sm" :variant="$isRequested ? 'primary' : 'ghost'" icon="clipboard-document-check" :href="route('exits.requested')" wire:navigate data-test="exits-tab-requested">Por solicitud</flux:button>
     </div>
+    @endcan
 
     <div class="grid gap-4 sm:grid-cols-2 {{ $showCosts ? 'xl:grid-cols-4' : 'xl:grid-cols-3' }}">
         <div class="flex items-center gap-4 rounded-xl border border-zinc-200 bg-white p-4 shadow-xs dark:border-zinc-700 dark:bg-zinc-800" data-test="exits-count">
@@ -64,17 +66,12 @@
         <div class="space-y-4">
             <flux:input wire:model.live.debounce.300ms="search" icon="magnifying-glass" clearable placeholder="Buscar por referencia o solicitante" />
 
-            <div class="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+            <div class="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
                 <flux:select wire:model.live="chamberId" label="Cámara de origen">
                     <flux:select.option value="">Todas las cámaras</flux:select.option>
                     @foreach ($chambers as $chamber)
                         <flux:select.option :value="$chamber->id">{{ $chamber->branch->name }} · {{ $chamber->name }}</flux:select.option>
                     @endforeach
-                </flux:select>
-                <flux:select wire:model.live="type" label="Tipo de salida">
-                    <flux:select.option value="all">Todas</flux:select.option>
-                    <flux:select.option value="delivery">Entrega a sucursal</flux:select.option>
-                    <flux:select.option value="transfer">Transferencia a cámara</flux:select.option>
                 </flux:select>
                 <flux:input wire:model.live="from" type="date" label="Desde" />
                 <flux:input wire:model.live="to" type="date" label="Hasta" />
@@ -109,7 +106,7 @@
                     <flux:table.row :key="$exit->id" class="hover:bg-zinc-50 dark:hover:bg-zinc-700/40">
                         <flux:table.cell>
                             <span class="rounded-md bg-zinc-100 px-2 py-1 font-mono text-xs text-zinc-700 dark:bg-zinc-700 dark:text-zinc-200">{{ $exit->reference }}</span>
-                            @if ($exit->exitRequest)
+                            @if ($exit->exitRequest?->awaitsValidation())
                                 <div class="mt-1" data-test="exit-origin">
                                     <flux:badge size="sm" color="sky" icon="clipboard-document-check" class="whitespace-nowrap">Por solicitud · {{ $exit->exitRequest->reference() }}</flux:badge>
                                 </div>
@@ -145,7 +142,12 @@
                             </div>
                         </flux:table.cell>
                         <flux:table.cell align="end">
-                            <div class="flex justify-end gap-1">
+                            <div class="flex items-center justify-end gap-2 whitespace-nowrap">
+                                @if ($exit->exitRequest?->awaitsValidation())
+                                    @can('validate', $exit->exitRequest)
+                                        <flux:button size="sm" variant="primary" icon="check-badge" wire:click="askToConfirm({{ $exit->id }})" data-test="exit-confirm">Confirmar</flux:button>
+                                    @endcan
+                                @endif
                                 <flux:button size="sm" variant="ghost" icon-trailing="chevron-right" :href="route('exits.show', $exit)" wire:navigate>Detalle</flux:button>
                             </div>
                         </flux:table.cell>
@@ -158,4 +160,22 @@
             </flux:table.rows>
         </flux:table>
     </div>
+
+    <flux:modal name="confirm-requested-exit" class="w-[calc(100vw-2rem)] md:w-[28rem]" data-test="confirm-requested-exit-modal">
+        <div class="space-y-5">
+            <div>
+                <flux:heading size="lg">¿Confirmar esta salida?</flux:heading>
+                <flux:text class="mt-2">
+                    @if ($confirming)
+                        La salida <span class="font-mono font-medium">{{ $confirming->reference }}</span> ({{ number_format($confirming->total_boxes) }} {{ $confirming->total_boxes == 1 ? 'caja' : 'cajas' }}) pasará a <span class="font-medium">Salidas directas</span> y se quitará de Por solicitud.
+                    @endif
+                </flux:text>
+            </div>
+            <flux:error name="operation" />
+            <div class="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+                <flux:modal.close><flux:button variant="ghost" class="w-full sm:w-auto">Cancelar</flux:button></flux:modal.close>
+                <flux:button variant="primary" icon="check-badge" wire:click="confirmRequested" wire:loading.attr="disabled" wire:target="confirmRequested" class="w-full sm:w-auto" data-test="exit-confirm-submit">Sí, confirmar</flux:button>
+            </div>
+        </div>
+    </flux:modal>
 </section>

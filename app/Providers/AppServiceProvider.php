@@ -53,7 +53,7 @@ class AppServiceProvider extends ServiceProvider
 
             return match ($user->role) {
                 // Receiving and cancelling depend on the state of the transfer, so the policy decides them.
-                UserRole::SuperAdmin => in_array($ability, ['receive', 'cancel', 'decide'], true) ? null : true,
+                UserRole::SuperAdmin => in_array($ability, ['receive', 'cancel', 'decide', 'validate'], true) ? null : true,
                 UserRole::Admin => $this->readOnlyAdminMay($ability, $arguments) ? true : null,
                 // Managers read like administrators, but only what is assigned to them: the policies check that.
                 UserRole::Manager, UserRole::Warehouse => null,
@@ -70,7 +70,7 @@ class AppServiceProvider extends ServiceProvider
         Gate::define('view-reports', fn (User $user): bool => $user->role === UserRole::Manager);
         Gate::define('view-products', fn (User $user): bool => in_array($user->role, [UserRole::Admin, UserRole::Manager, UserRole::Warehouse], true));
         Gate::define('operate-inventory', fn (User $user): bool => $user->role === UserRole::Warehouse);
-        Gate::define('print-exit-summary', fn (User $user): bool => in_array($user->role, [UserRole::Warehouse, UserRole::Manager], true));
+        Gate::define('print-exit-summary', fn (User $user): bool => $user->role === UserRole::Warehouse);
         Gate::define('request-exits', fn (User $user): bool => $user->role === UserRole::Requester && $user->branch_id !== null);
         // The panel, stock and the entry, exit and transfer records: everyone except requesters.
         Gate::define('use-inventory-area', fn (User $user): bool => true);

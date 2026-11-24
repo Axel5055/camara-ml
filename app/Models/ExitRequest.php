@@ -29,6 +29,8 @@ use Illuminate\Support\Carbon;
  * @property Carbon|null $decided_at
  * @property string|null $decision_notes
  * @property int|null $exit_id
+ * @property Carbon|null $validated_at
+ * @property int|null $validated_by
  * @property string $client_token
  * @property Carbon|null $created_at
  * @property-read Branch $branch
@@ -48,6 +50,7 @@ class ExitRequest extends Model
     {
         return [
             'decided_at' => 'datetime',
+            'validated_at' => 'datetime',
             'status' => ExitRequestStatus::class,
         ];
     }
@@ -57,19 +60,34 @@ class ExitRequest extends Model
         return $this->status === ExitRequestStatus::Pending;
     }
 
+    /**
+     * Authorized and registered as an exit, but the warehouse user has not validated it yet: its exit still
+     * belongs to "Salidas por solicitud".
+     */
+    public function awaitsValidation(): bool
+    {
+        return $this->status === ExitRequestStatus::Approved && $this->exit_id !== null && $this->validated_at === null;
+    }
+
     public function reference(): string
     {
         return 'SOLS-'.str_pad((string) $this->id, 5, '0', STR_PAD_LEFT);
     }
 
     /**
-     * Requests the user may look at: administrators see all of them, managers and warehouse users those of their
+     * Requests the user may look at: administrators see all of them, managers none (they only follow the direct exits), warehouse users those of their
      * chambers and requesters only the ones they made themselves, not those of colleagues of their branch.
      *
      * @param  Builder<ExitRequest>  $query
      */
     public function scopeVisibleTo(Builder $query, User $user): void
     {
+        if ($user->role === UserRole::Manager) {
+            $query->whereRaw('1 = 0');
+
+            return;
+        }
+
         if ($user->seesAllChambers()) {
             return;
         }
@@ -113,6 +131,14 @@ class ExitRequest extends Model
     public function decider(): BelongsTo
     {
         return $this->belongsTo(User::class, 'decided_by');
+    }
+
+    /**
+     * @return BelongsTo<User, $this>
+     */
+    public function validator(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'validated_by');
     }
 
     /**

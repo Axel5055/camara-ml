@@ -247,6 +247,22 @@ class ExitRequests extends Component
         }
     }
 
+    /**
+     * The warehouse user checks an authorized request: its exit moves from "Salidas por solicitud" to the direct ones.
+     */
+    public function validateRequest(int $id, ReviewExitRequest $review): void
+    {
+        $request = $this->visibleRequests()->findOrFail($id);
+        Gate::authorize('validate', $request);
+
+        $done = $this->attempt(fn () => $review->validate(Auth::user(), $request));
+
+        if ($done) {
+            Flux::modal('exit-request')->close();
+            Flux::toast(text: 'Solicitud validada: su salida pasó a Directas.', variant: 'success');
+        }
+    }
+
     public function cancelRequest(int $id, ReviewExitRequest $review): void
     {
         $request = $this->visibleRequests()->findOrFail($id);
@@ -263,13 +279,13 @@ class ExitRequests extends Component
     {
         $requests = $this->visibleRequests()
             ->when(in_array($this->status, array_column(ExitRequestStatus::cases(), 'value'), true), fn (Builder $query) => $query->where('status', $this->status))
-            ->with(['branch:id,name', 'chamber:id,name,branch_id', 'chamber.branch:id,name', 'user:id,name', 'decider:id,name', 'exit:id,reference'])
+            ->with(['branch:id,name', 'chamber:id,name,branch_id', 'chamber.branch:id,name', 'user:id,name', 'decider:id,name', 'validator:id,name', 'exit:id,reference,origin_chamber_id,dest_chamber_id'])
             ->orderByRaw("status = 'pending' desc")
             ->orderByDesc('created_at')
             ->paginate(20);
 
         $viewing = $this->viewingId !== null
-            ? $this->visibleRequests()->with(['branch', 'chamber.branch', 'user:id,name', 'decider:id,name', 'exit:id,reference', 'items.product:id,name'])->find($this->viewingId)
+            ? $this->visibleRequests()->with(['branch', 'chamber.branch', 'user:id,name', 'decider:id,name', 'validator:id,name', 'exit:id,reference,origin_chamber_id,dest_chamber_id', 'items.product:id,name'])->find($this->viewingId)
             : null;
 
         $canDecide = false;

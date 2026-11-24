@@ -100,6 +100,7 @@ class Dashboard extends Component
         $perDay = fn (string $table, string $chamberColumn) => $this->limit(
             DB::table($table)
                 ->where('status', 'confirmed')
+                ->when($table === 'exits', fn ($query) => $query->whereNull('dest_chamber_id'))
                 ->where('occurred_at', '>=', $first)
                 ->selectRaw("date(occurred_at) as day, sum({$column}) as total")
                 ->groupBy('day'),
@@ -171,7 +172,9 @@ class Dashboard extends Component
         )->get();
 
         $todayTotals = fn (string $table, string $chamberColumn) => $this->limit(
-            DB::table($table)->where('status', 'confirmed')->where('occurred_at', '>=', $today)
+            DB::table($table)->where('status', 'confirmed')
+                ->when($table === 'exits', fn ($query) => $query->whereNull('dest_chamber_id'))
+                ->where('occurred_at', '>=', $today)
                 ->selectRaw('coalesce(sum(total_boxes), 0) as boxes, coalesce(sum(total_weight_kg), 0) as kg'),
             $chamberColumn,
             $visible,

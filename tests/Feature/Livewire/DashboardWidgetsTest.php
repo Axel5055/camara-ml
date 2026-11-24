@@ -363,15 +363,16 @@ it('summarises and filters the exits list', function () {
     app(RegisterExit::class)->handle($w['admin'], $w['c1'], $w['norte'], $w['n1'], 'Luis', array_slice($boxIds, 2, 3));
 
     $component = Livewire::actingAs($w['admin'])->test(Exits::class);
-    expect((int) $component->viewData('summary')->exits)->toBe(2)
-        ->and((int) $component->viewData('summary')->boxes)->toBe(5)
-        ->and((string) $component->viewData('summary')->cost)->toBe('500.00');
+    expect((int) $component->viewData('summary')->exits)->toBe(1)
+        ->and((int) $component->viewData('summary')->boxes)->toBe(2)
+        ->and((string) $component->viewData('summary')->cost)->toBe('200.00')
+        ->and($component->viewData('exits')->pluck('dest_chamber_id')->filter()->all())->toBe([]);
 
-    $component->set('type', 'transfer');
-    expect((int) $component->viewData('summary')->boxes)->toBe(3);
-
-    $component->set('type', 'delivery')->set('search', 'ana');
+    $component->set('search', 'ana');
     expect((int) $component->viewData('summary')->boxes)->toBe(2);
+
+    $component->set('search', 'luis');
+    expect((int) $component->viewData('summary')->boxes)->toBe(0);
 
     $component->call('clearFilters')->set('search', 'nadie')->assertSee('No hay salidas que coincidan');
 
