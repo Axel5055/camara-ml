@@ -36,7 +36,7 @@
             </flux:select>
             <flux:error name="chamberId" />
 
-            <x-product-search :products="$products" wire:key="request-product-search" data-test="request-product" />
+            <x-product-search :products="$products" :emptyMessage="$chamberId === null ? 'Primero elige la cámara.' : 'No hay productos con ese nombre en existencia en esta cámara.'" wire:key="request-product-search-{{ $chamberId }}" data-test="request-product" />
             <flux:error name="productId" />
 
             @if ($productId !== null && $chamberId !== null)

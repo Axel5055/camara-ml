@@ -590,3 +590,28 @@ it('lets a super administrator ask any chamber for product on behalf of a branch
 
     expect(fn () => app(RequestExit::class)->handle($w['super'], $w['chamber'], [['product_id' => $w['product']->id, 'boxes' => 1]]))->toThrow(InventoryException::class);
 });
+
+it('only offers products with boxes in the chamber being asked when requesting an exit', function () {
+    $w = exitRequestWorld();
+    $withoutStock = Product::factory()->create(['name' => 'SIN EXISTENCIA']);
+    $inOtherChamber = Product::factory()->create(['name' => 'EN OTRA CAMARA']);
+    app(RegisterEntry::class)->handle($w['otherWarehouse'], $w['otherChamber'], [
+        ['product_id' => $inOtherChamber->id, 'boxes_count' => 1, 'weight_per_box_kg' => '10', 'price_per_kg_mxn' => '20.00'],
+    ]);
+
+    $component = Livewire::actingAs($w['requester'])->test(CreateExitRequest::class);
+    $offered = fn () => $component->instance()->render()->getData()['products']->pluck('id')->all();
+
+    expect($offered())->toBe([$w['product']->id])->not->toContain($withoutStock->id, $inOtherChamber->id);
+
+    $component->set('productId', $withoutStock->id)->set('quantity', '1')->call('addProduct')->assertHasErrors('productId');
+    $component->set('productId', $w['product']->id)->set('quantity', '1')->call('addProduct')->assertHasNoErrors();
+
+    expect($component->get('lines'))->toHaveCount(1);
+
+    $super = Livewire::actingAs($w['super'])->test(CreateExitRequest::class);
+    expect($super->instance()->render()->getData()['products'])->toHaveCount(0);
+
+    $super->set('chamberId', $w['otherChamber']->id);
+    expect($super->instance()->render()->getData()['products']->pluck('id')->all())->toBe([$inOtherChamber->id]);
+});

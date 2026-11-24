@@ -74,11 +74,18 @@ class CreateExitRequest extends Component
     }
 
     /**
+     * Active products with boxes available in the chamber being asked; none until a chamber is chosen.
+     *
      * @return Collection<int, Product>
      */
     private function products(): Collection
     {
+        if ($this->chamberId === null) {
+            return new Collection;
+        }
+
         return Product::query()
+            ->whereIn('id', Box::query()->availableIn($this->chamberId)->select('product_id')->distinct())
             ->where('is_active', true)
             ->whereHas('category', fn ($query) => $query->where('is_active', true))
             ->orderBy('name')
