@@ -87,6 +87,7 @@ Route::middleware(['auth', 'active', 'verified'])->group(function () {
         Route::get('inventario/salidas/{exit}/ticket', [TicketController::class, 'exit'])->name('exits.ticket');
         Route::get('inventario/solicitudes-salida/concentrado/ticket', [TicketController::class, 'exitRequestSummary'])->name('exit-requests.summary-ticket')->can('print-exit-summary');
         Route::livewire('inventario/salidas', Exits::class)->name('exits.index');
+        Route::livewire('inventario/salidas-por-solicitud', Exits::class)->defaults('source', 'requested')->name('exits.requested');
         Route::livewire('inventario/salidas/{exit}', ExitDetail::class)->name('exits.show');
         Route::get('inventario/salidas/{exit}/descargar/{format}', [RecordExportController::class, 'exit'])->whereIn('format', ['pdf', 'xlsx'])->name('exits.export');
 

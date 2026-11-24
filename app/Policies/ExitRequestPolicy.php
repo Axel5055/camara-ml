@@ -48,12 +48,13 @@ class ExitRequestPolicy
     }
 
     /**
-     * Authorizing or rejecting: the warehouse users of the chamber and super administrators, never the one who
-     * asked. Administrators and managers only look.
+     * Authorizing or rejecting: the warehouse users of the chamber, who can never resolve a request they made
+     * themselves, and super administrators, who can resolve any pending one, their own included. Administrators
+     * and managers only look.
      */
     public function decide(User $user, ExitRequest $request): bool
     {
-        if (! $request->isPending() || $request->user_id === $user->id) {
+        if (! $request->isPending() || ($request->user_id === $user->id && ! $user->isSuperAdmin())) {
             return false;
         }
 

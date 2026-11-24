@@ -468,11 +468,15 @@ it('tells apart in the exits list and the detail the exits authorized from a req
     expect($fromRequest->exitRequest->is($request))->toBeTrue()->and($direct->exitRequest)->toBeNull();
 
     Livewire::actingAs($w['warehouse'])->test(Exits::class)
-        ->assertSee('Por solicitud · '.$request->reference())
-        ->assertSee('Directa')
-        ->set('origin', 'request')->assertSee($fromRequest->reference)->assertDontSee($direct->reference)
-        ->set('origin', 'direct')->assertSee($direct->reference)->assertDontSee($fromRequest->reference)
-        ->call('clearFilters')->assertSet('origin', 'all');
+        ->assertSet('source', 'direct')->assertSee($direct->reference)->assertDontSee($fromRequest->reference)->assertDontSee('Por solicitud · ')
+        ->assertDontSeeHtml('data-test="summary-open"');
+
+    Livewire::actingAs($w['warehouse'])->test(Exits::class, ['source' => 'requested'])
+        ->assertSet('source', 'requested')->assertSee($fromRequest->reference)->assertDontSee($direct->reference)
+        ->assertSee('Por solicitud · '.$request->reference())->assertSeeHtml('data-test="summary-open"');
+
+    $this->actingAs($w['warehouse'])->get(route('exits.index'))->assertOk()->assertSee($direct->reference)->assertDontSee($fromRequest->reference);
+    $this->actingAs($w['warehouse'])->get(route('exits.requested'))->assertOk()->assertSee($fromRequest->reference)->assertDontSee($direct->reference)->assertSee('Salidas por solicitud');
 
     Livewire::actingAs($w['warehouse'])->test(ExitDetail::class, ['exit' => $fromRequest])->assertSee('Por solicitud · '.$request->reference());
     Livewire::actingAs($w['warehouse'])->test(ExitDetail::class, ['exit' => $direct])->assertSee('Directa del almacenista');
@@ -541,7 +545,7 @@ it('asks for the dates of the summary ticket and sends it to print', function ()
     Livewire::actingAs($w['requester'])->test(ExitRequestSummaryPrint::class)->assertForbidden();
 
     Livewire::actingAs($w['super'])->test(ExitRequests::class)->assertSeeHtml('data-test="summary-open"');
-    Livewire::actingAs($w['warehouse'])->test(Exits::class)->assertSeeHtml('data-test="summary-open"');
+    Livewire::actingAs($w['warehouse'])->test(Exits::class, ['source' => 'requested'])->assertSeeHtml('data-test="summary-open"');
     Livewire::actingAs($w['requester'])->test(ExitRequests::class)->assertDontSeeHtml('data-test="summary-open"');
 });
 
@@ -565,14 +569,19 @@ it('lets a super administrator ask any chamber for product on behalf of a branch
         ->and($request->user_id)->toBe($w['super']->id)
         ->and($request->chamber_id)->toBe($w['chamber']->id)
         ->and($w['super']->can('create', [ExitRequest::class, $w['otherChamber']]))->toBeTrue()
-        ->and($w['super']->can('decide', $request))->toBeFalse()
+        ->and($w['super']->can('decide', $request))->toBeTrue()
         ->and($w['warehouse']->can('decide', $request))->toBeTrue();
 
-    expect(fn () => app(ReviewExitRequest::class)->approve($w['super'], $request, [$w['product']->id => [Box::query()->value('id')]]))->toThrow(AuthorizationException::class);
+    app(ReviewExitRequest::class)->approve($w['super'], $request, [$w['product']->id => Box::query()->limit(2)->pluck('id')->all()]);
 
-    app(ReviewExitRequest::class)->approve($w['warehouse'], $request, [$w['product']->id => Box::query()->limit(2)->pluck('id')->all()]);
+    expect($request->fresh()->status)->toBe(ExitRequestStatus::Approved)->and($request->fresh()->decided_by)->toBe($w['super']->id);
 
-    expect($request->fresh()->status)->toBe(ExitRequestStatus::Approved);
+    $ownRejected = app(RequestExit::class)->handle($w['super'], $w['chamber'], [['product_id' => $w['product']->id, 'boxes' => 1]], null, null, $w['sur']);
+    app(ReviewExitRequest::class)->reject($w['super'], $ownRejected, 'No se necesita');
+    expect($ownRejected->fresh()->status)->toBe(ExitRequestStatus::Rejected);
+
+    $madeByWarehouse = ExitRequest::factory()->create(['branch_id' => $w['sur']->id, 'chamber_id' => $w['chamber']->id, 'user_id' => $w['warehouse']->id]);
+    expect($w['warehouse']->can('decide', $madeByWarehouse))->toBeFalse()->and($w['super']->can('decide', $madeByWarehouse))->toBeTrue();
 
     $another = app(RequestExit::class)->handle($w['super'], $w['otherChamber'], [['product_id' => $w['product']->id, 'boxes' => 1]], null, null, $w['sur']);
     expect($w['super']->can('cancel', $another))->toBeTrue();

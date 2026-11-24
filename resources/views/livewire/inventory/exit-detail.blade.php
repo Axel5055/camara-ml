@@ -10,7 +10,7 @@
             <flux:button icon="printer" x-on:click="$dispatch('print-ticket', { url: @js(route('exits.ticket', [$stockExit, 'auto' => 1])) })" data-test="exit-print">Ticket</flux:button>
             <flux:button :href="route('exits.export', [$stockExit, 'pdf'])" icon="document-arrow-down">PDF</flux:button>
             <flux:button :href="route('exits.export', [$stockExit, 'xlsx'])" icon="table-cells">Excel</flux:button>
-            <flux:button :href="route('exits.index')" wire:navigate icon="arrow-left">Salidas</flux:button>
+            <flux:button :href="$stockExit->exitRequest ? route('exits.requested') : route('exits.index')" wire:navigate icon="arrow-left">{{ $stockExit->exitRequest ? 'Salidas por solicitud' : 'Salidas' }}</flux:button>
         </div>
     </x-page-header>
 

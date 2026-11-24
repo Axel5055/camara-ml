@@ -107,7 +107,7 @@ class ReviewExitRequest
             throw new AuthorizationException('Solo el almacenista de la cámara o un super administrador puede autorizar o rechazar solicitudes de salida.');
         }
 
-        if ($request->user_id === $reviewer->id) {
+        if ($request->user_id === $reviewer->id && ! $reviewer->isSuperAdmin()) {
             throw new AuthorizationException('No puedes resolver tu propia solicitud.');
         }
 

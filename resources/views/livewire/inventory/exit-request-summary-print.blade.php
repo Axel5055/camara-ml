@@ -1,6 +1,6 @@
 <div>
     <flux:modal.trigger name="exit-request-summary">
-        <flux:button icon="printer" data-test="summary-open">Imprimir ticket mesa</flux:button>
+        <flux:button icon="printer" data-test="summary-open">Imprimir ticket solicitudes</flux:button>
     </flux:modal.trigger>
 
     <flux:modal name="exit-request-summary" class="w-[calc(100vw-2rem)] md:w-[30rem]">

@@ -24,23 +24,28 @@ class Exits extends Component
     /** all | delivery (to a branch) | transfer (to another chamber) */
     public string $type = 'all';
 
-    /** all | direct (registered by the warehouse user) | request (authorized from a branch request) */
-    public string $origin = 'all';
+    /** direct (registered by the warehouse user) | requested (authorized from a branch request) */
+    public string $source = 'direct';
 
     public ?string $from = null;
 
     public ?string $to = null;
 
+    public function mount(string $source = 'direct'): void
+    {
+        $this->source = $source === 'requested' ? 'requested' : 'direct';
+    }
+
     public function updated(string $property): void
     {
-        if (in_array($property, ['chamberId', 'search', 'type', 'origin', 'from', 'to'], true)) {
+        if (in_array($property, ['chamberId', 'search', 'type', 'from', 'to'], true)) {
             $this->resetPage();
         }
     }
 
     public function clearFilters(): void
     {
-        $this->reset('chamberId', 'search', 'type', 'origin', 'from', 'to');
+        $this->reset('chamberId', 'search', 'type', 'from', 'to');
         $this->resetPage();
     }
 
@@ -62,8 +67,7 @@ class Exits extends Component
                 ->where('reference', 'like', "%{$search}%")->orWhere('requester_name', 'like', "%{$search}%")))
             ->when($this->type === 'delivery', fn (Builder $query) => $query->whereNull('dest_chamber_id'))
             ->when($this->type === 'transfer', fn (Builder $query) => $query->whereNotNull('dest_chamber_id'))
-            ->when($this->origin === 'request', fn (Builder $query) => $query->whereHas('exitRequest'))
-            ->when($this->origin === 'direct', fn (Builder $query) => $query->whereDoesntHave('exitRequest'))
+            ->when($this->source === 'requested', fn (Builder $query) => $query->whereHas('exitRequest'), fn (Builder $query) => $query->whereDoesntHave('exitRequest'))
             ->when($this->from, fn (Builder $query, string $from) => $query->where('occurred_at', '>=', $from.' 00:00:00'))
             ->when($this->to, fn (Builder $query, string $to) => $query->where('occurred_at', '<=', $to.' 23:59:59'));
     }
@@ -89,7 +93,8 @@ class Exits extends Component
             'summary' => $summary,
             'chambers' => $this->accessibleChambers(),
             'showCosts' => $showCosts,
-            'hasFilters' => $this->chamberId || trim($this->search) !== '' || $this->type !== 'all' || $this->origin !== 'all' || $this->from || $this->to,
-        ]);
+            'isRequested' => $this->source === 'requested',
+            'hasFilters' => $this->chamberId || trim($this->search) !== '' || $this->type !== 'all' || $this->from || $this->to,
+        ])->title($this->source === 'requested' ? 'Salidas por solicitud' : 'Salidas');
     }
 }

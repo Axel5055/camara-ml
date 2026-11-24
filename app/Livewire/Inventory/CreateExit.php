@@ -539,7 +539,9 @@ class CreateExit extends Component
             'branches' => $this->activeBranches(),
             'products' => $allowed
                 ? Product::query()
-                    ->whereIn('id', Box::query()->availableIn((int) $this->originChamberId)->select('product_id')->distinct())
+                    ->whereIn('id', Box::query()->availableIn((int) $this->originChamberId)
+                        ->when($this->takenIds() !== [], fn (Builder $query) => $query->whereNotIn('id', $this->takenIds()))
+                        ->select('product_id')->distinct())
                     ->orderBy('name')->get(['id', 'name', 'code'])
                 : collect(),
             'availableForProduct' => $allowed && $this->productId ? array_sum(array_column($this->variantsOf($this->productId), 'available')) : null,

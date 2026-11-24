@@ -837,3 +837,23 @@ it('validates and asks for confirmation before registering an entry, an exit and
     $transfer->call('save')->assertRedirect(route('transfers.index'));
     expect(Transfer::query()->count())->toBe(1);
 });
+
+it('only offers products with boxes left to add in exits and transfers', function () {
+    $w = screensWorld();
+    $withoutStock = Product::factory()->create(['code' => 'SINSTOCK', 'name' => 'Sin stock']);
+    $other = Product::factory()->create(['code' => 'PESCADO', 'name' => 'Pescado']);
+    app(RegisterEntry::class)->handle($w['centroUser'], $w['c1'], [
+        ['product_id' => $other->id, 'boxes_count' => 2, 'weight_per_box_kg' => '10', 'price_per_kg_mxn' => '5.00'],
+    ]);
+
+    foreach ([CreateExit::class, CreateTransfer::class] as $screen) {
+        $component = Livewire::actingAs($w['centroUser'])->test($screen)->set('originChamberId', $w['c1']->id);
+        $offered = fn () => $component->instance()->render()->getData()['products']->pluck('id')->all();
+
+        expect($offered())->toEqualCanonicalizing([$w['product']->id, $other->id]);
+
+        $component->set('productId', $w['product']->id)->set('quantity', '3')->call('addProduct')->assertHasNoErrors();
+
+        expect($offered())->toBe([$other->id])->and($offered())->not->toContain($withoutStock->id);
+    }
+});

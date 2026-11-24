@@ -1,12 +1,20 @@
 <section class="w-full space-y-6">
-    <x-page-header icon="arrow-up-tray" title="Salidas" description="Registro de la mercancía que sale de las cámaras.">
-        @can('print-exit-summary')
-            <livewire:inventory.exit-request-summary-print />
-        @endcan
-        @can('operate-inventory')
-            <flux:button variant="primary" icon="plus" :href="route('exits.create')" wire:navigate>Nueva salida</flux:button>
-        @endcan
+    <x-page-header icon="arrow-up-tray" :title="$isRequested ? 'Salidas por solicitud' : 'Salidas'" :description="$isRequested ? 'Mercancía que salió al autorizarse una solicitud de una sucursal.' : 'Registro de la mercancía que sale de las cámaras, registrada directamente por el almacenista.'">
+        @if ($isRequested)
+            @can('print-exit-summary')
+                <livewire:inventory.exit-request-summary-print />
+            @endcan
+        @else
+            @can('operate-inventory')
+                <flux:button variant="primary" icon="plus" :href="route('exits.create')" wire:navigate>Nueva salida</flux:button>
+            @endcan
+        @endif
     </x-page-header>
+
+    <div class="inline-flex rounded-lg border border-zinc-200 bg-white p-1 shadow-xs dark:border-zinc-700 dark:bg-zinc-800" data-test="exits-source-tabs">
+        <flux:button size="sm" :variant="$isRequested ? 'ghost' : 'primary'" icon="hand-raised" :href="route('exits.index')" wire:navigate data-test="exits-tab-direct">Directas</flux:button>
+        <flux:button size="sm" :variant="$isRequested ? 'primary' : 'ghost'" icon="clipboard-document-check" :href="route('exits.requested')" wire:navigate data-test="exits-tab-requested">Por solicitud</flux:button>
+    </div>
 
     <div class="grid gap-4 sm:grid-cols-2 {{ $showCosts ? 'xl:grid-cols-4' : 'xl:grid-cols-3' }}">
         <div class="flex items-center gap-4 rounded-xl border border-zinc-200 bg-white p-4 shadow-xs dark:border-zinc-700 dark:bg-zinc-800" data-test="exits-count">
@@ -56,7 +64,7 @@
         <div class="space-y-4">
             <flux:input wire:model.live.debounce.300ms="search" icon="magnifying-glass" clearable placeholder="Buscar por referencia o solicitante" />
 
-            <div class="grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
+            <div class="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
                 <flux:select wire:model.live="chamberId" label="Cámara de origen">
                     <flux:select.option value="">Todas las cámaras</flux:select.option>
                     @foreach ($chambers as $chamber)
@@ -67,11 +75,6 @@
                     <flux:select.option value="all">Todas</flux:select.option>
                     <flux:select.option value="delivery">Entrega a sucursal</flux:select.option>
                     <flux:select.option value="transfer">Transferencia a cámara</flux:select.option>
-                </flux:select>
-                <flux:select wire:model.live="origin" label="Cómo se registró">
-                    <flux:select.option value="all">Todas</flux:select.option>
-                    <flux:select.option value="direct">Directa del almacenista</flux:select.option>
-                    <flux:select.option value="request">Autorizada por solicitud</flux:select.option>
                 </flux:select>
                 <flux:input wire:model.live="from" type="date" label="Desde" />
                 <flux:input wire:model.live="to" type="date" label="Hasta" />
@@ -106,13 +109,11 @@
                     <flux:table.row :key="$exit->id" class="hover:bg-zinc-50 dark:hover:bg-zinc-700/40">
                         <flux:table.cell>
                             <span class="rounded-md bg-zinc-100 px-2 py-1 font-mono text-xs text-zinc-700 dark:bg-zinc-700 dark:text-zinc-200">{{ $exit->reference }}</span>
-                            <div class="mt-1" data-test="exit-origin">
-                                @if ($exit->exitRequest)
+                            @if ($exit->exitRequest)
+                                <div class="mt-1" data-test="exit-origin">
                                     <flux:badge size="sm" color="sky" icon="clipboard-document-check" class="whitespace-nowrap">Por solicitud · {{ $exit->exitRequest->reference() }}</flux:badge>
-                                @else
-                                    <flux:badge size="sm" color="zinc" icon="hand-raised" class="whitespace-nowrap">Directa</flux:badge>
-                                @endif
-                            </div>
+                                </div>
+                            @endif
                         </flux:table.cell>
                         <flux:table.cell class="whitespace-nowrap">
                             <div class="text-zinc-900 dark:text-white">{{ $exit->occurred_at->format('d/m/Y') }} <span class="text-xs text-zinc-500">{{ $exit->occurred_at->format('H:i') }}</span></div>
@@ -151,7 +152,7 @@
                     </flux:table.row>
                 @empty
                     <flux:table.row>
-                        <flux:table.cell colspan="{{ $showCosts ? 10 : 9 }}" class="py-10 text-center text-zinc-500">No hay salidas que coincidan con los filtros.</flux:table.cell>
+                        <flux:table.cell colspan="{{ $showCosts ? 10 : 9 }}" class="py-10 text-center text-zinc-500">{{ $isRequested ? 'No hay salidas por solicitud que coincidan con los filtros.' : 'No hay salidas que coincidan con los filtros.' }}</flux:table.cell>
                     </flux:table.row>
                 @endforelse
             </flux:table.rows>
