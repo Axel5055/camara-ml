@@ -6,6 +6,8 @@ use App\Livewire\Concerns\ChoosesTicketCopies;
 use App\Livewire\Concerns\InteractsWithChambers;
 use App\Models\Branch;
 use App\Models\Chamber;
+use App\Models\ExitRequest;
+use App\Models\User;
 use Flux\Flux;
 use Illuminate\Contracts\View\View;
 use Illuminate\Support\Facades\Date;
@@ -31,6 +33,9 @@ class ExitRequestSummaryPrint extends Component
 
     /** Branch that made the requests; null prints every branch. */
     public ?int $branchId = null;
+
+    /** User who made the requests; null prints every requester. */
+    public ?int $requesterId = null;
 
     public function mount(): void
     {
@@ -64,6 +69,7 @@ class ExitRequestSummaryPrint extends Component
             'to' => ['required', 'date_format:Y-m-d', 'after_or_equal:from'],
             'chamberId' => ['nullable', 'integer'],
             'branchId' => ['nullable', 'integer', 'exists:branches,id'],
+            'requesterId' => ['nullable', 'integer', 'exists:users,id'],
             'ticketCopies' => ['required', 'integer', 'min:1', 'max:10'],
         ], [
             'from.required' => 'Elige la fecha de inicio.',
@@ -72,6 +78,7 @@ class ExitRequestSummaryPrint extends Component
             'to.date_format' => 'La fecha final no es válida.',
             'to.after_or_equal' => 'La fecha final no puede ser anterior a la de inicio.',
             'branchId.exists' => 'Elige una sucursal de la lista.',
+            'requesterId.exists' => 'Elige un solicitante de la lista.',
             'ticketCopies.min' => 'Imprime al menos 1 copia.',
             'ticketCopies.max' => 'Máximo 10 copias.',
         ]);
@@ -93,6 +100,7 @@ class ExitRequestSummaryPrint extends Component
             'hasta' => $this->to,
             'camara' => $this->chamberId,
             'sucursal' => $this->branchId,
+            'solicitante' => $this->requesterId,
             'auto' => 1,
             'copies' => $this->ticketCopies(),
         ])));
@@ -105,6 +113,11 @@ class ExitRequestSummaryPrint extends Component
         return view('livewire.inventory.exit-request-summary-print', [
             'chambers' => $this->accessibleChambers(),
             'branches' => Branch::query()->where('is_active', true)->orderBy('name')->get(['id', 'name']),
+            'requesters' => User::query()
+                ->whereIn('id', ExitRequest::query()->whereNotNull('exit_id')
+                    ->whereIn('chamber_id', Chamber::query()->accessibleBy(auth()->user())->select('chambers.id'))
+                    ->select('user_id'))
+                ->orderBy('name')->get(['id', 'name']),
             'seesAllChambers' => auth()->user()->seesAllChambers(),
         ]);
     }

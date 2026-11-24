@@ -64,7 +64,7 @@ class ExitRequest extends Model
 
     /**
      * Requests the user may look at: administrators see all of them, managers and warehouse users those of their
-     * chambers and requesters those of their own branch.
+     * chambers and requesters only the ones they made themselves, not those of colleagues of their branch.
      *
      * @param  Builder<ExitRequest>  $query
      */
@@ -75,7 +75,7 @@ class ExitRequest extends Model
         }
 
         if ($user->role === UserRole::Requester) {
-            $query->where('branch_id', $user->branch_id);
+            $query->where('user_id', $user->id);
 
             return;
         }

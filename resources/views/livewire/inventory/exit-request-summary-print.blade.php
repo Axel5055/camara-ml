@@ -36,12 +36,20 @@
                 @endforeach
             </flux:select>
 
+            <flux:select wire:model="requesterId" label="Solicitante" data-test="summary-requester">
+                <flux:select.option value="">Todos los solicitantes</flux:select.option>
+                @foreach ($requesters as $requester)
+                    <flux:select.option :value="$requester->id">{{ $requester->name }}</flux:select.option>
+                @endforeach
+            </flux:select>
+
             <flux:input type="number" min="1" max="10" step="1" inputmode="numeric" wire:model="ticketCopies" label="Copias del ticket a imprimir" data-test="summary-copies" />
 
             <flux:error name="from" />
             <flux:error name="to" />
             <flux:error name="chamberId" />
             <flux:error name="branchId" />
+            <flux:error name="requesterId" />
             <flux:error name="ticketCopies" />
 
             <div class="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">

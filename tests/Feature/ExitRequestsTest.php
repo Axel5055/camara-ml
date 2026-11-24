@@ -154,20 +154,28 @@ it('keeps requesters out of everything except their requests', function () {
         ->and($w['requester']->canViewChamber($w['chamber']))->toBeFalse();
 });
 
-it('shows each requester only the requests of their own branch', function () {
+it('shows each requester only the requests they made themselves', function () {
     $w = exitRequestWorld();
     $mine = askForBoxes($w);
     $otherBranch = Branch::factory()->create();
     $other = User::factory()->requester($otherBranch)->create();
     $other->chambers()->attach($w['chamber']);
     $theirs = askForBoxes($w, 1, $other);
+    $colleague = User::factory()->requester($w['sur'])->create();
+    $colleague->chambers()->attach($w['chamber']);
+    $colleagues = askForBoxes($w, 1, $colleague);
 
-    Livewire::actingAs($w['requester'])->test(ExitRequests::class)
+    Livewire::actingAs($w['requester'])->test(ExitRequests::class)->set('status', 'all')
         ->assertSee($mine->reference())
-        ->assertDontSee($theirs->reference());
+        ->assertDontSee($theirs->reference())
+        ->assertDontSee($colleagues->reference());
+
+    Livewire::actingAs($colleague)->test(NotificationsBell::class)->assertDontSee($mine->reference());
 
     expect($w['requester']->can('view', $theirs))->toBeFalse()
-        ->and($w['requester']->can('view', $mine))->toBeTrue();
+        ->and($w['requester']->can('view', $colleagues))->toBeFalse()
+        ->and($w['requester']->can('view', $mine))->toBeTrue()
+        ->and(ExitRequest::query()->visibleTo($w['requester'])->pluck('id')->all())->toBe([$mine->id]);
 });
 
 it('lets the warehouse user authorize with the oldest boxes preselected and registers the exit to the requesting branch', function () {
@@ -510,6 +518,18 @@ it('prints one summary ticket adding up only what was authorized from requests, 
     $this->actingAs($w['super'])->get($url(['camara' => $w['chamber']->id, 'sucursal' => $w['sur']->id]))->assertOk()
         ->assertSee('SUCURSAL: Sur')->assertDontSee('SUCURSAL: Norte')->assertSee('20.000 kg');
     $this->actingAs($w['super'])->get($url(['sucursal' => 999999]))->assertSessionHasErrors('sucursal');
+
+    $this->actingAs($w['warehouse'])->get($url(['solicitante' => $norteRequester->id]))->assertOk()
+        ->assertSee('SUCURSAL: Norte')->assertDontSee('SUCURSAL: Sur')->assertSee($norteRequester->name)->assertSee('10.000 kg');
+    $this->actingAs($w['warehouse'])->get($url(['solicitante' => $w['requester']->id]))->assertOk()
+        ->assertSee('SUCURSAL: Sur')->assertDontSee('SUCURSAL: Norte')->assertSee('20.000 kg');
+    $this->actingAs($w['warehouse'])->get($url(['solicitante' => 999999]))->assertSessionHasErrors('solicitante');
+
+    $component = Livewire::actingAs($w['warehouse'])->test(ExitRequestSummaryPrint::class);
+    expect($component->instance()->render()->getData()['requesters']->pluck('id')->all())->toEqualCanonicalizing([$w['requester']->id, $norteRequester->id]);
+    $component->set('requesterId', $norteRequester->id)->call('print')->assertHasNoErrors()
+        ->assertDispatched('print-ticket', url: route('exit-requests.summary-ticket', ['desde' => $today, 'hasta' => $today, 'solicitante' => $norteRequester->id, 'auto' => 1, 'copies' => 1]));
+    expect(Livewire::actingAs($w['otherWarehouse'])->test(ExitRequestSummaryPrint::class)->instance()->render()->getData()['requesters'])->toHaveCount(0);
 
     $this->actingAs($w['super'])->get($url())->assertOk()->assertSee('2 cajas');
 

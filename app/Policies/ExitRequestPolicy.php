@@ -15,7 +15,7 @@ class ExitRequestPolicy
     }
 
     /**
-     * Administrators see all of them, requesters those of their own branch, everyone else those of the chambers
+     * Administrators see all of them, requesters only their own, everyone else those of the chambers
      * within their scope.
      */
     public function view(User $user, ExitRequest $request): bool
@@ -25,7 +25,7 @@ class ExitRequestPolicy
         }
 
         if ($user->role === UserRole::Requester) {
-            return $user->branch_id === $request->branch_id;
+            return $user->id === $request->user_id;
         }
 
         return $user->canViewChamber($request->chamber);

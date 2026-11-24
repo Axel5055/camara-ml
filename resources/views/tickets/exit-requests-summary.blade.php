@@ -1,6 +1,7 @@
 <x-tickets.layout title="Concentrado de solicitudes de salidas" heading="CONCENTRADO DE SOLICITUDES DE SALIDAS" :reference="$from->isSameDay($to) ? $from->format('d/m/Y') : $from->format('d/m/Y').' al '.$to->format('d/m/Y')">
     <div class="row"><span>Cámara</span><span>{{ $chamberLabel }}</span></div>
     <div class="row"><span>Sucursal</span><span>{{ $branchLabel }}</span></div>
+    <div class="row"><span>Solicitante</span><span>{{ $requesterLabel }}</span></div>
     <div class="row"><span>Solicitudes</span><span>{{ number_format($requestsCount) }}</span></div>
     <div class="row"><span>Impreso</span><span>{{ now()->format('d/m/Y H:i') }}</span></div>
     <div class="row"><span>Imprimió</span><span>{{ $printedBy }}</span></div>

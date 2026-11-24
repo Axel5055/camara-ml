@@ -10,6 +10,7 @@ use App\Models\ExitItem;
 use App\Models\ExitRequest;
 use App\Models\StockExit;
 use App\Models\Transfer;
+use App\Models\User;
 use Illuminate\Contracts\View\View;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
@@ -83,6 +84,7 @@ class TicketController extends Controller
             'hasta' => ['required', 'date_format:Y-m-d', 'after_or_equal:desde'],
             'camara' => ['nullable', 'integer'],
             'sucursal' => ['nullable', 'integer', 'exists:branches,id'],
+            'solicitante' => ['nullable', 'integer', 'exists:users,id'],
         ]);
 
         $chambers = Chamber::query()->accessibleBy($user)->orderBy('name')->get(['id', 'name']);
@@ -95,7 +97,9 @@ class TicketController extends Controller
         $to = Carbon::parse($data['hasta'])->endOfDay();
 
         $exits = fn () => DB::table('exits')
-            ->whereIn('exits.id', ExitRequest::query()->whereNotNull('exit_id')->select('exit_id'))
+            ->whereIn('exits.id', ExitRequest::query()->whereNotNull('exit_id')
+                ->when(isset($data['solicitante']), fn ($query) => $query->where('user_id', (int) $data['solicitante']))
+                ->select('exit_id'))
             ->where('exits.status', DocumentStatus::Confirmed->value)
             ->whereIn('exits.origin_chamber_id', $chamberIds)
             ->whereBetween('exits.occurred_at', [$from, $to])
@@ -121,6 +125,7 @@ class TicketController extends Controller
             'to' => $to,
             'chamberLabel' => $chamber->name ?? ($chambers->count() === 1 ? $chambers->first()->name : 'Todas'),
             'branchLabel' => isset($data['sucursal']) ? Branch::query()->whereKey((int) $data['sucursal'])->value('name') : 'Todas',
+            'requesterLabel' => isset($data['solicitante']) ? User::query()->whereKey((int) $data['solicitante'])->value('name') : 'Todos',
             'printedBy' => $user->name,
         ]);
     }
