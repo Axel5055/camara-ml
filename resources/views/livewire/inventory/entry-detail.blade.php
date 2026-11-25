@@ -102,44 +102,7 @@
 
     <div class="space-y-2">
         <flux:heading size="lg">Grupos de la entrada</flux:heading>
-        <div class="overflow-hidden rounded-xl border border-zinc-200 bg-white p-2 shadow-xs dark:border-zinc-700 dark:bg-zinc-800" data-test="entry-groups-table">
-            <flux:table container:class="overflow-x-auto">
-                <flux:table.columns>
-                    <flux:table.column>Producto</flux:table.column>
-                    <flux:table.column align="end">Cajas</flux:table.column>
-                    <flux:table.column align="end">Peso por caja</flux:table.column>
-                    <flux:table.column align="end">Costo por kg</flux:table.column>
-                    <flux:table.column align="end">Peso total</flux:table.column>
-                    @if ($showCosts)
-                        <flux:table.column align="end">Importe</flux:table.column>
-                    @endif
-                </flux:table.columns>
-                <flux:table.rows>
-                    @foreach ($items as $item)
-                        <flux:table.row :key="$item->id">
-                            <flux:table.cell><div class="font-medium">{{ $item->product->name }}</div><div class="text-xs text-zinc-500">{{ $item->product->category->name }}</div></flux:table.cell>
-                            <flux:table.cell align="end" class="tabular-nums"><flux:badge size="sm" color="sky" class="tabular-nums">{{ number_format($item->boxes_count) }}</flux:badge></flux:table.cell>
-                            <flux:table.cell align="end" class="tabular-nums">{{ $item->weight_per_box_kg }} kg</flux:table.cell>
-                            <flux:table.cell align="end" class="tabular-nums">${{ number_format((float) $item->price_per_kg_mxn, 2) }}</flux:table.cell>
-                            <flux:table.cell align="end" class="tabular-nums"><flux:badge size="sm" color="amber" class="tabular-nums">{{ $item->total_weight_kg }} kg</flux:badge></flux:table.cell>
-                            @if ($showCosts)
-                                <flux:table.cell align="end" class="font-medium tabular-nums"><flux:badge size="sm" color="emerald" class="tabular-nums">${{ number_format((float) $item->total_cost_mxn, 2) }}</flux:badge></flux:table.cell>
-                            @endif
-                        </flux:table.row>
-                    @endforeach
-                    <flux:table.row class="border-t-2 border-zinc-300 bg-zinc-50 font-semibold dark:border-zinc-600 dark:bg-zinc-900/40" data-test="entry-groups-total">
-                        <flux:table.cell>Total</flux:table.cell>
-                        <flux:table.cell align="end" class="tabular-nums"><flux:badge size="sm" color="sky" class="tabular-nums">{{ number_format((int) $items->sum('boxes_count')) }}</flux:badge></flux:table.cell>
-                        <flux:table.cell align="end">—</flux:table.cell>
-                        <flux:table.cell align="end">—</flux:table.cell>
-                        <flux:table.cell align="end" class="tabular-nums"><flux:badge size="sm" color="amber" class="tabular-nums">{{ number_format((float) $items->sum('total_weight_kg'), 3) }} kg</flux:badge></flux:table.cell>
-                        @if ($showCosts)
-                            <flux:table.cell align="end" class="tabular-nums"><flux:badge size="sm" color="emerald" class="tabular-nums">${{ number_format((float) $items->sum('total_cost_mxn'), 2) }}</flux:badge></flux:table.cell>
-                        @endif
-                    </flux:table.row>
-                </flux:table.rows>
-            </flux:table>
-        </div>
+        <x-product-summary :rows="$items->map(fn ($item) => ['product' => $item->product->name, 'sub' => $item->product->category->name, 'boxes' => $item->boxes_count, 'per_box' => $item->weight_per_box_kg.' kg', 'price' => '$'.number_format((float) $item->price_per_kg_mxn, 2), 'kg' => $item->total_weight_kg, 'amount' => $item->total_cost_mxn])" :show-costs="$showCosts" :show-per-box="true" test-id="entry-groups-table" total-test-id="entry-groups-total" />
     </div>
 
     <div class="space-y-2">

@@ -127,41 +127,7 @@
 
     <div class="space-y-2">
         <flux:heading size="lg">Resumen por producto</flux:heading>
-        <div class="overflow-hidden rounded-xl border border-zinc-200 bg-white p-2 shadow-xs dark:border-zinc-700 dark:bg-zinc-800" data-test="exit-summary-table">
-            <flux:table container:class="overflow-x-auto">
-                <flux:table.columns>
-                    <flux:table.column>Producto</flux:table.column>
-                    <flux:table.column align="end">Cajas</flux:table.column>
-                    <flux:table.column align="end">Peso</flux:table.column>
-                    <flux:table.column align="end">Costo por kg</flux:table.column>
-                    @if ($showCosts)
-                        <flux:table.column align="end">Importe (MXN)</flux:table.column>
-                    @endif
-                </flux:table.columns>
-                <flux:table.rows>
-                    @foreach ($perProduct as $row)
-                        <flux:table.row wire:key="pp-{{ $loop->index }}">
-                            <flux:table.cell class="font-medium">{{ $row->product }}</flux:table.cell>
-                            <flux:table.cell align="end" class="tabular-nums"><flux:badge size="sm" color="sky" class="tabular-nums">{{ number_format($row->boxes) }}</flux:badge></flux:table.cell>
-                            <flux:table.cell align="end" class="tabular-nums"><flux:badge size="sm" color="amber" class="tabular-nums">{{ number_format((float) $row->kg, 3) }} kg</flux:badge></flux:table.cell>
-                            <flux:table.cell align="end" class="whitespace-nowrap tabular-nums">${{ number_format((float) $row->min_price_kg, 2) }}@if ((float) $row->min_price_kg !== (float) $row->max_price_kg) – ${{ number_format((float) $row->max_price_kg, 2) }}@endif</flux:table.cell>
-                            @if ($showCosts)
-                                <flux:table.cell align="end" class="font-medium tabular-nums"><flux:badge size="sm" color="emerald" class="tabular-nums">${{ number_format((float) $row->cost, 2) }}</flux:badge></flux:table.cell>
-                            @endif
-                        </flux:table.row>
-                    @endforeach
-                    <flux:table.row class="border-t-2 border-zinc-300 bg-zinc-50 font-semibold dark:border-zinc-600 dark:bg-zinc-900/40" data-test="exit-summary-total">
-                        <flux:table.cell>Total</flux:table.cell>
-                        <flux:table.cell align="end" class="tabular-nums"><flux:badge size="sm" color="sky" class="tabular-nums">{{ number_format((int) $perProduct->sum('boxes')) }}</flux:badge></flux:table.cell>
-                        <flux:table.cell align="end" class="tabular-nums"><flux:badge size="sm" color="amber" class="tabular-nums">{{ number_format((float) $perProduct->sum('kg'), 3) }} kg</flux:badge></flux:table.cell>
-                        <flux:table.cell align="end">—</flux:table.cell>
-                        @if ($showCosts)
-                            <flux:table.cell align="end" class="tabular-nums"><flux:badge size="sm" color="emerald" class="tabular-nums">${{ number_format((float) $perProduct->sum('cost'), 2) }}</flux:badge></flux:table.cell>
-                        @endif
-                    </flux:table.row>
-                </flux:table.rows>
-            </flux:table>
-        </div>
+        <x-product-summary :rows="$perProduct->map(fn ($row) => ['product' => $row->product, 'boxes' => $row->boxes, 'kg' => $row->kg, 'price' => '$'.number_format((float) $row->min_price_kg, 2).((float) $row->min_price_kg !== (float) $row->max_price_kg ? ' – $'.number_format((float) $row->max_price_kg, 2) : ''), 'amount' => $row->cost])" :show-costs="$showCosts" test-id="exit-summary-table" total-test-id="exit-summary-total" />
     </div>
 
     <div class="space-y-2">
