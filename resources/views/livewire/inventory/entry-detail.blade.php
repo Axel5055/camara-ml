@@ -118,15 +118,25 @@
                     @foreach ($items as $item)
                         <flux:table.row :key="$item->id">
                             <flux:table.cell><div class="font-medium">{{ $item->product->name }}</div><div class="text-xs text-zinc-500">{{ $item->product->category->name }}</div></flux:table.cell>
-                            <flux:table.cell align="end" class="tabular-nums">{{ number_format($item->boxes_count) }}</flux:table.cell>
+                            <flux:table.cell align="end" class="tabular-nums"><flux:badge size="sm" color="sky" class="tabular-nums">{{ number_format($item->boxes_count) }}</flux:badge></flux:table.cell>
                             <flux:table.cell align="end" class="tabular-nums">{{ $item->weight_per_box_kg }} kg</flux:table.cell>
                             <flux:table.cell align="end" class="tabular-nums">${{ number_format((float) $item->price_per_kg_mxn, 2) }}</flux:table.cell>
-                            <flux:table.cell align="end" class="tabular-nums">{{ $item->total_weight_kg }} kg</flux:table.cell>
+                            <flux:table.cell align="end" class="tabular-nums"><flux:badge size="sm" color="amber" class="tabular-nums">{{ $item->total_weight_kg }} kg</flux:badge></flux:table.cell>
                             @if ($showCosts)
-                                <flux:table.cell align="end" class="font-medium tabular-nums">${{ number_format((float) $item->total_cost_mxn, 2) }}</flux:table.cell>
+                                <flux:table.cell align="end" class="font-medium tabular-nums"><flux:badge size="sm" color="emerald" class="tabular-nums">${{ number_format((float) $item->total_cost_mxn, 2) }}</flux:badge></flux:table.cell>
                             @endif
                         </flux:table.row>
                     @endforeach
+                    <flux:table.row class="border-t-2 border-zinc-300 bg-zinc-50 font-semibold dark:border-zinc-600 dark:bg-zinc-900/40" data-test="entry-groups-total">
+                        <flux:table.cell>Total</flux:table.cell>
+                        <flux:table.cell align="end" class="tabular-nums"><flux:badge size="sm" color="sky" class="tabular-nums">{{ number_format((int) $items->sum('boxes_count')) }}</flux:badge></flux:table.cell>
+                        <flux:table.cell align="end">—</flux:table.cell>
+                        <flux:table.cell align="end">—</flux:table.cell>
+                        <flux:table.cell align="end" class="tabular-nums"><flux:badge size="sm" color="amber" class="tabular-nums">{{ number_format((float) $items->sum('total_weight_kg'), 3) }} kg</flux:badge></flux:table.cell>
+                        @if ($showCosts)
+                            <flux:table.cell align="end" class="tabular-nums"><flux:badge size="sm" color="emerald" class="tabular-nums">${{ number_format((float) $items->sum('total_cost_mxn'), 2) }}</flux:badge></flux:table.cell>
+                        @endif
+                    </flux:table.row>
                 </flux:table.rows>
             </flux:table>
         </div>

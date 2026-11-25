@@ -73,7 +73,7 @@ it('shows the detail of an entry with its groups and boxes', function () {
 it('shows the amounts of an entry only to administrators', function () {
     $w = detailsWorld();
 
-    Livewire::actingAs($w['admin'])->test(EntryDetail::class, ['entry' => $w['entry']])->assertSee('6.00')->assertSee('Importe');
+    Livewire::actingAs($w['admin'])->test(EntryDetail::class, ['entry' => $w['entry']])->assertSee('6.00')->assertSee('Importe')->assertSeeHtml('data-test="entry-groups-total"');
     Livewire::actingAs($w['centroUser'])->test(EntryDetail::class, ['entry' => $w['entry']])->assertSee('Costo por kg')->assertSee('6.00')->assertDontSee('Importe')->assertDontSee('360.00');
 });
 
@@ -114,6 +114,7 @@ it('shows the reversal of an exit and hides costs from warehouse users', functio
     $exit = $exit->fresh();
 
     Livewire::actingAs($w['admin'])->test(ExitDetail::class, ['exit' => $exit])
+        ->assertSeeHtml('data-test="exit-summary-total"')
         ->assertSee('Captura equivocada')
         ->assertSee('Revertida')
         ->assertSee('120.00');
@@ -470,15 +471,15 @@ it('shows the transfer detail page with its boxes, the price per box and the pri
         ->assertSeeHtml('data-test="transfer-boxes-table"')
         ->assertSee($w['boxes'][0]->barcode)
         ->assertSee('Costo por kg')
-        ->assertSee('Costo de la caja')
-        ->assertSee('120.00')
+        ->assertDontSee('Costo de la caja')
+        ->assertDontSeeHtml('data-test="transfer-box-amount"')
         ->assertDontSee('Importe')
         ->assertDontSeeHtml('data-test="transfer-receive"')
         ->set('search', $w['boxes'][1]->barcode)
         ->assertDontSee($w['boxes'][0]->barcode);
 
     Livewire::actingAs($w['norteUser'])->test(TransferDetail::class, ['transfer' => $transfer])->assertSeeHtml('data-test="transfer-receive"')->assertDontSeeHtml('data-test="transfer-cancel"');
-    Livewire::actingAs($w['admin'])->test(TransferDetail::class, ['transfer' => $transfer])->assertSee('Importe')->assertSeeHtml('data-test="transfer-cancel"');
+    Livewire::actingAs($w['admin'])->test(TransferDetail::class, ['transfer' => $transfer])->assertSeeHtml('data-test="transfer-summary-total"')->assertSee('Importe')->assertSeeHtml('data-test="transfer-product-amount"')->assertSeeHtml('data-test="transfer-box-amount"')->assertSee('240.00')->assertSeeHtml('data-test="transfer-cancel"');
 });
 
 it('receives and cancels a transfer from its detail page', function () {

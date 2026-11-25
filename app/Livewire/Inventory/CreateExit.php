@@ -527,7 +527,7 @@ class CreateExit extends Component
             $boxCost = Decimal::costOf($line['weight'], $line['price']);
             $cost = Decimal::mul($boxCost, (string) $count, Decimal::MONEY_SCALE);
 
-            $summaries[] = [...$line, 'count' => $count, 'box_cost' => $boxCost, 'total_weight' => $weight, 'total_cost' => $cost];
+            $summaries[] = [...$line, 'count' => $count, 'total_weight' => $weight, 'total_cost' => $cost];
             $totalBoxes += $count;
             $totalWeight = Decimal::add($totalWeight, $weight, Decimal::WEIGHT_SCALE);
             $totalCost = Decimal::add($totalCost, $cost, Decimal::MONEY_SCALE);

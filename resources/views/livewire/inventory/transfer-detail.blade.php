@@ -190,16 +190,31 @@
                     <flux:table.column align="end">Cajas</flux:table.column>
                     <flux:table.column align="end">Peso</flux:table.column>
                     <flux:table.column align="end">Costo por kg</flux:table.column>
+                    @if ($showCosts)
+                        <flux:table.column align="end">Importe (MXN)</flux:table.column>
+                    @endif
                 </flux:table.columns>
                 <flux:table.rows>
                     @foreach ($perProduct as $row)
                         <flux:table.row wire:key="pp-{{ $loop->index }}">
                             <flux:table.cell class="font-medium">{{ $row->product }}</flux:table.cell>
-                            <flux:table.cell align="end" class="tabular-nums">{{ number_format($row->boxes) }}</flux:table.cell>
-                            <flux:table.cell align="end" class="tabular-nums">{{ number_format((float) $row->kg, 3) }} kg</flux:table.cell>
+                            <flux:table.cell align="end" class="tabular-nums"><flux:badge size="sm" color="sky" class="tabular-nums">{{ number_format($row->boxes) }}</flux:badge></flux:table.cell>
+                            <flux:table.cell align="end" class="tabular-nums"><flux:badge size="sm" color="amber" class="tabular-nums">{{ number_format((float) $row->kg, 3) }} kg</flux:badge></flux:table.cell>
                             <flux:table.cell align="end" class="whitespace-nowrap tabular-nums">${{ number_format((float) $row->min_price_kg, 2) }}@if ((float) $row->min_price_kg !== (float) $row->max_price_kg) – ${{ number_format((float) $row->max_price_kg, 2) }}@endif</flux:table.cell>
+                            @if ($showCosts)
+                                <flux:table.cell align="end" class="font-medium tabular-nums" data-test="transfer-product-amount"><flux:badge size="sm" color="emerald" class="tabular-nums">${{ number_format((float) $row->cost, 2) }}</flux:badge></flux:table.cell>
+                            @endif
                         </flux:table.row>
                     @endforeach
+                    <flux:table.row class="border-t-2 border-zinc-300 bg-zinc-50 font-semibold dark:border-zinc-600 dark:bg-zinc-900/40" data-test="transfer-summary-total">
+                        <flux:table.cell>Total</flux:table.cell>
+                        <flux:table.cell align="end" class="tabular-nums"><flux:badge size="sm" color="sky" class="tabular-nums">{{ number_format((int) $perProduct->sum('boxes')) }}</flux:badge></flux:table.cell>
+                        <flux:table.cell align="end" class="tabular-nums"><flux:badge size="sm" color="amber" class="tabular-nums">{{ number_format((float) $perProduct->sum('kg'), 3) }} kg</flux:badge></flux:table.cell>
+                        <flux:table.cell align="end">—</flux:table.cell>
+                        @if ($showCosts)
+                            <flux:table.cell align="end" class="tabular-nums"><flux:badge size="sm" color="emerald" class="tabular-nums">${{ number_format((float) $perProduct->sum('cost'), 2) }}</flux:badge></flux:table.cell>
+                        @endif
+                    </flux:table.row>
                 </flux:table.rows>
             </flux:table>
         </div>
@@ -220,7 +235,9 @@
                     <flux:table.column align="end">Peso enviado</flux:table.column>
                     <flux:table.column align="end">Peso recibido</flux:table.column>
                     <flux:table.column align="end">Costo por kg</flux:table.column>
-                    <flux:table.column align="end">Costo de la caja</flux:table.column>
+                    @if ($showCosts)
+                        <flux:table.column align="end">Importe (MXN)</flux:table.column>
+                    @endif
                     <flux:table.column>Estado</flux:table.column>
                     <flux:table.column></flux:table.column>
                 </flux:table.columns>
@@ -232,7 +249,9 @@
                             <flux:table.cell align="end" class="tabular-nums">{{ $item->expected_weight_kg }} kg</flux:table.cell>
                             <flux:table.cell align="end" class="tabular-nums">{{ $item->received_weight_kg !== null ? $item->received_weight_kg.' kg' : '—' }}</flux:table.cell>
                             <flux:table.cell align="end" class="tabular-nums">${{ number_format((float) $item->box->price_per_kg_mxn, 2) }}</flux:table.cell>
-                            <flux:table.cell align="end" class="tabular-nums">${{ number_format((float) \App\Support\Decimal::costOf((string) $item->expected_weight_kg, (string) $item->box->price_per_kg_mxn), 2) }}</flux:table.cell>
+                            @if ($showCosts)
+                                <flux:table.cell align="end" class="tabular-nums" data-test="transfer-box-amount">${{ number_format((float) \App\Support\Decimal::costOf((string) $item->expected_weight_kg, (string) $item->box->price_per_kg_mxn), 2) }}</flux:table.cell>
+                            @endif
                             <flux:table.cell>
                                 @switch($item->status->value)
                                     @case('received')<flux:badge size="sm" color="green">Recibida</flux:badge>@break

@@ -83,11 +83,11 @@ it('downloads an entry as an Excel file with every box and the amounts for admin
     expect($flat)->toContain("'=cmd|calc");
 });
 
-it('shows only the price per box, never an amount, to warehouse users in the Excel and PDF of an entry', function () {
+it('shows only the price per kilo, never an amount, to warehouse users in the Excel and PDF of an entry', function () {
     $w = exportsWorld();
 
     $xlsx = readXlsx($this->actingAs($w['centroUser'])->get(route('entries.export', [$w['entry'], 'xlsx']))->assertOk());
-    expect(json_encode($xlsx, JSON_UNESCAPED_UNICODE))->toContain('Precio por caja')->toContain('120')->not->toContain('Importe')->not->toContain('360.00')->toContain($w['boxes'][0]->barcode);
+    expect(json_encode($xlsx, JSON_UNESCAPED_UNICODE))->toContain('Costo por kg')->not->toContain('Precio por caja')->not->toContain('Importe')->not->toContain('360.00')->toContain($w['boxes'][0]->barcode);
 
     $pdf = $this->get(route('entries.export', [$w['entry'], 'pdf']))->assertOk()->assertDownload('entrada-'.$w['entry']->reference.'.pdf');
     expect($pdf->streamedContent())->toStartWith('%PDF');
@@ -116,7 +116,7 @@ it('hides the historic cost from warehouse users in an exit export', function ()
     expect(json_encode($sheets, JSON_UNESCAPED_UNICODE))->not->toContain('240')->not->toContain('Importe')->toContain('Costo por kg')->toContain('6')->toContain('Ana López');
 });
 
-it('downloads a transfer with the price per box and no money total for anyone', function () {
+it('downloads a transfer with the price per kilo, and the amounts only for those who see costs', function () {
     $w = exportsWorld();
     app(RegisterEntry::class)->handle($w['centroUser'], $w['c1'], [['product_id' => $w['product']->id, 'boxes_count' => 1, 'weight_per_box_kg' => '10', 'price_per_kg_mxn' => '12.00']]);
     $transfer = app(RegisterExit::class)->handle($w['centroUser'], $w['c1'], $w['norte'], $w['n1'], 'Luis', [Box::query()->latest('id')->firstOrFail()->id])->transfer;
@@ -127,7 +127,11 @@ it('downloads a transfer with the price per box and no money total for anyone', 
         expect(json_encode($sheets, JSON_UNESCAPED_UNICODE))->toContain('Costo por kg')->toContain('12')->toContain($transfer->reference)->not->toContain('Importe');
     }
 
+    $admin = readXlsx($this->actingAs($w['admin'])->get(route('transfers.export', [$transfer, 'xlsx']))->assertOk());
+    expect(json_encode($admin, JSON_UNESCAPED_UNICODE))->toContain('Importe (MXN)')->toContain('120')->not->toContain('Precio por caja');
+
     $this->actingAs($w['centroUser'])->get(route('transfers.export', [$transfer, 'pdf']))->assertOk();
+    $this->actingAs($w['admin'])->get(route('transfers.export', [$transfer, 'pdf']))->assertOk();
     $this->actingAs($w['centroUser'])->get(route('transfers.export', [$transfer, 'csv']))->assertNotFound();
 });
 

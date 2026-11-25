@@ -35,7 +35,7 @@ class RecordExportController extends Controller
     {
         Gate::authorize('view', $transfer);
 
-        return $this->respond($report->build($transfer), $format);
+        return $this->respond($report->build($transfer, Gate::allows('view-costs')), $format);
     }
 
     /**

@@ -147,8 +147,10 @@
                         <flux:table.column align="end">Cajas</flux:table.column>
                         <flux:table.column align="end">Peso por caja</flux:table.column>
                         <flux:table.column align="end">Costo por kg</flux:table.column>
-                        <flux:table.column align="end">Costo de la caja</flux:table.column>
                         <flux:table.column align="end">Peso total</flux:table.column>
+                        @if ($showCosts)
+                            <flux:table.column align="end">Importe (MXN)</flux:table.column>
+                        @endif
                         <flux:table.column></flux:table.column>
                     </flux:table.columns>
                     <flux:table.rows>
@@ -168,15 +170,17 @@
                                 <flux:table.cell align="end" class="tabular-nums font-medium">{{ number_format($line['count']) }}</flux:table.cell>
                                 <flux:table.cell align="end" class="tabular-nums">{{ $line['weight'] }} kg</flux:table.cell>
                                 <flux:table.cell align="end" class="tabular-nums">${{ number_format((float) $line['price'], 2) }}</flux:table.cell>
-                                <flux:table.cell align="end" class="tabular-nums">${{ number_format((float) $line['box_cost'], 2) }}</flux:table.cell>
                                 <flux:table.cell align="end" class="tabular-nums font-medium text-zinc-900 dark:text-white">{{ $line['total_weight'] }} kg</flux:table.cell>
+                                @if ($showCosts)
+                                    <flux:table.cell align="end" class="tabular-nums" data-test="exit-line-amount">${{ number_format((float) $line['total_cost'], 2) }}</flux:table.cell>
+                                @endif
                                 <flux:table.cell align="end">
                                     <flux:button size="sm" variant="ghost" icon="trash" wire:click="removeLine({{ $index }})">Quitar</flux:button>
                                 </flux:table.cell>
                             </flux:table.row>
                         @empty
                             <flux:table.row>
-                                <flux:table.cell colspan="6" class="py-12 text-center text-zinc-500">
+                                <flux:table.cell colspan="{{ $showCosts ? 6 : 5 }}" class="py-12 text-center text-zinc-500">
                                     <flux:icon name="archive-box-arrow-down" class="mx-auto mb-2 size-8 text-zinc-300 dark:text-zinc-600" />
                                     Aún no hay cajas en {{ $word }}.<br>
                                     Elige un producto, indica cuántas cajas y presiona "Agregar cajas".
@@ -244,7 +248,6 @@
                             <div>
                                 <div class="text-xs uppercase tracking-wide text-zinc-500">Costo por kg</div>
                                 <div class="mt-0.5 whitespace-nowrap text-xl font-semibold tabular-nums text-zinc-900 dark:text-white">${{ number_format((float) $variant['price'], 2) }} <span class="text-sm font-normal text-zinc-500">MXN</span></div>
-                                <div class="text-xs text-zinc-500">Caja: ${{ number_format((float) \App\Support\Decimal::costOf($variant['weight'], $variant['price']), 2) }}</div>
                             </div>
                         </div>
 

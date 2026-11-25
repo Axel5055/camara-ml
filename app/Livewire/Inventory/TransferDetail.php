@@ -163,7 +163,7 @@ class TransferDetail extends Component
             ->whereNull('transfer_items.removed_at')
             ->groupBy('products.id', 'products.name')
             ->orderBy('products.name')
-            ->selectRaw('products.name as product, count(*) as boxes, sum(transfer_items.expected_weight_kg) as kg, min(boxes.price_per_kg_mxn) as min_price_kg, max(boxes.price_per_kg_mxn) as max_price_kg')
+            ->selectRaw('products.name as product, count(*) as boxes, sum(transfer_items.expected_weight_kg) as kg, min(boxes.price_per_kg_mxn) as min_price_kg, max(boxes.price_per_kg_mxn) as max_price_kg, sum(round(transfer_items.expected_weight_kg * boxes.price_per_kg_mxn, 2)) as cost')
             ->get();
 
         $exit = $this->transfer->exit()->first();

@@ -4,16 +4,17 @@ namespace App\Services\Exports;
 
 use App\Models\Transfer;
 use App\Models\TransferItem;
+use App\Support\Decimal;
 use Illuminate\Support\Facades\DB;
 
 class TransferReport
 {
     /**
-     * Everything a printed or spreadsheet copy of a transfer shows. The price per kilo is listed, never a money total.
+     * Everything a printed or spreadsheet copy of a transfer shows. The price per kilo is listed; the amounts only for those who see costs.
      *
      * @return array<string, mixed>
      */
-    public function build(Transfer $transfer): array
+    public function build(Transfer $transfer, bool $showCosts): array
     {
         $exit = $transfer->exit()->first();
         $origin = $transfer->originChamber()->with('branch:id,name')->first();
@@ -26,7 +27,7 @@ class TransferReport
             ->whereNull('transfer_items.removed_at')
             ->groupBy('products.id', 'products.name')
             ->orderBy('products.name')
-            ->selectRaw('products.name as product, count(*) as boxes, sum(transfer_items.expected_weight_kg) as kg, min(boxes.price_per_kg_mxn) as min_price_kg, max(boxes.price_per_kg_mxn) as max_price_kg')
+            ->selectRaw('products.name as product, count(*) as boxes, sum(transfer_items.expected_weight_kg) as kg, min(boxes.price_per_kg_mxn) as min_price_kg, max(boxes.price_per_kg_mxn) as max_price_kg, sum(round(transfer_items.expected_weight_kg * boxes.price_per_kg_mxn, 2)) as cost')
             ->get();
 
         $meta = [
@@ -62,7 +63,11 @@ class TransferReport
             'title' => 'Transferencia '.$transfer->reference,
             'filename' => 'transferencia-'.$transfer->reference,
             'meta' => $meta,
-            'totals' => [['Cajas', (string) number_format((int) $perProduct->sum('boxes'))], ['Peso enviado', number_format((float) $perProduct->sum('kg'), 3).' kg']],
+            'totals' => [
+                ['Cajas', (string) number_format((int) $perProduct->sum('boxes'))],
+                ['Peso enviado', number_format((float) $perProduct->sum('kg'), 3).' kg'],
+                ...($showCosts ? [['Importe', '$'.number_format((float) $perProduct->sum('cost'), 2).' MXN']] : []),
+            ],
             'sections' => [
                 [
                     'title' => 'Resumen por producto',
@@ -72,6 +77,7 @@ class TransferReport
                         ['label' => 'Cajas', 'type' => 'int'],
                         ['label' => 'Peso (kg)', 'type' => 'weight'],
                         ['label' => 'Costo por kg (MXN)', 'type' => 'text'],
+                        ...($showCosts ? [['label' => 'Importe (MXN)', 'type' => 'money']] : []),
                     ],
                     'count' => $perProduct->count(),
                     'rows' => $perProduct->map(fn ($row): array => [
@@ -79,6 +85,7 @@ class TransferReport
                         $row->boxes,
                         $row->kg,
                         '$'.number_format((float) $row->min_price_kg, 2).((float) $row->min_price_kg !== (float) $row->max_price_kg ? ' – $'.number_format((float) $row->max_price_kg, 2) : ''),
+                        ...($showCosts ? [$row->cost] : []),
                     ])->lazy(),
                 ],
                 [
@@ -90,6 +97,7 @@ class TransferReport
                         ['label' => 'Peso enviado (kg)', 'type' => 'weight'],
                         ['label' => 'Peso recibido (kg)', 'type' => 'weight'],
                         ['label' => 'Costo por kg (MXN)', 'type' => 'money'],
+                        ...($showCosts ? [['label' => 'Importe (MXN)', 'type' => 'money']] : []),
                         ['label' => 'Estado', 'type' => 'text'],
                     ],
                     'count' => (clone $items)->count(),
@@ -99,6 +107,7 @@ class TransferReport
                         $item->expected_weight_kg,
                         $item->received_weight_kg,
                         $item->box->price_per_kg_mxn,
+                        ...($showCosts ? [Decimal::costOf((string) $item->expected_weight_kg, (string) $item->box->price_per_kg_mxn)] : []),
                         match ($item->status->value) {
                             'received' => 'Recibida',
                             'missing' => 'Faltante',
