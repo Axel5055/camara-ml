@@ -55,7 +55,7 @@
                     <flux:icon.banknotes class="size-6" />
                 </div>
                 <div class="min-w-0">
-                    <div class="text-xs font-medium uppercase tracking-wide text-zinc-500">Costo histórico</div>
+                    <div class="text-xs font-medium uppercase tracking-wide text-zinc-500">Importe</div>
                     <div class="text-2xl font-semibold text-zinc-900 dark:text-white">${{ number_format((float) $summary->cost, 2) }} <span class="text-sm font-normal text-zinc-500">MXN</span></div>
                 </div>
             </div>
@@ -94,9 +94,9 @@
                 <flux:table.column>Solicitante</flux:table.column>
                 <flux:table.column align="end">Cajas</flux:table.column>
                 <flux:table.column align="end">Peso (kg)</flux:table.column>
-                <flux:table.column align="end">Precio por caja</flux:table.column>
+                <flux:table.column align="end">Costo por kg</flux:table.column>
                 @if ($showCosts)
-                    <flux:table.column align="end">Costo histórico</flux:table.column>
+                    <flux:table.column align="end">Importe (MXN)</flux:table.column>
                 @endif
                 <flux:table.column>Estado</flux:table.column>
                 <flux:table.column></flux:table.column>
@@ -128,7 +128,7 @@
                         <flux:table.cell align="end" class="tabular-nums font-medium text-zinc-900 dark:text-white">{{ number_format($exit->total_boxes) }}</flux:table.cell>
                         <flux:table.cell align="end" class="tabular-nums">{{ $exit->total_weight_kg }}</flux:table.cell>
                         <flux:table.cell align="end" class="whitespace-nowrap tabular-nums" data-test="exit-unit-cost">
-                            ${{ number_format((float) $exit->min_unit_cost, 2) }}@if ((float) $exit->min_unit_cost !== (float) $exit->max_unit_cost) – ${{ number_format((float) $exit->max_unit_cost, 2) }}@endif
+                            ${{ number_format((float) $exit->min_price_kg, 2) }}@if ((float) $exit->min_price_kg !== (float) $exit->max_price_kg) – ${{ number_format((float) $exit->max_price_kg, 2) }}@endif
                         </flux:table.cell>
                         @if ($showCosts)
                             <flux:table.cell align="end" class="tabular-nums font-medium text-zinc-900 dark:text-white">${{ number_format((float) $exit->total_cost_mxn, 2) }}</flux:table.cell>

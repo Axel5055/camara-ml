@@ -1,5 +1,6 @@
 <?php
 
+use App\Actions\Users\AssignManagerScope;
 use App\Enums\BoxStatus;
 use App\Enums\TransferStatus;
 use App\Exceptions\InventoryException;
@@ -19,7 +20,6 @@ use App\Models\Entry;
 use App\Models\Product;
 use App\Models\Transfer;
 use App\Models\User;
-use App\Actions\Users\AssignManagerScope;
 use App\Services\Inventory\AddBoxesToChamber;
 use App\Services\Inventory\CorrectTransfer;
 use App\Services\Inventory\ReceiveTransfer;
@@ -120,9 +120,9 @@ it('shows the reversal of an exit and hides costs from warehouse users', functio
 
     Livewire::actingAs($w['centroUser'])->test(ExitDetail::class, ['exit' => $exit])
         ->assertSee('Captura equivocada')
-        ->assertSee('Precio por caja')
-        ->assertSee('120.00')
-        ->assertDontSee('Costo histórico');
+        ->assertSee('Costo por kg')
+        ->assertSee('6.00')
+        ->assertDontSee('Importe');
 });
 
 it('does not show an exit to users unrelated to its chambers', function () {
@@ -469,14 +469,16 @@ it('shows the transfer detail page with its boxes, the price per box and the pri
         ->assertSeeHtml('data-test="transfer-print"')
         ->assertSeeHtml('data-test="transfer-boxes-table"')
         ->assertSee($w['boxes'][0]->barcode)
+        ->assertSee('Costo por kg')
+        ->assertSee('Costo de la caja')
         ->assertSee('120.00')
-        ->assertDontSee('Costo histórico')
+        ->assertDontSee('Importe')
         ->assertDontSeeHtml('data-test="transfer-receive"')
         ->set('search', $w['boxes'][1]->barcode)
         ->assertDontSee($w['boxes'][0]->barcode);
 
     Livewire::actingAs($w['norteUser'])->test(TransferDetail::class, ['transfer' => $transfer])->assertSeeHtml('data-test="transfer-receive"')->assertDontSeeHtml('data-test="transfer-cancel"');
-    Livewire::actingAs($w['admin'])->test(TransferDetail::class, ['transfer' => $transfer])->assertSee('Costo histórico')->assertSeeHtml('data-test="transfer-cancel"');
+    Livewire::actingAs($w['admin'])->test(TransferDetail::class, ['transfer' => $transfer])->assertSee('Importe')->assertSeeHtml('data-test="transfer-cancel"');
 });
 
 it('receives and cancels a transfer from its detail page', function () {

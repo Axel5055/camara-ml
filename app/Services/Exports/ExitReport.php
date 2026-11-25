@@ -22,7 +22,7 @@ class ExitReport
 
         $totals = [['Cajas', (string) number_format($exit->total_boxes)], ['Peso total', number_format((float) $exit->total_weight_kg, 3).' kg']];
         if ($showCosts) {
-            $totals[] = ['Costo histórico', '$'.number_format((float) $exit->total_cost_mxn, 2).' MXN'];
+            $totals[] = ['Importe', '$'.number_format((float) $exit->total_cost_mxn, 2).' MXN'];
         }
 
         $perProduct = DB::table('exit_items')
@@ -31,7 +31,7 @@ class ExitReport
             ->where('exit_items.exit_id', $exit->id)
             ->groupBy('products.id', 'products.name')
             ->orderBy('products.name')
-            ->selectRaw('products.name as product, count(*) as boxes, sum(exit_items.weight_out_kg) as kg, sum(exit_items.cost_out_mxn) as cost, min(exit_items.unit_cost_snapshot_mxn) as min_unit_cost, max(exit_items.unit_cost_snapshot_mxn) as max_unit_cost')
+            ->selectRaw('products.name as product, count(*) as boxes, sum(exit_items.weight_out_kg) as kg, sum(exit_items.cost_out_mxn) as cost, min(boxes.price_per_kg_mxn) as min_price_kg, max(boxes.price_per_kg_mxn) as max_price_kg')
             ->get();
 
         $meta = [
@@ -52,7 +52,7 @@ class ExitReport
             $meta[] = ['Reversión', $exit->reversed_at->format('d/m/Y H:i').' por '.User::query()->whereKey($exit->reversed_by)->value('name').'. Motivo: '.$exit->reversed_reason];
         }
 
-        $items = ExitItem::query()->where('exit_id', $exit->id)->with('box:id,barcode,product_id,status', 'box.product:id,name');
+        $items = ExitItem::query()->where('exit_id', $exit->id)->with('box:id,barcode,product_id,status,price_per_kg_mxn', 'box.product:id,name');
 
         return [
             'title' => 'Salida '.$exit->reference,
@@ -67,15 +67,15 @@ class ExitReport
                         ['label' => 'Producto', 'type' => 'text'],
                         ['label' => 'Cajas', 'type' => 'int'],
                         ['label' => 'Peso (kg)', 'type' => 'weight'],
-                        ['label' => 'Precio por caja (MXN)', 'type' => 'text'],
-                        ...($showCosts ? [['label' => 'Costo histórico (MXN)', 'type' => 'money']] : []),
+                        ['label' => 'Costo por kg (MXN)', 'type' => 'text'],
+                        ...($showCosts ? [['label' => 'Importe (MXN)', 'type' => 'money']] : []),
                     ],
                     'count' => $perProduct->count(),
                     'rows' => $perProduct->map(fn ($row): array => [
                         $row->product,
                         $row->boxes,
                         $row->kg,
-                        '$'.number_format((float) $row->min_unit_cost, 2).((float) $row->min_unit_cost !== (float) $row->max_unit_cost ? ' – $'.number_format((float) $row->max_unit_cost, 2) : ''),
+                        '$'.number_format((float) $row->min_price_kg, 2).((float) $row->min_price_kg !== (float) $row->max_price_kg ? ' – $'.number_format((float) $row->max_price_kg, 2) : ''),
                         ...($showCosts ? [$row->cost] : []),
                     ])->lazy(),
                 ],
@@ -88,8 +88,8 @@ class ExitReport
                         ['label' => 'Tipo', 'type' => 'text'],
                         ['label' => 'Peso que salió (kg)', 'type' => 'weight'],
                         ['label' => 'Peso restante en la caja (kg)', 'type' => 'weight'],
-                        ['label' => 'Precio por caja (MXN)', 'type' => 'money'],
-                        ...($showCosts ? [['label' => 'Costo histórico (MXN)', 'type' => 'money']] : []),
+                        ['label' => 'Costo por kg (MXN)', 'type' => 'money'],
+                        ...($showCosts ? [['label' => 'Importe (MXN)', 'type' => 'money']] : []),
                         ['label' => 'Estado actual', 'type' => 'text'],
                     ],
                     'count' => (clone $items)->count(),
@@ -99,7 +99,7 @@ class ExitReport
                         $item->kind->value === 'full' ? 'Caja completa' : 'Retiro parcial',
                         $item->weight_out_kg,
                         $item->kind->value === 'full' ? null : $item->weight_after_kg,
-                        $item->unit_cost_snapshot_mxn,
+                        $item->box->price_per_kg_mxn,
                         ...($showCosts ? [$item->cost_out_mxn] : []),
                         $item->box->status->label().($item->is_active ? '' : ' (revertida)'),
                     ]),

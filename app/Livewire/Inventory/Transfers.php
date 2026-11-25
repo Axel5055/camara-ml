@@ -10,6 +10,7 @@ use Illuminate\Contracts\View\View;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Gate;
 use Livewire\Attributes\Title;
 use Livewire\Attributes\Url;
 use Livewire\Component;
@@ -75,15 +76,18 @@ class Transfers extends Component
             ->groupBy('status')
             ->pluck('total', 'status');
 
+        $showCosts = Gate::allows('view-costs');
+
         return view('livewire.inventory.transfers', [
+            'showCosts' => $showCosts,
             'transfers' => $this->visibleTransfers()
-                ->with(['originChamber:id,name,branch_id', 'originChamber.branch:id,name', 'destChamber:id,name,branch_id', 'destChamber.branch:id,name', 'exit:id,reference,requester_name'])
+                ->with(['originChamber:id,name,branch_id', 'originChamber.branch:id,name', 'destChamber:id,name,branch_id', 'destChamber.branch:id,name', $showCosts ? 'exit:id,reference,requester_name,total_cost_mxn' : 'exit:id,reference,requester_name'])
                 ->select('transfers.*')
                 ->addSelect([
-                    'min_unit_cost' => DB::table('transfer_items')->join('boxes', 'boxes.id', '=', 'transfer_items.box_id')
-                        ->whereColumn('transfer_items.transfer_id', 'transfers.id')->whereNull('transfer_items.removed_at')->selectRaw('min(boxes.unit_cost_mxn)'),
-                    'max_unit_cost' => DB::table('transfer_items')->join('boxes', 'boxes.id', '=', 'transfer_items.box_id')
-                        ->whereColumn('transfer_items.transfer_id', 'transfers.id')->whereNull('transfer_items.removed_at')->selectRaw('max(boxes.unit_cost_mxn)'),
+                    'min_price_kg' => DB::table('transfer_items')->join('boxes', 'boxes.id', '=', 'transfer_items.box_id')
+                        ->whereColumn('transfer_items.transfer_id', 'transfers.id')->whereNull('transfer_items.removed_at')->selectRaw('min(boxes.price_per_kg_mxn)'),
+                    'max_price_kg' => DB::table('transfer_items')->join('boxes', 'boxes.id', '=', 'transfer_items.box_id')
+                        ->whereColumn('transfer_items.transfer_id', 'transfers.id')->whereNull('transfer_items.removed_at')->selectRaw('max(boxes.price_per_kg_mxn)'),
                 ])
                 ->withCount('items')
                 ->withCount('incidents')

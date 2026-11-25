@@ -113,7 +113,7 @@ it('hides the historic cost from warehouse users in an exit export', function ()
 
     $sheets = readXlsx($this->actingAs($w['centroUser'])->get(route('exits.export', [$w['exit'], 'xlsx']))->assertOk());
 
-    expect(json_encode($sheets, JSON_UNESCAPED_UNICODE))->not->toContain('240')->not->toContain('Costo histórico')->toContain('Precio por caja')->toContain('120')->toContain('Ana López');
+    expect(json_encode($sheets, JSON_UNESCAPED_UNICODE))->not->toContain('240')->not->toContain('Importe')->toContain('Costo por kg')->toContain('6')->toContain('Ana López');
 });
 
 it('downloads a transfer with the price per box and no money total for anyone', function () {
@@ -124,7 +124,7 @@ it('downloads a transfer with the price per box and no money total for anyone', 
     foreach (['centroUser', 'norteUser'] as $who) {
         $sheets = readXlsx($this->actingAs($w[$who])->get(route('transfers.export', [$transfer, 'xlsx']))->assertOk());
 
-        expect(json_encode($sheets, JSON_UNESCAPED_UNICODE))->toContain('Precio por caja')->toContain('120')->toContain($transfer->reference)->not->toContain('Costo histórico');
+        expect(json_encode($sheets, JSON_UNESCAPED_UNICODE))->toContain('Costo por kg')->toContain('12')->toContain($transfer->reference)->not->toContain('Importe');
     }
 
     $this->actingAs($w['centroUser'])->get(route('transfers.export', [$transfer, 'pdf']))->assertOk();

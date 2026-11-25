@@ -9,7 +9,7 @@ use Illuminate\Support\Facades\DB;
 class TransferReport
 {
     /**
-     * Everything a printed or spreadsheet copy of a transfer shows. The price per box is listed, never a money total.
+     * Everything a printed or spreadsheet copy of a transfer shows. The price per kilo is listed, never a money total.
      *
      * @return array<string, mixed>
      */
@@ -26,7 +26,7 @@ class TransferReport
             ->whereNull('transfer_items.removed_at')
             ->groupBy('products.id', 'products.name')
             ->orderBy('products.name')
-            ->selectRaw('products.name as product, count(*) as boxes, sum(transfer_items.expected_weight_kg) as kg, min(boxes.unit_cost_mxn) as min_unit_cost, max(boxes.unit_cost_mxn) as max_unit_cost')
+            ->selectRaw('products.name as product, count(*) as boxes, sum(transfer_items.expected_weight_kg) as kg, min(boxes.price_per_kg_mxn) as min_price_kg, max(boxes.price_per_kg_mxn) as max_price_kg')
             ->get();
 
         $meta = [
@@ -56,7 +56,7 @@ class TransferReport
             $meta[] = ['Cancelación', $transfer->cancelled_at->format('d/m/Y H:i').' por '.$transfer->canceller()->value('name').'. Motivo: '.$transfer->cancel_reason];
         }
 
-        $items = TransferItem::query()->where('transfer_id', $transfer->id)->with('box:id,barcode,product_id,unit_cost_mxn', 'box.product:id,name');
+        $items = TransferItem::query()->where('transfer_id', $transfer->id)->with('box:id,barcode,product_id,price_per_kg_mxn', 'box.product:id,name');
 
         return [
             'title' => 'Transferencia '.$transfer->reference,
@@ -71,14 +71,14 @@ class TransferReport
                         ['label' => 'Producto', 'type' => 'text'],
                         ['label' => 'Cajas', 'type' => 'int'],
                         ['label' => 'Peso (kg)', 'type' => 'weight'],
-                        ['label' => 'Precio por caja (MXN)', 'type' => 'text'],
+                        ['label' => 'Costo por kg (MXN)', 'type' => 'text'],
                     ],
                     'count' => $perProduct->count(),
                     'rows' => $perProduct->map(fn ($row): array => [
                         $row->product,
                         $row->boxes,
                         $row->kg,
-                        '$'.number_format((float) $row->min_unit_cost, 2).((float) $row->min_unit_cost !== (float) $row->max_unit_cost ? ' – $'.number_format((float) $row->max_unit_cost, 2) : ''),
+                        '$'.number_format((float) $row->min_price_kg, 2).((float) $row->min_price_kg !== (float) $row->max_price_kg ? ' – $'.number_format((float) $row->max_price_kg, 2) : ''),
                     ])->lazy(),
                 ],
                 [
@@ -89,7 +89,7 @@ class TransferReport
                         ['label' => 'Producto', 'type' => 'text'],
                         ['label' => 'Peso enviado (kg)', 'type' => 'weight'],
                         ['label' => 'Peso recibido (kg)', 'type' => 'weight'],
-                        ['label' => 'Precio por caja (MXN)', 'type' => 'money'],
+                        ['label' => 'Costo por kg (MXN)', 'type' => 'money'],
                         ['label' => 'Estado', 'type' => 'text'],
                     ],
                     'count' => (clone $items)->count(),
@@ -98,7 +98,7 @@ class TransferReport
                         $item->box->product->name,
                         $item->expected_weight_kg,
                         $item->received_weight_kg,
-                        $item->box->unit_cost_mxn,
+                        $item->box->price_per_kg_mxn,
                         match ($item->status->value) {
                             'received' => 'Recibida',
                             'missing' => 'Faltante',

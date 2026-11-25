@@ -8,7 +8,7 @@
             ['key' => 'exits', 'icon' => 'document-text', 'color' => 'indigo', 'label' => 'Salidas', 'value' => number_format($totals->exits)],
             ['key' => 'boxes', 'icon' => 'archive-box', 'color' => 'sky', 'label' => 'Cajas retiradas', 'value' => number_format($totals->boxes)],
             ['key' => 'kg', 'icon' => 'scale', 'color' => 'amber', 'label' => 'Kilogramos entregados', 'value' => number_format((float) $totals->kg, 3)],
-            ['key' => 'cost', 'icon' => 'banknotes', 'color' => 'emerald', 'label' => 'Costo histórico (MXN)', 'value' => '$'.number_format((float) $totals->cost, 2)],
+            ['key' => 'cost', 'icon' => 'banknotes', 'color' => 'emerald', 'label' => 'Importe (MXN)', 'value' => '$'.number_format((float) $totals->cost, 2)],
         ];
     @endphp
 
@@ -56,7 +56,7 @@
                 <flux:table.column>Producto</flux:table.column>
                 <flux:table.column align="end">Cajas</flux:table.column>
                 <flux:table.column align="end">Peso (kg)</flux:table.column>
-                <flux:table.column align="end">Costo histórico</flux:table.column>
+                <flux:table.column align="end">Importe</flux:table.column>
                 <flux:table.column>Registró</flux:table.column>
             </flux:table.columns>
             <flux:table.rows>

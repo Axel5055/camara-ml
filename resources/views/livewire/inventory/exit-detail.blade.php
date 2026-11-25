@@ -45,7 +45,7 @@
         ];
 
         if ($showCosts) {
-            $cards[] = ['key' => 'cost', 'icon' => 'banknotes', 'color' => 'emerald', 'label' => 'Costo histórico', 'value' => '$'.number_format((float) $stockExit->total_cost_mxn, 2)];
+            $cards[] = ['key' => 'cost', 'icon' => 'banknotes', 'color' => 'emerald', 'label' => 'Importe', 'value' => '$'.number_format((float) $stockExit->total_cost_mxn, 2)];
         }
     @endphp
 
@@ -133,9 +133,9 @@
                     <flux:table.column>Producto</flux:table.column>
                     <flux:table.column align="end">Cajas</flux:table.column>
                     <flux:table.column align="end">Peso</flux:table.column>
-                    <flux:table.column align="end">Precio por caja</flux:table.column>
+                    <flux:table.column align="end">Costo por kg</flux:table.column>
                     @if ($showCosts)
-                        <flux:table.column align="end">Costo histórico</flux:table.column>
+                        <flux:table.column align="end">Importe (MXN)</flux:table.column>
                     @endif
                 </flux:table.columns>
                 <flux:table.rows>
@@ -144,7 +144,7 @@
                             <flux:table.cell class="font-medium">{{ $row->product }}</flux:table.cell>
                             <flux:table.cell align="end" class="tabular-nums">{{ number_format($row->boxes) }}</flux:table.cell>
                             <flux:table.cell align="end" class="tabular-nums">{{ number_format((float) $row->kg, 3) }} kg</flux:table.cell>
-                            <flux:table.cell align="end" class="whitespace-nowrap tabular-nums">${{ number_format((float) $row->min_unit_cost, 2) }}@if ((float) $row->min_unit_cost !== (float) $row->max_unit_cost) – ${{ number_format((float) $row->max_unit_cost, 2) }}@endif</flux:table.cell>
+                            <flux:table.cell align="end" class="whitespace-nowrap tabular-nums">${{ number_format((float) $row->min_price_kg, 2) }}@if ((float) $row->min_price_kg !== (float) $row->max_price_kg) – ${{ number_format((float) $row->max_price_kg, 2) }}@endif</flux:table.cell>
                             @if ($showCosts)
                                 <flux:table.cell align="end" class="font-medium tabular-nums">${{ number_format((float) $row->cost, 2) }}</flux:table.cell>
                             @endif
@@ -170,9 +170,9 @@
                     <flux:table.column>Tipo</flux:table.column>
                     <flux:table.column align="end">Peso que salió</flux:table.column>
                     <flux:table.column align="end">Peso restante en la caja</flux:table.column>
-                    <flux:table.column align="end">Precio por caja</flux:table.column>
+                    <flux:table.column align="end">Costo por kg</flux:table.column>
                     @if ($showCosts)
-                        <flux:table.column align="end">Costo histórico</flux:table.column>
+                        <flux:table.column align="end">Importe (MXN)</flux:table.column>
                     @endif
                     <flux:table.column>Estado actual</flux:table.column>
                     <flux:table.column></flux:table.column>
@@ -185,7 +185,7 @@
                             <flux:table.cell><flux:badge size="sm" :color="$item->kind->value === 'full' ? 'blue' : 'amber'">{{ $item->kind->value === 'full' ? 'Caja completa' : 'Retiro parcial' }}</flux:badge></flux:table.cell>
                             <flux:table.cell align="end" class="tabular-nums">{{ $item->weight_out_kg }} kg</flux:table.cell>
                             <flux:table.cell align="end" class="tabular-nums">{{ $item->kind->value === 'full' ? '—' : $item->weight_after_kg.' kg' }}</flux:table.cell>
-                            <flux:table.cell align="end" class="tabular-nums">${{ number_format((float) $item->unit_cost_snapshot_mxn, 2) }}</flux:table.cell>
+                            <flux:table.cell align="end" class="tabular-nums">${{ number_format((float) $item->box->price_per_kg_mxn, 2) }}</flux:table.cell>
                             @if ($showCosts)
                                 <flux:table.cell align="end" class="tabular-nums">${{ number_format((float) $item->cost_out_mxn, 2) }}</flux:table.cell>
                             @endif
@@ -265,7 +265,7 @@
 
                 $addedBoxes = $pendingBoxes->count();
                 $addedKg = (float) $pendingBoxes->sum(fn ($box) => (float) $box->current_weight_kg);
-                $addedCost = (float) $pendingBoxes->sum(fn ($box) => (float) $box->unit_cost_mxn * (float) $box->current_weight_kg / max((float) $box->initial_weight_kg, 0.001));
+                $addedCost = (float) $pendingBoxes->sum(fn ($box) => (float) $box->price_per_kg_mxn * (float) $box->current_weight_kg);
                 $newBoxes = $baseBoxes - $removedBoxes + $addedBoxes;
                 $newKg = $baseKg - $removedKg + $addedKg;
                 $newCost = $baseCost - $removedCost + $addedCost;
@@ -350,7 +350,7 @@
                                         <input type="checkbox" value="{{ $editable->box_id }}" wire:model.live="removeIds" class="mt-1 size-5 shrink-0 rounded border-zinc-300" />
                                         <div class="min-w-0 flex-1">
                                             <div class="break-all font-mono text-sm font-medium text-zinc-900 dark:text-white">{{ $editable->box->barcode }}</div>
-                                            <div class="text-xs text-zinc-500">{{ $editable->box->product->name }} · {{ $kgFormat($editable->weight_out_kg) }} kg · ${{ number_format((float) $editable->unit_cost_snapshot_mxn, 2) }} por caja</div>
+                                            <div class="text-xs text-zinc-500">{{ $editable->box->product->name }} · {{ $kgFormat($editable->weight_out_kg) }} kg · ${{ number_format((float) $editable->box->price_per_kg_mxn, 2) }} por kg</div>
                                         </div>
                                         @if ($isRemoved)
                                             <span class="shrink-0 rounded-md bg-red-100 px-2 py-0.5 text-xs font-medium text-red-700 dark:bg-red-950/60 dark:text-red-300">Se quitará</span>
@@ -378,7 +378,7 @@
                                 <div class="flex items-center justify-between gap-3 rounded-xl border border-emerald-300 bg-emerald-50/60 p-3 dark:border-emerald-800 dark:bg-emerald-950/20" wire:key="add-{{ $pending->id }}">
                                     <div class="min-w-0">
                                         <div class="break-all font-mono text-sm font-medium text-zinc-900 dark:text-white">{{ $pending->barcode }}</div>
-                                        <div class="text-xs text-zinc-500">{{ $pending->product->name }} · {{ $kgFormat($pending->current_weight_kg) }} kg · ${{ number_format((float) $pending->unit_cost_mxn, 2) }} por caja</div>
+                                        <div class="text-xs text-zinc-500">{{ $pending->product->name }} · {{ $kgFormat($pending->current_weight_kg) }} kg · ${{ number_format((float) $pending->price_per_kg_mxn, 2) }} por kg</div>
                                     </div>
                                     <flux:button size="xs" variant="ghost" icon="x-mark" wire:click="removePendingAdd({{ $pending->id }})" aria-label="Quitar {{ $pending->barcode }}" />
                                 </div>
@@ -398,7 +398,7 @@
                             </div>
                             @if ($showCosts)
                                 <div class="col-span-2 rounded-lg border border-zinc-200 p-3 sm:col-span-1 dark:border-zinc-700" data-test="exit-edit-amount">
-                                    <div class="text-xs uppercase tracking-wide text-zinc-500">Costo histórico</div>
+                                    <div class="text-xs uppercase tracking-wide text-zinc-500">Importe</div>
                                     <div class="text-xl font-semibold tabular-nums">${{ number_format($newCost, 2) }}</div>
                                     <div class="text-xs text-zinc-500">antes ${{ number_format($baseCost, 2) }}</div>
                                 </div>

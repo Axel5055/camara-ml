@@ -11,6 +11,7 @@ use Flux\Flux;
 use Illuminate\Contracts\View\View;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
 use Livewire\Attributes\Title;
 use Livewire\Component;
@@ -114,8 +115,12 @@ class Exits extends Component
         return view('livewire.inventory.exits', [
             'exits' => $this->filteredExits()
                 ->select($showCosts ? [...$columns, 'total_cost_mxn'] : $columns)
-                ->withMin(['items as min_unit_cost' => fn (Builder $query) => $query->where('is_active', true)], 'unit_cost_snapshot_mxn')
-                ->withMax(['items as max_unit_cost' => fn (Builder $query) => $query->where('is_active', true)], 'unit_cost_snapshot_mxn')
+                ->addSelect([
+                    'min_price_kg' => DB::table('exit_items')->join('boxes', 'boxes.id', '=', 'exit_items.box_id')
+                        ->whereColumn('exit_items.exit_id', 'exits.id')->where('exit_items.is_active', true)->selectRaw('min(boxes.price_per_kg_mxn)'),
+                    'max_price_kg' => DB::table('exit_items')->join('boxes', 'boxes.id', '=', 'exit_items.box_id')
+                        ->whereColumn('exit_items.exit_id', 'exits.id')->where('exit_items.is_active', true)->selectRaw('max(boxes.price_per_kg_mxn)'),
+                ])
                 ->with(['originChamber:id,name', 'destBranch:id,name', 'destChamber:id,name', 'deliveryChamber:id,name', 'user:id,name', 'transfer:id,exit_id,status', 'exitRequest:id,exit_id,chamber_id,status,validated_at'])
                 ->orderByDesc('occurred_at')->orderByDesc('id')
                 ->paginate(20),

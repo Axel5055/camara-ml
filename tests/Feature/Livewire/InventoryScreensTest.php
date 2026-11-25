@@ -433,8 +433,8 @@ it('asks which weight and price variant to send when a product has several', fun
         ->assertSet('pendingQuantity', 4);
 
     expect($component->get('variants'))->toBe([
-        ['weight' => '20.000', 'cost' => '120.00', 'available' => 3],
-        ['weight' => '22.000', 'cost' => '154.00', 'available' => 2],
+        ['weight' => '20.000', 'price' => '6.00', 'available' => 3],
+        ['weight' => '22.000', 'price' => '7.00', 'available' => 2],
     ]);
 
     $component->set('variantQuantities', [0 => '3', 1 => '2'])->call('confirmVariants')->assertHasErrors('variants');
@@ -445,7 +445,7 @@ it('asks which weight and price variant to send when a product has several', fun
 
     expect($component->get('lines'))->toHaveCount(2)
         ->and(array_map(fn (array $line): int => count($line['box_ids']), $component->get('lines')))->toBe([2, 2])
-        ->and($component->get('lines')[1]['cost'])->toBe('154.00');
+        ->and($component->get('lines')[1]['price'])->toBe('7.00');
 });
 
 it('only lets administrators set the date of an exit', function () {
@@ -491,7 +491,7 @@ it('does not use a chamber the user cannot access when the origin is tampered wi
 
     Livewire::actingAs($w['norteUser'])->test(CreateExit::class)
         ->set('originChamberId', $w['c1']->id)
-        ->set('lines', [['product_id' => $w['product']->id, 'product' => 'Pollo', 'weight' => '20.000', 'cost' => '120.00', 'box_ids' => [$w['boxes'][0]->id]]])
+        ->set('lines', [['product_id' => $w['product']->id, 'product' => 'Pollo', 'weight' => '20.000', 'price' => '6.00', 'box_ids' => [$w['boxes'][0]->id]]])
         ->set('destBranchId', $w['sur']->id)
         ->set('requester', 'Intruso')
         ->call('save')
@@ -725,7 +725,7 @@ it('shows the computed amounts of a new entry only to users who may see costs', 
     $capture($w['admin'])->assertSee('Importe')->assertSee('$100.00');
 });
 
-it('lists the price per box of entries, exits and transfers for warehouse users without any money total', function () {
+it('lists the price per kilo of entries, exits and transfers for warehouse users without any money total', function () {
     $w = screensWorld();
     [$first, $second] = $w['boxes']->all();
 
@@ -735,11 +735,11 @@ it('lists the price per box of entries, exits and transfers for warehouse users 
     Livewire::actingAs($w['centroUser'])->test(Entries::class)
         ->assertSeeHtml('data-test="entry-unit-cost"')->assertSee('$6.00')->assertDontSee('Importe');
     Livewire::actingAs($w['centroUser'])->test(Exits::class)
-        ->assertSeeHtml('data-test="exit-unit-cost"')->assertSee('$120.00')->assertDontSee('Costo histórico');
+        ->assertSeeHtml('data-test="exit-unit-cost"')->assertSee('Costo por kg')->assertSee('$6.00')->assertDontSee('Importe');
     Livewire::actingAs($w['centroUser'])->test(Transfers::class)
-        ->assertSeeHtml('data-test="transfer-unit-cost"')->assertSee('$120.00');
+        ->assertSeeHtml('data-test="transfer-unit-cost"')->assertSee('Costo por kg')->assertSee('$6.00')->assertDontSee('Importe');
     Livewire::actingAs($w['centroUser'])->test(TransferDetail::class, ['transfer' => Transfer::query()->sole()])
-        ->assertSee('Precio por caja')->assertSee('$120.00')->assertDontSee('Costo histórico');
+        ->assertSee('Costo por kg')->assertSee('$6.00')->assertDontSee('Importe');
 });
 
 it('asks for a final confirmation before receiving and warns about missing boxes and weight differences', function () {

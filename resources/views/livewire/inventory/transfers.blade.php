@@ -79,7 +79,10 @@
                 <flux:table.column>Enviada</flux:table.column>
                 <flux:table.column>Origen → destino</flux:table.column>
                 <flux:table.column align="end">Cajas</flux:table.column>
-                <flux:table.column align="end">Precio por caja</flux:table.column>
+                <flux:table.column align="end">Costo por kg</flux:table.column>
+                @if ($showCosts)
+                    <flux:table.column align="end">Importe (MXN)</flux:table.column>
+                @endif
                 <flux:table.column>Estado</flux:table.column>
                 <flux:table.column></flux:table.column>
             </flux:table.columns>
@@ -104,8 +107,11 @@
                         </flux:table.cell>
                         <flux:table.cell align="end" class="tabular-nums font-medium text-zinc-900 dark:text-white">{{ number_format($transfer->items_count) }}</flux:table.cell>
                         <flux:table.cell align="end" class="whitespace-nowrap tabular-nums" data-test="transfer-unit-cost">
-                            ${{ number_format((float) $transfer->min_unit_cost, 2) }}@if ((float) $transfer->min_unit_cost !== (float) $transfer->max_unit_cost) – ${{ number_format((float) $transfer->max_unit_cost, 2) }}@endif
+                            ${{ number_format((float) $transfer->min_price_kg, 2) }}@if ((float) $transfer->min_price_kg !== (float) $transfer->max_price_kg) – ${{ number_format((float) $transfer->max_price_kg, 2) }}@endif
                         </flux:table.cell>
+                        @if ($showCosts)
+                            <flux:table.cell align="end" class="tabular-nums font-medium text-zinc-900 dark:text-white" data-test="transfer-amount">${{ number_format((float) $transfer->exit->total_cost_mxn, 2) }}</flux:table.cell>
+                        @endif
                         <flux:table.cell>
                             <div class="flex flex-wrap gap-1">
                                 <flux:badge size="sm" :color="$transfer->status->color()">{{ $transfer->status->label() }}</flux:badge>
@@ -128,7 +134,7 @@
                     </flux:table.row>
                 @empty
                     <flux:table.row>
-                        <flux:table.cell colspan="7" class="py-10 text-center text-zinc-500">No hay transferencias que coincidan con los filtros.</flux:table.cell>
+                        <flux:table.cell colspan="{{ $showCosts ? 8 : 7 }}" class="py-10 text-center text-zinc-500">No hay transferencias que coincidan con los filtros.</flux:table.cell>
                     </flux:table.row>
                 @endforelse
             </flux:table.rows>

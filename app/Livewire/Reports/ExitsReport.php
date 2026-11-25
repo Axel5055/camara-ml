@@ -68,7 +68,7 @@ class ExitsReport extends Component
     {
         return CsvExport::download(
             'salidas-'.now()->format('Ymd-His').'.csv',
-            ['Fecha', 'Referencia', 'Solicitante', 'Cámara de origen', 'Sucursal destino', 'Cámara destino', 'Producto', 'Categoría', 'Cajas', 'Peso (kg)', 'Costo histórico (MXN)', 'Registró'],
+            ['Fecha', 'Referencia', 'Solicitante', 'Cámara de origen', 'Sucursal destino', 'Cámara destino', 'Producto', 'Categoría', 'Cajas', 'Peso (kg)', 'Importe (MXN)', 'Registró'],
             $this->rowsQuery()->cursor(),
             fn ($r): array => [$r->occurred_at, $r->reference, $r->requester_name, $r->origin, $r->dest, $r->dest_chamber, $r->product, $r->category, $r->boxes, $r->kg, $r->cost, $r->user],
         );

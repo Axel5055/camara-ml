@@ -53,14 +53,14 @@ class CreateExit extends Component
     /**
      * Boxes already taken for this exit, one line per product, weight and price.
      *
-     * @var array<int, array{product_id: int, product: string, weight: string, cost: string, box_ids: array<int, int>}>
+     * @var array<int, array{product_id: int, product: string, weight: string, price: string, box_ids: array<int, int>}>
      */
     public array $lines = [];
 
     /**
      * Variants (weight and price) offered in the modal when the requested product has more than one.
      *
-     * @var array<int, array{weight: string, cost: string, available: int}>
+     * @var array<int, array{weight: string, price: string, available: int}>
      */
     public array $variants = [];
 
@@ -185,26 +185,26 @@ class CreateExit extends Component
     /**
      * Distinct weight/price combinations still available for a product, with how many boxes each has.
      *
-     * @return array<int, array{weight: string, cost: string, available: int}>
+     * @return array<int, array{weight: string, price: string, available: int}>
      */
     private function variantsOf(int $productId): array
     {
         return $this->availableBoxes($productId)->toBase()
-            ->selectRaw('current_weight_kg as weight, unit_cost_mxn as cost, count(*) as available')
-            ->groupBy('current_weight_kg', 'unit_cost_mxn')
-            ->orderBy('current_weight_kg')->orderBy('unit_cost_mxn')
+            ->selectRaw('current_weight_kg as weight, price_per_kg_mxn as price, count(*) as available')
+            ->groupBy('current_weight_kg', 'price_per_kg_mxn')
+            ->orderBy('current_weight_kg')->orderBy('price_per_kg_mxn')
             ->get()
-            ->map(fn ($row): array => ['weight' => (string) $row->weight, 'cost' => (string) $row->cost, 'available' => (int) $row->available])
+            ->map(fn ($row): array => ['weight' => (string) $row->weight, 'price' => (string) $row->price, 'available' => (int) $row->available])
             ->all();
     }
 
     /**
      * Take the oldest boxes of one variant (first in, first out) and add them to the exit.
      */
-    private function takeBoxes(Product $product, string $weight, string $cost, int $quantity): bool
+    private function takeBoxes(Product $product, string $weight, string $price, int $quantity): bool
     {
         $ids = $this->availableBoxes($product->id)
-            ->where('current_weight_kg', $weight)->where('unit_cost_mxn', $cost)
+            ->where('current_weight_kg', $weight)->where('price_per_kg_mxn', $price)
             ->orderBy('entered_at')->orderBy('id')
             ->limit($quantity)->pluck('id')->all();
 
@@ -215,14 +215,14 @@ class CreateExit extends Component
         }
 
         foreach ($this->lines as $index => $line) {
-            if ($line['product_id'] === $product->id && $line['weight'] === $weight && $line['cost'] === $cost) {
+            if ($line['product_id'] === $product->id && $line['weight'] === $weight && $line['price'] === $price) {
                 $this->lines[$index]['box_ids'] = [...$line['box_ids'], ...$ids];
 
                 return true;
             }
         }
 
-        $this->lines[] = ['product_id' => $product->id, 'product' => $product->name, 'weight' => $weight, 'cost' => $cost, 'box_ids' => $ids];
+        $this->lines[] = ['product_id' => $product->id, 'product' => $product->name, 'weight' => $weight, 'price' => $price, 'box_ids' => $ids];
 
         return true;
     }
@@ -251,7 +251,7 @@ class CreateExit extends Component
         }
 
         if (count($variants) === 1) {
-            if ($this->takeBoxes($product, $variants[0]['weight'], $variants[0]['cost'], $quantity)) {
+            if ($this->takeBoxes($product, $variants[0]['weight'], $variants[0]['price'], $quantity)) {
                 $this->reset('productId', 'quantity');
             }
 
@@ -287,7 +287,7 @@ class CreateExit extends Component
             $quantity = (int) ($this->variantQuantities[$index] ?? 0);
 
             if ($quantity < 0 || $quantity > $variant['available']) {
-                $this->addError('variants', "Solo hay {$variant['available']} cajas de {$variant['weight']} kg a \${$variant['cost']}.");
+                $this->addError('variants', "Solo hay {$variant['available']} cajas de {$variant['weight']} kg a \${$variant['price']} por kg.");
 
                 return;
             }
@@ -306,7 +306,7 @@ class CreateExit extends Component
         $product = Product::query()->findOrFail($this->pendingProductId);
 
         foreach ($chosen as $index => $quantity) {
-            if (! $this->takeBoxes($product, $this->variants[$index]['weight'], $this->variants[$index]['cost'], $quantity)) {
+            if (! $this->takeBoxes($product, $this->variants[$index]['weight'], $this->variants[$index]['price'], $quantity)) {
                 return;
             }
         }
@@ -392,7 +392,7 @@ class CreateExit extends Component
      * The requested boxes that are still available in the origin chamber, grouped by product, weight and price.
      *
      * @param  array<int, int>  $boxIds
-     * @return array<int, array{product_id: int, product: string, weight: string, cost: string, box_ids: array<int, int>}>
+     * @return array<int, array{product_id: int, product: string, weight: string, price: string, box_ids: array<int, int>}>
      */
     private function restoredLines(array $boxIds): array
     {
@@ -403,12 +403,12 @@ class CreateExit extends Component
                 ->whereIn('id', $chunk)->with('product:id,name')
                 ->orderBy('entered_at')->orderBy('id')->get()
                 ->each(function (Box $box) use (&$lines): void {
-                    $key = $box->product_id.'|'.$box->current_weight_kg.'|'.$box->unit_cost_mxn;
+                    $key = $box->product_id.'|'.$box->current_weight_kg.'|'.$box->price_per_kg_mxn;
                     $lines[$key] ??= [
                         'product_id' => $box->product_id,
                         'product' => $box->product->name,
                         'weight' => (string) $box->current_weight_kg,
-                        'cost' => (string) $box->unit_cost_mxn,
+                        'price' => (string) $box->price_per_kg_mxn,
                         'box_ids' => [],
                     ];
                     $lines[$key]['box_ids'][] = $box->id;
@@ -524,9 +524,10 @@ class CreateExit extends Component
         foreach ($this->lines as $line) {
             $count = count($line['box_ids']);
             $weight = Decimal::mul($line['weight'], (string) $count, Decimal::WEIGHT_SCALE);
-            $cost = Decimal::mul($line['cost'], (string) $count, Decimal::MONEY_SCALE);
+            $boxCost = Decimal::costOf($line['weight'], $line['price']);
+            $cost = Decimal::mul($boxCost, (string) $count, Decimal::MONEY_SCALE);
 
-            $summaries[] = [...$line, 'count' => $count, 'total_weight' => $weight, 'total_cost' => $cost];
+            $summaries[] = [...$line, 'count' => $count, 'box_cost' => $boxCost, 'total_weight' => $weight, 'total_cost' => $cost];
             $totalBoxes += $count;
             $totalWeight = Decimal::add($totalWeight, $weight, Decimal::WEIGHT_SCALE);
             $totalCost = Decimal::add($totalCost, $cost, Decimal::MONEY_SCALE);

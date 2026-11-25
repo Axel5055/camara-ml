@@ -23,7 +23,7 @@
         ];
 
         if ($showCosts) {
-            $cards[] = ['key' => 'cost', 'icon' => 'banknotes', 'color' => 'emerald', 'label' => 'Costo histórico (MXN)', 'value' => '$'.number_format((float) $totals['cost'], 2)];
+            $cards[] = ['key' => 'cost', 'icon' => 'banknotes', 'color' => 'emerald', 'label' => 'Importe (MXN)', 'value' => '$'.number_format((float) $totals['cost'], 2)];
         }
 
         $originName = $chambers->firstWhere('id', $originChamberId)?->name;
@@ -146,7 +146,8 @@
                         <flux:table.column>Producto</flux:table.column>
                         <flux:table.column align="end">Cajas</flux:table.column>
                         <flux:table.column align="end">Peso por caja</flux:table.column>
-                        <flux:table.column align="end">Precio por caja</flux:table.column>
+                        <flux:table.column align="end">Costo por kg</flux:table.column>
+                        <flux:table.column align="end">Costo de la caja</flux:table.column>
                         <flux:table.column align="end">Peso total</flux:table.column>
                         <flux:table.column></flux:table.column>
                     </flux:table.columns>
@@ -166,7 +167,8 @@
                                 </flux:table.cell>
                                 <flux:table.cell align="end" class="tabular-nums font-medium">{{ number_format($line['count']) }}</flux:table.cell>
                                 <flux:table.cell align="end" class="tabular-nums">{{ $line['weight'] }} kg</flux:table.cell>
-                                <flux:table.cell align="end" class="tabular-nums">${{ number_format((float) $line['cost'], 2) }}</flux:table.cell>
+                                <flux:table.cell align="end" class="tabular-nums">${{ number_format((float) $line['price'], 2) }}</flux:table.cell>
+                                <flux:table.cell align="end" class="tabular-nums">${{ number_format((float) $line['box_cost'], 2) }}</flux:table.cell>
                                 <flux:table.cell align="end" class="tabular-nums font-medium text-zinc-900 dark:text-white">{{ $line['total_weight'] }} kg</flux:table.cell>
                                 <flux:table.cell align="end">
                                     <flux:button size="sm" variant="ghost" icon="trash" wire:click="removeLine({{ $index }})">Quitar</flux:button>
@@ -240,8 +242,9 @@
                                 <div class="mt-0.5 whitespace-nowrap text-xl font-semibold tabular-nums text-zinc-900 dark:text-white">{{ rtrim(rtrim(number_format((float) $variant['weight'], 3, '.', ','), '0'), '.') }} <span class="text-sm font-normal text-zinc-500">kg</span></div>
                             </div>
                             <div>
-                                <div class="text-xs uppercase tracking-wide text-zinc-500">Costo por caja</div>
-                                <div class="mt-0.5 whitespace-nowrap text-xl font-semibold tabular-nums text-zinc-900 dark:text-white">${{ number_format((float) $variant['cost'], 2) }} <span class="text-sm font-normal text-zinc-500">MXN</span></div>
+                                <div class="text-xs uppercase tracking-wide text-zinc-500">Costo por kg</div>
+                                <div class="mt-0.5 whitespace-nowrap text-xl font-semibold tabular-nums text-zinc-900 dark:text-white">${{ number_format((float) $variant['price'], 2) }} <span class="text-sm font-normal text-zinc-500">MXN</span></div>
+                                <div class="text-xs text-zinc-500">Caja: ${{ number_format((float) \App\Support\Decimal::costOf($variant['weight'], $variant['price']), 2) }}</div>
                             </div>
                         </div>
 
@@ -282,7 +285,7 @@
                 <div class="flex justify-between gap-4 px-3 py-2"><dt class="text-zinc-500">Cajas</dt><dd class="font-medium tabular-nums">{{ number_format($totals['boxes']) }}</dd></div>
                 <div class="flex justify-between gap-4 px-3 py-2"><dt class="text-zinc-500">Peso total</dt><dd class="font-medium tabular-nums">{{ number_format((float) $totals['weight'], 3) }} kg</dd></div>
                 @if ($showCosts)
-                    <div class="flex justify-between gap-4 px-3 py-2"><dt class="text-zinc-500">Costo histórico</dt><dd class="font-medium tabular-nums">${{ number_format((float) $totals['cost'], 2) }}</dd></div>
+                    <div class="flex justify-between gap-4 px-3 py-2"><dt class="text-zinc-500">Importe</dt><dd class="font-medium tabular-nums">${{ number_format((float) $totals['cost'], 2) }}</dd></div>
                 @endif
             </dl>
 

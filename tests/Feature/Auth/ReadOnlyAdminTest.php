@@ -111,7 +111,7 @@ it('shows the administrator the records of every chamber with their costs', func
     $this->actingAs($w['admin'])->get(route('entries.index'))->assertSee('Centro 1')->assertSee('Norte 1')->assertSee('680.00');
     $this->get(route('stock'))->assertSee($w['boxes'][1]->barcode)->assertSee($w['boxes'][5]->barcode)->assertSee('100.00');
     $this->get(route('exits.index'))->assertSee('SAL-');
-    $this->get(route('exits.show', $w['exit']))->assertSee('Costo histórico');
+    $this->get(route('exits.show', $w['exit']))->assertSee('Importe');
 });
 
 it('hides the create buttons and the reversal from the administrator', function () {

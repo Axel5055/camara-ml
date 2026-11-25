@@ -191,7 +191,7 @@ class ExitDetail extends Component
             ->when($isConfirmed, fn ($query) => $query->where('exit_items.is_active', true))
             ->groupBy('products.id', 'products.name')
             ->orderBy('products.name')
-            ->selectRaw('products.name as product, count(*) as boxes, sum(exit_items.weight_out_kg) as kg, sum(exit_items.cost_out_mxn) as cost, min(exit_items.unit_cost_snapshot_mxn) as min_unit_cost, max(exit_items.unit_cost_snapshot_mxn) as max_unit_cost')
+            ->selectRaw('products.name as product, count(*) as boxes, sum(exit_items.weight_out_kg) as kg, sum(exit_items.cost_out_mxn) as cost, min(boxes.price_per_kg_mxn) as min_price_kg, max(boxes.price_per_kg_mxn) as max_price_kg')
             ->get();
 
         $canEdit = Gate::allows('update', $this->stockExit) && $isConfirmed;
@@ -201,7 +201,7 @@ class ExitDetail extends Component
             $activeItems = ExitItem::query()
                 ->where('exit_id', $this->stockExit->id)
                 ->where('is_active', true)
-                ->with(['box:id,barcode,product_id', 'box.product:id,name'])
+                ->with(['box:id,barcode,product_id,price_per_kg_mxn', 'box.product:id,name'])
                 ->orderBy('id')
                 ->get();
 
@@ -209,7 +209,7 @@ class ExitDetail extends Component
                 'editableItems' => $activeItems,
                 'canEditBoxes' => $transfer === null && ! $activeItems->contains(fn (ExitItem $item): bool => $item->kind === ExitItemKind::Partial),
                 'branches' => Branch::query()->where('is_active', true)->orWhere('id', $this->stockExit->dest_branch_id)->orderBy('name')->get(['id', 'name']),
-                'pendingBoxes' => Box::query()->with('product:id,name')->whereIn('id', array_map('intval', $this->addIds))->get(['id', 'barcode', 'product_id', 'initial_weight_kg', 'current_weight_kg', 'unit_cost_mxn']),
+                'pendingBoxes' => Box::query()->with('product:id,name')->whereIn('id', array_map('intval', $this->addIds))->get(['id', 'barcode', 'product_id', 'initial_weight_kg', 'current_weight_kg', 'price_per_kg_mxn']),
             ];
         }
 
@@ -226,7 +226,7 @@ class ExitDetail extends Component
                 ->when(trim($this->search) !== '', fn ($query) => $query->whereHas('box', fn ($box) => $box
                     ->where('barcode', 'like', '%'.trim($this->search).'%')
                     ->orWhereHas('product', fn ($product) => $product->where('name', 'like', '%'.trim($this->search).'%')->orWhere('code', 'like', '%'.trim($this->search).'%'))))
-                ->with(['box:id,barcode,product_id,status,current_weight_kg', 'box.product:id,name'])
+                ->with(['box:id,barcode,product_id,status,current_weight_kg,price_per_kg_mxn', 'box.product:id,name'])
                 ->orderBy('id')
                 ->paginate(25),
             'showCosts' => $showCosts,
