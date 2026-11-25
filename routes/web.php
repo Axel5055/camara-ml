@@ -33,6 +33,7 @@ use App\Livewire\Reports\ExitsReport;
 use App\Livewire\Reports\InventoryReport;
 use App\Livewire\Reports\LowStock;
 use App\Livewire\Reports\MovementsReport;
+use App\Livewire\Reports\PriceReport;
 use App\Models\ExitRequest;
 use App\Models\Transfer;
 use Illuminate\Support\Facades\Route;
@@ -112,6 +113,9 @@ Route::middleware(['auth', 'active', 'verified'])->group(function () {
 
         // Incidents: super administrators resolve them; administrators and managers (within their scope) only look.
         Route::livewire('administracion/incidencias', Incidents::class)->name('admin.incidents')->middleware('can:view-incidents');
+
+        // Price per kilo of every product: a read-only lookup for super administrators, managers and warehouse users.
+        Route::livewire('reportes/precios', PriceReport::class)->name('reports.prices')->middleware('can:view-price-report');
 
         // Reports: super administrators, and managers limited to their branches and chambers.
         Route::middleware('can:view-reports')->prefix('reportes')->group(function () {

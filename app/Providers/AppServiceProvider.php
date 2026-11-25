@@ -68,6 +68,7 @@ class AppServiceProvider extends ServiceProvider
         Gate::define('view-incidents', fn (User $user): bool => in_array($user->role, [UserRole::Admin, UserRole::Manager], true));
         Gate::define('view-branches', fn (User $user): bool => $user->role === UserRole::Admin);
         Gate::define('view-reports', fn (User $user): bool => $user->role === UserRole::Manager);
+        Gate::define('view-price-report', fn (User $user): bool => in_array($user->role, [UserRole::Manager, UserRole::Warehouse], true));
         Gate::define('view-products', fn (User $user): bool => in_array($user->role, [UserRole::Admin, UserRole::Manager, UserRole::Warehouse], true));
         Gate::define('operate-inventory', fn (User $user): bool => $user->role === UserRole::Warehouse);
         Gate::define('print-exit-summary', fn (User $user): bool => $user->role === UserRole::Warehouse);

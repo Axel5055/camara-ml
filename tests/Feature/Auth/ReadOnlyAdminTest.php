@@ -145,7 +145,7 @@ it('shows each role only its own menu', function () {
         ->assertSee('Transferencias')->assertSee('Usuarios')->assertSee('Auditoría')->assertSee('Reportes')->assertSee('Productos');
 
     $this->actingAs($w['centroUser'])->get(route('dashboard'))
-        ->assertSee('Transferencias')->assertDontSee('Administración')->assertDontSee('Usuarios')->assertDontSee('Reportes');
+        ->assertSee('Transferencias')->assertDontSee('Administración')->assertDontSee('Usuarios')->assertSee('Precios por kilo')->assertDontSee('Existencias bajas');
 });
 
 it('blocks every write action of the catalogs on the server', function () {

@@ -111,15 +111,20 @@
                     </flux:sidebar.group>
                 @endcan
 
-                @can('view-reports')
+                @canany(['view-reports', 'view-price-report'])
                     <flux:sidebar.group heading="Reportes" class="grid">
+                        @can('view-reports')
                         <flux:sidebar.item icon="chart-bar" :href="route('reports.inventory')" :current="request()->routeIs('reports.inventory')" wire:navigate>Inventario</flux:sidebar.item>
                         <flux:sidebar.item icon="arrow-down-tray" :href="route('reports.entries')" :current="request()->routeIs('reports.entries')" wire:navigate>Entradas</flux:sidebar.item>
                         <flux:sidebar.item icon="arrow-up-tray" :href="route('reports.exits')" :current="request()->routeIs('reports.exits')" wire:navigate>Salidas</flux:sidebar.item>
                         <flux:sidebar.item icon="queue-list" :href="route('reports.movements')" :current="request()->routeIs('reports.movements')" wire:navigate>Movimientos</flux:sidebar.item>
                         <flux:sidebar.item icon="bell-alert" :href="route('reports.low-stock')" :current="request()->routeIs('reports.low-stock')" wire:navigate>Existencias bajas</flux:sidebar.item>
+                        @endcan
+                        @can('view-price-report')
+                        <flux:sidebar.item icon="currency-dollar" :href="route('reports.prices')" :current="request()->routeIs('reports.prices')" wire:navigate data-test="nav-price-report">Precios por kilo</flux:sidebar.item>
+                        @endcan
                     </flux:sidebar.group>
-                @endcan
+                @endcanany
 
                 @can('use-inventory-area')
                 <flux:sidebar.group heading="Configuración" class="grid">
