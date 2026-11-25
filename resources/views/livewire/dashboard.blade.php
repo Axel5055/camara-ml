@@ -251,8 +251,8 @@
                     </flux:table>
                 </div>
             @else
-            <div class="p-2">
-                <flux:table container:class="overflow-x-auto">
+            <div class="p-2" data-test="products-table">
+                <flux:table :paginate="$productPage" container:class="overflow-x-auto">
                     <flux:table.columns>
                         <flux:table.column>Producto</flux:table.column>
                         <flux:table.column align="end">Cajas</flux:table.column>
@@ -262,7 +262,7 @@
                         @endif
                     </flux:table.columns>
                     <flux:table.rows>
-                        @forelse ($productStock as $row)
+                        @forelse ($productPage as $row)
                             <flux:table.row :key="'ps-'.$tableChamber->id.'-'.$row->code" x-on:pointerenter="$event.pointerType === 'mouse' && (hover = @js($row->product))" x-on:pointerleave="hover = null" x-on:click="picked = picked === @js($row->product) ? null : @js($row->product)" x-bind:class="hl === @js($row->product) && 'bg-zinc-100 dark:bg-zinc-700/60'" class="cursor-pointer touch-manipulation transition-colors" data-test="product-row">
                                 <flux:table.cell>
                                     <div class="font-medium text-zinc-900 dark:text-white">{{ $row->product }}</div>

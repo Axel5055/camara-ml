@@ -760,3 +760,28 @@ it('draws a pie chart of the boxes of the products table and follows its filters
 
     Livewire::actingAs($w['admin'])->test(Dashboard::class)->set('tableSearch', 'zzz')->assertSee('Sin datos para graficar.');
 });
+
+it('paginates the products table while the total and the pie chart keep counting every product', function () {
+    $w = widgetsWorld();
+    $category = Category::query()->firstOrFail();
+
+    foreach (range(1, 12) as $number) {
+        $product = Product::factory()->create(['category_id' => $category->id, 'code' => sprintf('PROD%02d', $number), 'name' => sprintf('Producto %02d', $number)]);
+        stockUp($w, $product, 1, $w['c1']);
+    }
+
+    $component = Livewire::actingAs($w['admin'])->test(Dashboard::class);
+
+    expect($component->viewData('productPage')->count())->toBe(10)
+        ->and($component->viewData('productPage')->total())->toBe(12)
+        ->and($component->viewData('productStock'))->toHaveCount(12);
+
+    $component->assertSeeHtml('data-test="products-table"')->assertSee('Producto 01')
+        ->assertSeeHtml('Producto 12: 1 cajas (8.3%)')
+        ->call('setPage', 2, 'productsPage');
+
+    expect($component->viewData('productPage')->pluck('product')->all())->toBe(['Producto 11', 'Producto 12']);
+
+    $component->set('tableSearch', 'Producto 03');
+    expect($component->viewData('productPage')->pluck('product')->all())->toBe(['Producto 03']);
+});

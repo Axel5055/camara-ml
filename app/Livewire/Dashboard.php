@@ -17,17 +17,25 @@ use Carbon\CarbonImmutable;
 use Illuminate\Contracts\View\View;
 use Illuminate\Database\Eloquent\Builder as EloquentBuilder;
 use Illuminate\Database\Query\Builder;
+use Illuminate\Pagination\LengthAwarePaginator;
+use Illuminate\Pagination\Paginator;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
 use Livewire\Attributes\Title;
 use Livewire\Attributes\Url;
 use Livewire\Component;
+use Livewire\WithPagination;
 
 #[Title('Panel')]
 class Dashboard extends Component
 {
-    use InteractsWithChambers;
+    use InteractsWithChambers, WithPagination;
+
+    private const PRODUCTS_PER_PAGE = 10;
+
+    private const PRODUCTS_PAGE = 'productsPage';
 
     /** Days shown in the daily chart: 7, 14 or 30. */
     public int $days = 14;
@@ -60,6 +68,37 @@ class Dashboard extends Component
     public function updatedTableChamberId(): void
     {
         $this->tableCategoryId = null;
+        $this->resetPage(self::PRODUCTS_PAGE);
+    }
+
+    public function updatedTableCategoryId(): void
+    {
+        $this->resetPage(self::PRODUCTS_PAGE);
+    }
+
+    public function updatedTableSearch(): void
+    {
+        $this->resetPage(self::PRODUCTS_PAGE);
+    }
+
+    /**
+     * One page of the products table; the totals and the pie chart keep using every product that matches the filters.
+     *
+     * @param  Collection<int, object>  $products
+     * @return LengthAwarePaginator<int, object>
+     */
+    private function paginateProducts(Collection $products): LengthAwarePaginator
+    {
+        $lastPage = max(1, (int) ceil($products->count() / self::PRODUCTS_PER_PAGE));
+        $page = min(max(1, $this->getPage(self::PRODUCTS_PAGE)), $lastPage);
+
+        return new LengthAwarePaginator(
+            $products->forPage($page, self::PRODUCTS_PER_PAGE)->values(),
+            $products->count(),
+            self::PRODUCTS_PER_PAGE,
+            $page,
+            ['path' => Paginator::resolveCurrentPath(), 'pageName' => self::PRODUCTS_PAGE],
+        );
     }
 
     public function updatedDays(): void
@@ -238,6 +277,7 @@ class Dashboard extends Component
             ->when($needle !== '', fn ($rows) => $rows->filter(fn ($row) => str_contains(mb_strtolower($row->product.' '.$row->code), $needle)))
             ->values();
 
+        $productPage = $this->paginateProducts($shownStock);
         $low = $lowStock->for($user)->when($selected, fn ($rows) => $rows->where('chamber_id', $selected->id))->values();
         $series = $this->dailySeries($visible);
 
@@ -248,6 +288,7 @@ class Dashboard extends Component
             'categoryColors' => $this->categoryColors(),
             'chamberSummary' => $chamberSummary,
             'productStock' => $shownStock,
+            'productPage' => $productPage,
             'tableCategories' => $tableCategories,
             'tableCategoryId' => $tableCategoryId,
             'tableHasStock' => $productStock->isNotEmpty(),
