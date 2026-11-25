@@ -101,13 +101,13 @@
                             <div>{{ $entry->chamber->name }}</div>
                             <div class="text-xs text-zinc-500">{{ $entry->chamber->branch->name }}</div>
                         </flux:table.cell>
-                        <flux:table.cell align="end" class="tabular-nums font-medium text-zinc-900 dark:text-white">{{ number_format($entry->total_boxes) }}</flux:table.cell>
-                        <flux:table.cell align="end" class="tabular-nums">{{ $entry->total_weight_kg }}</flux:table.cell>
+                        <flux:table.cell align="end" class="tabular-nums font-medium text-zinc-900 dark:text-white"><flux:badge size="sm" color="sky" class="tabular-nums">{{ number_format($entry->total_boxes) }}</flux:badge></flux:table.cell>
+                        <flux:table.cell align="end" class="tabular-nums"><flux:badge size="sm" color="amber" class="tabular-nums">{{ $entry->total_weight_kg }}</flux:badge></flux:table.cell>
                         <flux:table.cell align="end" class="whitespace-nowrap tabular-nums" data-test="entry-unit-cost">
                             ${{ number_format((float) $entry->min_unit_cost, 2) }}@if ((float) $entry->min_unit_cost !== (float) $entry->max_unit_cost) – ${{ number_format((float) $entry->max_unit_cost, 2) }}@endif
                         </flux:table.cell>
                         @if ($showCosts)
-                            <flux:table.cell align="end" class="tabular-nums font-medium text-zinc-900 dark:text-white">${{ number_format((float) $entry->total_cost_mxn, 2) }}</flux:table.cell>
+                            <flux:table.cell align="end" class="tabular-nums font-medium text-zinc-900 dark:text-white"><flux:badge size="sm" color="emerald" class="tabular-nums">${{ number_format((float) $entry->total_cost_mxn, 2) }}</flux:badge></flux:table.cell>
                         @endif
                         <flux:table.cell class="text-zinc-500">{{ $entry->user->name }}</flux:table.cell>
                         <flux:table.cell align="end">

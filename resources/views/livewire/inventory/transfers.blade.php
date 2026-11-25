@@ -105,12 +105,12 @@
                             </div>
                             <div class="text-xs text-zinc-500">{{ $transfer->originChamber->branch->name }} → {{ $transfer->destChamber->branch->name }}</div>
                         </flux:table.cell>
-                        <flux:table.cell align="end" class="tabular-nums font-medium text-zinc-900 dark:text-white">{{ number_format($transfer->items_count) }}</flux:table.cell>
+                        <flux:table.cell align="end" class="tabular-nums font-medium text-zinc-900 dark:text-white"><flux:badge size="sm" color="sky" class="tabular-nums">{{ number_format($transfer->items_count) }}</flux:badge></flux:table.cell>
                         <flux:table.cell align="end" class="whitespace-nowrap tabular-nums" data-test="transfer-unit-cost">
                             ${{ number_format((float) $transfer->min_price_kg, 2) }}@if ((float) $transfer->min_price_kg !== (float) $transfer->max_price_kg) – ${{ number_format((float) $transfer->max_price_kg, 2) }}@endif
                         </flux:table.cell>
                         @if ($showCosts)
-                            <flux:table.cell align="end" class="tabular-nums font-medium text-zinc-900 dark:text-white" data-test="transfer-amount">${{ number_format((float) $transfer->exit->total_cost_mxn, 2) }}</flux:table.cell>
+                            <flux:table.cell align="end" class="tabular-nums font-medium text-zinc-900 dark:text-white" data-test="transfer-amount"><flux:badge size="sm" color="emerald" class="tabular-nums">${{ number_format((float) $transfer->exit->total_cost_mxn, 2) }}</flux:badge></flux:table.cell>
                         @endif
                         <flux:table.cell>
                             <div class="flex flex-wrap gap-1">

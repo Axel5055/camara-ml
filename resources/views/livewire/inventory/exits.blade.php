@@ -125,13 +125,13 @@
                             <div class="text-xs text-zinc-500">{{ $exit->destChamber ? 'Transferencia · '.$exit->destBranch->name : 'Entrega a sucursal'.($exit->deliveryChamber ? ' · Cámara '.$exit->deliveryChamber->name : '') }}</div>
                         </flux:table.cell>
                         <flux:table.cell>{{ $exit->requester_name }}</flux:table.cell>
-                        <flux:table.cell align="end" class="tabular-nums font-medium text-zinc-900 dark:text-white">{{ number_format($exit->total_boxes) }}</flux:table.cell>
-                        <flux:table.cell align="end" class="tabular-nums">{{ $exit->total_weight_kg }}</flux:table.cell>
+                        <flux:table.cell align="end" class="tabular-nums font-medium text-zinc-900 dark:text-white"><flux:badge size="sm" color="sky" class="tabular-nums">{{ number_format($exit->total_boxes) }}</flux:badge></flux:table.cell>
+                        <flux:table.cell align="end" class="tabular-nums"><flux:badge size="sm" color="amber" class="tabular-nums">{{ $exit->total_weight_kg }}</flux:badge></flux:table.cell>
                         <flux:table.cell align="end" class="whitespace-nowrap tabular-nums" data-test="exit-unit-cost">
                             ${{ number_format((float) $exit->min_price_kg, 2) }}@if ((float) $exit->min_price_kg !== (float) $exit->max_price_kg) – ${{ number_format((float) $exit->max_price_kg, 2) }}@endif
                         </flux:table.cell>
                         @if ($showCosts)
-                            <flux:table.cell align="end" class="tabular-nums font-medium text-zinc-900 dark:text-white">${{ number_format((float) $exit->total_cost_mxn, 2) }}</flux:table.cell>
+                            <flux:table.cell align="end" class="tabular-nums font-medium text-zinc-900 dark:text-white"><flux:badge size="sm" color="emerald" class="tabular-nums">${{ number_format((float) $exit->total_cost_mxn, 2) }}</flux:badge></flux:table.cell>
                         @endif
                         <flux:table.cell>
                             <div class="flex flex-wrap gap-1">
