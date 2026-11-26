@@ -131,6 +131,10 @@ class Stock extends Component
             $this->productId = null;
         }
 
+        if ($property === 'chamberId' && $this->productId !== null && ! $this->productsInStock()->whereKey($this->productId)->exists()) {
+            $this->productId = null;
+        }
+
         $this->resetPage();
     }
 
@@ -157,6 +161,25 @@ class Stock extends Component
             ->when(trim($this->search) !== '', fn (Builder $query) => $query->where(fn (Builder $match) => $match
                 ->where('barcode', 'like', '%'.strtoupper(trim($this->search)).'%')
                 ->orWhereHas('product', fn (Builder $product) => $product->where('name', 'like', '%'.trim($this->search).'%'))));
+    }
+
+    /**
+     * Products the filter offers: only those with available boxes in the chambers the user may see (in the chosen
+     * one, if any) and within the chosen category.
+     *
+     * @return Builder<Product>
+     */
+    private function productsInStock(): Builder
+    {
+        $visible = $this->visibleChamberIds();
+
+        return Product::query()
+            ->whereIn('id', Box::query()
+                ->where('status', BoxStatus::Available)
+                ->when($visible !== null, fn (Builder $query) => $query->whereIn('current_chamber_id', $visible))
+                ->when($this->chamberId, fn (Builder $query) => $query->where('current_chamber_id', $this->chamberId))
+                ->select('product_id'))
+            ->when($this->categoryId, fn (Builder $query) => $query->where('category_id', $this->categoryId));
     }
 
     /**
@@ -363,9 +386,7 @@ class Stock extends Component
                 ? Product::query()->orderBy('name')->get(['id', 'name', 'code'])
                 : collect(),
             'categories' => Category::query()->orderBy('name')->get(['id', 'name']),
-            'products' => Product::query()
-                ->when($this->categoryId, fn (Builder $query) => $query->where('category_id', $this->categoryId))
-                ->orderBy('name')->get(['id', 'name', 'code']),
+            'products' => $this->productsInStock()->orderBy('name')->get(['id', 'name', 'code']),
             'canSeeAllStatuses' => Auth::user()->seesAllChambers() || Auth::user()->isManager(),
         ]);
     }

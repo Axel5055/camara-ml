@@ -63,7 +63,7 @@
                     <flux:select.option :value="$category->id">{{ $category->name }}</flux:select.option>
                 @endforeach
             </flux:select>
-            <x-product-search :products="$products" placeholder="Todos los productos" emptyMessage="No hay productos con ese nombre." data-test="stock-product-search" wire:key="stock-product-search-{{ $categoryId }}" />
+            <x-product-search :products="$products" placeholder="Todos los productos" emptyMessage="No hay productos con ese nombre en existencia." data-test="stock-product-search" wire:key="stock-product-search-{{ $chamberId }}-{{ $categoryId }}" />
             @unless ($isSummary)
             <flux:select wire:model.live="status" label="Estado">
                 <flux:select.option value="available">Disponibles</flux:select.option>
