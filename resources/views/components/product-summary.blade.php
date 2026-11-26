@@ -16,10 +16,11 @@
 
 <div class="overflow-hidden rounded-xl border border-accent/30 bg-white shadow-xs dark:border-zinc-700 dark:bg-zinc-800" data-test="{{ $testId }}">
     <div class="overflow-x-auto">
-        <table class="w-full min-w-[34rem] border-collapse text-sm">
+        <table class="w-full min-w-[37rem] border-collapse text-sm">
             <thead>
                 <tr class="bg-accent text-accent-foreground">
-                    <th class="px-4 py-3 text-start font-semibold">Producto</th>
+                    <th class="w-px ps-4 pe-2 py-3 text-center font-semibold">#</th>
+                    <th class="px-3 py-3 text-start font-semibold">Producto</th>
                     <th class="px-3 py-3 text-center font-semibold">Cajas</th>
                     @if ($showPerBox)
                         <th class="px-3 py-3 text-center font-semibold">Peso por caja</th>
@@ -34,7 +35,8 @@
             <tbody>
                 @foreach ($rows as $row)
                     <tr class="bg-white even:bg-amber-100/70 dark:bg-zinc-800 dark:even:bg-zinc-700/40">
-                        <td class="px-4 py-2.5">
+                        <td class="w-px ps-4 pe-2 py-2.5 text-center tabular-nums text-zinc-500 dark:text-zinc-400">{{ $loop->iteration }}</td>
+                        <td class="px-3 py-2.5">
                             <div class="font-medium text-zinc-900 dark:text-white">{{ $row['product'] }}</div>
                             @if (! empty($row['sub']))
                                 <div class="text-xs text-zinc-500">{{ $row['sub'] }}</div>
@@ -54,7 +56,7 @@
             </tbody>
             <tfoot>
                 <tr class="border-t border-accent/30 bg-accent/10 dark:border-zinc-700 dark:bg-zinc-900/40" data-test="{{ $totalTestId }}">
-                    <td class="px-4 py-3">
+                    <td class="px-4 py-3" colspan="2">
                         <div class="flex items-center gap-3">
                             <span class="flex size-9 shrink-0 items-center justify-center rounded-full bg-accent text-accent-foreground"><flux:icon.cube class="size-5" /></span>
                             <span class="whitespace-nowrap font-semibold text-zinc-900 dark:text-white">Total de productos diferentes:</span>

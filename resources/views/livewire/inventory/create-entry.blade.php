@@ -114,6 +114,7 @@
             <div class="overflow-hidden rounded-xl border border-zinc-200 bg-white p-2 shadow-xs dark:border-zinc-700 dark:bg-zinc-800" data-test="entry-new-table">
                 <flux:table container:class="overflow-x-auto">
                     <flux:table.columns>
+                        <flux:table.column align="center" class="w-px">#</flux:table.column>
                         <flux:table.column>Producto</flux:table.column>
                         <flux:table.column align="end">Cajas</flux:table.column>
                         <flux:table.column align="end">Peso por caja</flux:table.column>
@@ -127,6 +128,7 @@
                     <flux:table.rows>
                         @forelse ($summaries as $index => $line)
                             <flux:table.row wire:key="line-{{ $index }}-{{ $line['product_id'] }}">
+                                <flux:table.cell align="center" class="w-px tabular-nums text-zinc-500">{{ $loop->iteration }}</flux:table.cell>
                                 <flux:table.cell>
                                     <div class="font-medium text-zinc-900 dark:text-white">{{ $line['product'] }}</div>
                                     @if ($line['manual'] !== [])
@@ -167,7 +169,7 @@
                             </flux:table.row>
                         @empty
                             <flux:table.row>
-                                <flux:table.cell :colspan="$showCosts ? 7 : 6" class="py-12 text-center text-zinc-500">
+                                <flux:table.cell :colspan="$showCosts ? 8 : 7" class="py-12 text-center text-zinc-500">
                                     <flux:icon name="archive-box-arrow-down" class="mx-auto mb-2 size-8 text-zinc-300 dark:text-zinc-600" />
                                     Aún no hay cajas en la entrada.<br>
                                     Elige un producto, captura cantidad, peso y costo, y presiona "Agregar cajas".
