@@ -15,8 +15,8 @@ class ExitRequestPolicy
     }
 
     /**
-     * Administrators see all of them, requesters only their own, everyone else those of the chambers
-     * within their scope.
+     * Administrators see all of them, requesters only their own, warehouse users their own plus those of the
+     * chambers within their scope.
      */
     public function view(User $user, ExitRequest $request): bool
     {
@@ -32,12 +32,12 @@ class ExitRequestPolicy
             return false;
         }
 
-        return $user->canViewChamber($request->chamber);
+        return ($user->is_active && $user->id === $request->user_id) || $user->canViewChamber($request->chamber);
     }
 
     /**
-     * Asking a chamber for product: requesters, for the chambers assigned to them, and super administrators for
-     * any chamber on behalf of a branch.
+     * Asking a chamber for product: requesters and warehouse users, for the chambers assigned to them for that, and
+     * super administrators for any chamber on behalf of a branch.
      */
     public function create(User $user, ?Chamber $chamber = null): bool
     {
@@ -45,7 +45,7 @@ class ExitRequestPolicy
             return $chamber !== null;
         }
 
-        return $user->role === UserRole::Requester
+        return $user->asksForProduct()
             && $user->branch_id !== null
             && $chamber !== null
             && $user->canRequestFrom($chamber);

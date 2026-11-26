@@ -69,6 +69,26 @@
                 </div>
             @endif
 
+            @if ($myExitRequests->isNotEmpty())
+                <div data-test="bell-my-exit-requests">
+                    <div class="mx-1 mb-1 mt-2 flex items-center justify-between gap-2 rounded-md border-s-4 border-rose-500 bg-rose-50 px-3 py-1.5 text-xs font-semibold uppercase tracking-wide text-rose-800 dark:bg-rose-500/15 dark:text-rose-200">
+                        <span class="truncate">Tus solicitudes de salida</span>
+                        <span class="shrink-0">{{ $myExitRequests->count() }}</span>
+                    </div>
+                    @foreach ($myExitRequests as $exitRequest)
+                        <a href="{{ route('exit-requests.mine', ['estado' => $exitRequest->isPending() ? 'pending' : 'all']) }}" wire:navigate wire:key="bell-my-exit-request-{{ $exitRequest->id }}" x-on:click="open = false" class="block rounded-md px-3 py-2 text-sm hover:bg-zinc-100 dark:hover:bg-zinc-600/60">
+                            <div class="flex w-full items-center justify-between gap-3">
+                                <div class="min-w-0">
+                                    <div class="truncate font-medium text-zinc-900 dark:text-white">{{ $exitRequest->reference() }} · {{ $exitRequest->total_boxes_requested }} {{ $exitRequest->total_boxes_requested === 1 ? 'caja' : 'cajas' }}</div>
+                                    <div class="truncate text-xs text-zinc-500 dark:text-zinc-300">{{ $exitRequest->chamber->name }} · {{ $exitRequest->created_at->format('d/m/Y H:i') }}</div>
+                                </div>
+                                <flux:badge size="sm" class="shrink-0" :color="$exitRequest->status->color()">{{ $exitRequest->status->label() }}</flux:badge>
+                            </div>
+                        </a>
+                    @endforeach
+                </div>
+            @endif
+
             @if ($requests->isNotEmpty())
                 <div data-test="bell-requests">
                     <div class="mx-1 mb-1 mt-2 flex items-center justify-between gap-2 rounded-md border-s-4 border-emerald-500 bg-emerald-50 px-3 py-1.5 text-xs font-semibold uppercase tracking-wide text-emerald-800 dark:bg-emerald-500/15 dark:text-emerald-200">
@@ -123,7 +143,7 @@
                 </div>
             @endif
 
-            @if ($exitRequests->isEmpty() && $requests->isEmpty() && $transfers->isEmpty())
+            @if ($exitRequests->isEmpty() && $myExitRequests->isEmpty() && $requests->isEmpty() && $transfers->isEmpty())
                 <div class="px-3 py-6 text-center text-sm text-zinc-500">No tienes pendientes.</div>
             @endif
         </div>

@@ -36,7 +36,7 @@ enum UserRole: string
             self::SuperAdmin => 'Acceso total al sistema.',
             self::Manager => 'Igual que el administrador, pero solo ve las sucursales y cámaras que se le asignen.',
             self::Admin => 'Solo consulta: panel, existencias, registros de entradas y salidas, productos, categorías, sucursales y cámaras.',
-            self::Warehouse => 'Registra entradas, salidas y recepciones en las cámaras que se le asignen.',
+            self::Warehouse => 'Registra entradas, salidas y recepciones en las cámaras que se le asignen, y puede pedir producto a las cámaras que se le indiquen.',
             self::Requester => 'Sucursal sin cámara: solo pide producto a las cámaras que se le asignen y consulta sus solicitudes.',
         };
     }

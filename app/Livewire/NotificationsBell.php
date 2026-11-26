@@ -70,7 +70,7 @@ class NotificationsBell extends Component
 
     /**
      * Exit requests worth a look: warehouse users and super administrators see the ones waiting for their
-     * decision; requesters see their branch's pending ones and those decided in the last few days. Administrators
+     * decision; requesters see their own pending ones and those decided in the last few days. Administrators
      * and managers only read them in the list.
      *
      * @return Collection<int, ExitRequest>
@@ -81,17 +81,27 @@ class NotificationsBell extends Component
             return new Collection;
         }
 
-        $query = ExitRequest::query()->visibleTo($user)->with(['branch:id,name', 'chamber:id,name']);
-
         if ($user->role === UserRole::Requester) {
-            $query->where(fn (Builder $inner) => $inner
-                ->where('status', ExitRequestStatus::Pending)
-                ->orWhere(fn (Builder $decided) => $decided->whereIn('status', [ExitRequestStatus::Approved, ExitRequestStatus::Rejected])->where('decided_at', '>=', now()->subDays(3))));
-        } else {
-            $query->where('status', ExitRequestStatus::Pending);
+            return $this->ownExitRequests($user);
         }
 
-        return $query->orderByDesc('created_at')->limit(15)->get();
+        return ExitRequest::query()->incomingFor($user)->with(['branch:id,name', 'chamber:id,name'])
+            ->where('status', ExitRequestStatus::Pending)
+            ->orderByDesc('created_at')->limit(15)->get();
+    }
+
+    /**
+     * What the user asked for: still pending, or answered in the last few days.
+     *
+     * @return Collection<int, ExitRequest>
+     */
+    private function ownExitRequests(User $user): Collection
+    {
+        return ExitRequest::query()->where('user_id', $user->id)->with(['branch:id,name', 'chamber:id,name'])
+            ->where(fn (Builder $inner) => $inner
+                ->where('status', ExitRequestStatus::Pending)
+                ->orWhere(fn (Builder $decided) => $decided->whereIn('status', [ExitRequestStatus::Approved, ExitRequestStatus::Rejected])->where('decided_at', '>=', now()->subDays(3))))
+            ->orderByDesc('created_at')->limit(15)->get();
     }
 
     public function render(LowStockAlerts $alerts): View
@@ -115,15 +125,20 @@ class NotificationsBell extends Component
             ? $exitRequests->where('status', '!=', ExitRequestStatus::Pending)->count()
             : $exitRequests->count();
 
+        // Warehouse users also ask for product: their own requests are listed apart.
+        $myExitRequests = $isWarehouse ? $this->ownExitRequests($user) : new Collection;
+        $myAnswered = $myExitRequests->where('status', '!=', ExitRequestStatus::Pending)->count();
+
         return view('livewire.notifications-bell', [
-            'count' => $low->count() + $transfers->count() + $requestsToAttend + $exitRequestsToAttend,
+            'count' => $low->count() + $transfers->count() + $requestsToAttend + $exitRequestsToAttend + $myAnswered,
+            'myExitRequests' => $myExitRequests,
             'isRequester' => $isRequester,
             'showExitRequests' => in_array($user->role, [UserRole::Requester, UserRole::Warehouse, UserRole::SuperAdmin], true),
             'exitRequests' => $exitRequests,
             'exitRequestsToAttend' => $exitRequestsToAttend,
             'requests' => $requests,
             'requestsToAttend' => $requestsToAttend,
-            'pendingCount' => $exitRequestsToAttend + $requestsToAttend + $transfers->count(),
+            'pendingCount' => $exitRequestsToAttend + $myAnswered + $requestsToAttend + $transfers->count(),
             'items' => $low,
             'transfers' => $transfers,
             'chamberIds' => $chamberIds,

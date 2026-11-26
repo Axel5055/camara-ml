@@ -76,7 +76,7 @@ class ExitRequest extends Model
 
     /**
      * Requests the user may look at: administrators see all of them, managers none (they only follow the direct exits), warehouse users those of their
-     * chambers and requesters only the ones they made themselves, not those of colleagues of their branch.
+     * chambers plus the ones they made themselves, and requesters only the ones they made, not those of colleagues of their branch.
      *
      * @param  Builder<ExitRequest>  $query
      */
@@ -98,7 +98,26 @@ class ExitRequest extends Model
             return;
         }
 
-        $query->whereIn('chamber_id', Chamber::query()->accessibleBy($user)->select('chambers.id'));
+        $query->where(fn (Builder $scope) => $scope
+            ->where('user_id', $user->id)
+            ->orWhereIn('chamber_id', Chamber::query()->accessibleBy($user)->select('chambers.id')));
+    }
+
+    /**
+     * The requests others make to the user: what a warehouse user receives from their chambers, without the ones
+     * they made to other chambers (those go in "Mis solicitudes"). For every other role it is all they may look at.
+     *
+     * @param  Builder<ExitRequest>  $query
+     */
+    public function scopeIncomingFor(Builder $query, User $user): void
+    {
+        if ($user->role === UserRole::Warehouse) {
+            $query->whereIn('chamber_id', Chamber::query()->accessibleBy($user)->select('chambers.id'));
+
+            return;
+        }
+
+        $this->scopeVisibleTo($query, $user);
     }
 
     /**

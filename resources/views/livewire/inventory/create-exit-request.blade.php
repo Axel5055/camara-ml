@@ -1,6 +1,6 @@
 <section class="mx-auto w-full max-w-5xl space-y-6">
     <x-page-header icon="clipboard-document-list" title="Nueva solicitud de salida" description="Pide producto a una cámara; el almacenista la autoriza o la rechaza.">
-        <flux:button :href="route('exit-requests.index')" wire:navigate icon="arrow-left">Mis solicitudes</flux:button>
+        <flux:button :href="route($listRoute)" wire:navigate icon="arrow-left">Mis solicitudes</flux:button>
     </x-page-header>
 
     <x-draft-recovery
@@ -60,6 +60,7 @@
             <div class="overflow-hidden rounded-lg border border-zinc-200 dark:border-zinc-700" data-test="request-lines">
                 <flux:table container:class="overflow-x-auto">
                     <flux:table.columns>
+                        <flux:table.column align="center" class="w-px">#</flux:table.column>
                         <flux:table.column>Producto</flux:table.column>
                         <flux:table.column align="end">Pides</flux:table.column>
                         <flux:table.column align="end">Disponibles</flux:table.column>
@@ -68,6 +69,7 @@
                     <flux:table.rows>
                         @forelse ($lines as $index => $line)
                             <flux:table.row :key="'line-'.$line['product_id']">
+                                <flux:table.cell align="center" class="w-px tabular-nums text-zinc-500">{{ $loop->iteration }}</flux:table.cell>
                                 <flux:table.cell class="font-medium text-zinc-900 dark:text-white">{{ $line['product'] }}</flux:table.cell>
                                 <flux:table.cell align="end" class="tabular-nums">{{ number_format($line['boxes']) }}</flux:table.cell>
                                 <flux:table.cell align="end" class="tabular-nums text-zinc-500">{{ $chamberId !== null ? number_format((int) ($available[$line['product_id']] ?? 0)) : '—' }}</flux:table.cell>
@@ -77,7 +79,7 @@
                             </flux:table.row>
                         @empty
                             <flux:table.row>
-                                <flux:table.cell colspan="4" class="py-8 text-center text-zinc-500">Agrega los productos que necesitas.</flux:table.cell>
+                                <flux:table.cell colspan="5" class="py-8 text-center text-zinc-500">Agrega los productos que necesitas.</flux:table.cell>
                             </flux:table.row>
                         @endforelse
                     </flux:table.rows>

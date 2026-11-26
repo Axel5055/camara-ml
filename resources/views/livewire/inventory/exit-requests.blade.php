@@ -1,11 +1,15 @@
 <section class="w-full space-y-6">
-    <x-page-header icon="clipboard-document-list" :title="$isRequester ? 'Mis solicitudes' : 'Solicitudes de salida'" :description="$isRequester ? 'Historial de lo que has pedido, con su estado y los motivos.' : 'Pedidos de las sucursales sin cámara: el almacenista de la cámara los autoriza o los rechaza.'">
-        @can('request-exits')
-            <flux:button variant="primary" icon="plus" :href="route('exit-requests.create')" wire:navigate data-test="request-new">Nueva solicitud</flux:button>
-        @endcan
-        @can('print-exit-summary')
-            <livewire:inventory.exit-request-summary-print />
-        @endcan
+    <x-page-header icon="clipboard-document-list" :title="$mine ? 'Mis solicitudes' : 'Solicitudes de salida'" :description="$mine ? 'Historial de lo que has pedido, con su estado y los motivos.' : 'Pedidos de producto a las cámaras: el almacenista de la cámara los autoriza o los rechaza.'">
+        @if ($showNewRequest)
+            @can('request-exits')
+                <flux:button variant="primary" icon="plus" :href="route('exit-requests.create')" wire:navigate data-test="request-new">Nueva solicitud</flux:button>
+            @endcan
+        @endif
+        @unless ($mine)
+            @can('print-exit-summary')
+                <livewire:inventory.exit-request-summary-print />
+            @endcan
+        @endunless
     </x-page-header>
 
     @if ($flash !== '')
@@ -32,7 +36,7 @@
         <flux:table :paginate="$requests" container:class="overflow-x-auto">
             <flux:table.columns>
                 <flux:table.column>Solicitud</flux:table.column>
-                @unless ($isRequester)
+                @unless ($mine)
                     <flux:table.column>Sucursal</flux:table.column>
                 @endunless
                 <flux:table.column>Cámara</flux:table.column>
@@ -48,7 +52,7 @@
                             <div class="font-mono text-xs text-zinc-700 dark:text-zinc-200">{{ $item->reference() }}</div>
                             <div class="text-xs text-zinc-500">{{ $item->created_at->format('d/m/Y H:i') }}</div>
                         </flux:table.cell>
-                        @unless ($isRequester)
+                        @unless ($mine)
                             <flux:table.cell>{{ $item->branch->name }}</flux:table.cell>
                         @endunless
                         <flux:table.cell>
@@ -90,7 +94,7 @@
                     </flux:table.row>
                 @empty
                     <flux:table.row>
-                        <flux:table.cell colspan="{{ $isRequester ? 6 : 7 }}" class="py-10 text-center text-zinc-500">No hay solicitudes en este estado.</flux:table.cell>
+                        <flux:table.cell colspan="{{ $mine ? 6 : 7 }}" class="py-10 text-center text-zinc-500">No hay solicitudes en este estado.</flux:table.cell>
                     </flux:table.row>
                 @endforelse
             </flux:table.rows>

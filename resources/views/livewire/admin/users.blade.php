@@ -136,6 +136,14 @@
                                         <flux:badge size="sm" color="zinc">{{ $chamber->name }}</flux:badge>
                                     @endforeach
                                 </div>
+                                @if ($user->requestableChambers->isNotEmpty())
+                                    <div class="mt-1 flex flex-wrap items-center gap-1" data-test="requestable-chambers">
+                                        <span class="text-xs text-zinc-500">Pide a:</span>
+                                        @foreach ($user->requestableChambers as $chamber)
+                                            <flux:badge size="sm" color="rose">{{ $chamber->branch->name }} · {{ $chamber->name }}</flux:badge>
+                                        @endforeach
+                                    </div>
+                                @endif
                             @else
                                 <span class="text-zinc-400">{{ $user->role->value === 'warehouse' ? '—' : 'Todas las cámaras' }}</span>
                             @endif
@@ -235,7 +243,7 @@
                     </flux:select>
 
                     @if ($branchChambers->isNotEmpty())
-                        <flux:checkbox.group wire:model="chamberIds" label="Cámaras autorizadas">
+                        <flux:checkbox.group wire:model.live="chamberIds" label="Cámaras autorizadas">
                             <div class="grid max-h-48 gap-2 overflow-y-auto rounded-lg bg-zinc-50 p-3 sm:grid-cols-2 dark:bg-zinc-900/40">
                                 @foreach ($branchChambers as $chamber)
                                     <flux:checkbox :value="$chamber->id" :label="$chamber->name" wire:key="chamber-{{ $chamber->id }}" />
@@ -243,6 +251,17 @@
                             </div>
                         </flux:checkbox.group>
                     @endif
+
+                    <div class="space-y-2" data-test="warehouse-requestable-chambers">
+                        <flux:checkbox.group wire:model="requestableChamberIds" label="Cámaras a las que puede pedir producto">
+                            <div class="grid max-h-48 gap-2 overflow-y-auto rounded-lg bg-zinc-50 p-3 sm:grid-cols-2 dark:bg-zinc-900/40">
+                                @foreach ($allChambers->whereNotIn('id', array_map('intval', $chamberIds)) as $chamber)
+                                    <flux:checkbox :value="$chamber->id" :label="$chamber->branch->name.' · '.$chamber->name" wire:key="warehouse-requestable-{{ $chamber->id }}" />
+                                @endforeach
+                            </div>
+                        </flux:checkbox.group>
+                        <flux:text class="text-xs">Opcional. Las cámaras que ya opera no aparecen en esta lista.</flux:text>
+                    </div>
                 @endif
 
                 @if ($role === 'requester')

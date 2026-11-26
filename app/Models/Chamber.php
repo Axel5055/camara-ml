@@ -65,7 +65,8 @@ class Chamber extends Model
     }
 
     /**
-     * Active chambers a requester may ask for product: the ones assigned to them, wherever they are.
+     * Active chambers the user may ask for product: the ones assigned to them for that, wherever they are, except
+     * those a warehouse user already operates.
      *
      * @param  Builder<Chamber>  $query
      */
@@ -77,7 +78,15 @@ class Chamber extends Model
             return;
         }
 
-        $query->whereIn('id', $user->role === UserRole::Requester ? $user->chambers()->select('chambers.id') : []);
+        if (! $user->asksForProduct()) {
+            $query->whereRaw('1 = 0');
+
+            return;
+        }
+
+        $query->whereIn('id', $user->chambersToAsk()->select('chambers.id'))
+            ->when($user->role === UserRole::Warehouse, fn (Builder $inner) => $inner
+                ->whereNotIn('id', self::query()->accessibleBy($user)->select('chambers.id')));
     }
 
     /**

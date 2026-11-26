@@ -3,7 +3,6 @@
 namespace App\Services\Inventory;
 
 use App\Enums\ExitRequestStatus;
-use App\Enums\UserRole;
 use App\Exceptions\InventoryException;
 use App\Models\AuditLog;
 use App\Models\Branch;
@@ -21,7 +20,7 @@ class RequestExit
     public const MAX_BOXES_PER_PRODUCT = 9999;
 
     /**
-     * A requester asks a chamber for product. Nothing leaves the chamber: the boxes are only chosen and the exit
+     * A requester or a warehouse user asks a chamber for product. Nothing leaves the chamber: the boxes are only chosen and the exit
      * registered when the warehouse user of that chamber authorizes the request.
      *
      * @param  array<int, array{product_id: int|string, boxes: int|string}>  $lines
@@ -30,8 +29,8 @@ class RequestExit
     {
         $onBehalfOfBranch = $user->isSuperAdmin();
 
-        if (! $user->is_active || (! $onBehalfOfBranch && ($user->role !== UserRole::Requester || $user->branch_id === null))) {
-            throw new AuthorizationException('Solo una sucursal solicitante puede pedir producto.');
+        if (! $user->is_active || (! $onBehalfOfBranch && (! $user->asksForProduct() || $user->branch_id === null))) {
+            throw new AuthorizationException('Solo un solicitante o un almacenista con sucursal puede pedir producto.');
         }
 
         if (! $user->canRequestFrom($chamber)) {

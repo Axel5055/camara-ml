@@ -72,7 +72,7 @@ class AppServiceProvider extends ServiceProvider
         Gate::define('view-products', fn (User $user): bool => in_array($user->role, [UserRole::Admin, UserRole::Manager, UserRole::Warehouse], true));
         Gate::define('operate-inventory', fn (User $user): bool => $user->role === UserRole::Warehouse);
         Gate::define('print-exit-summary', fn (User $user): bool => $user->role === UserRole::Warehouse);
-        Gate::define('request-exits', fn (User $user): bool => $user->role === UserRole::Requester && $user->branch_id !== null);
+        Gate::define('request-exits', fn (User $user): bool => $user->asksForProduct() && $user->branch_id !== null);
         // The panel, stock and the entry, exit and transfer records: everyone except requesters.
         Gate::define('use-inventory-area', fn (User $user): bool => true);
     }

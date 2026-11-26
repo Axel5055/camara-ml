@@ -149,8 +149,9 @@ class User extends Authenticatable implements MustVerifyEmail, PasskeyUser
     }
 
     /**
-     * Whether a requester may ask this chamber for product: only the chambers the super administrator assigned
-     * to them (which, unlike warehouse users, belong to other branches). It never allows looking inside it.
+     * Whether the user may ask this chamber for product: requesters and warehouse users, only the chambers the
+     * super administrator assigned to them for that (wherever they are), and never one the warehouse user already
+     * operates. It never allows looking inside it.
      */
     public function canRequestFrom(Chamber $chamber): bool
     {
@@ -159,8 +160,38 @@ class User extends Authenticatable implements MustVerifyEmail, PasskeyUser
         }
 
         return $this->is_active
-            && $this->role === UserRole::Requester
-            && $this->chambers()->whereKey($chamber->getKey())->exists();
+            && $this->asksForProduct()
+            && $this->chambersToAsk()->whereKey($chamber->getKey())->exists()
+            && ! $this->canAccessChamber($chamber);
+    }
+
+    /**
+     * Roles that make their own exit requests (super administrators do it too, on behalf of any branch).
+     */
+    public function asksForProduct(): bool
+    {
+        return in_array($this->role, [UserRole::Requester, UserRole::Warehouse], true);
+    }
+
+    /**
+     * The assignment that says where the user may ask for product: requesters only have chambers for that, so
+     * they use the general one; in warehouse users that one is what they operate.
+     *
+     * @return BelongsToMany<Chamber, $this>
+     */
+    public function chambersToAsk(): BelongsToMany
+    {
+        return $this->role === UserRole::Warehouse ? $this->requestableChambers() : $this->chambers();
+    }
+
+    /**
+     * Chambers a warehouse user may ask for product.
+     *
+     * @return BelongsToMany<Chamber, $this>
+     */
+    public function requestableChambers(): BelongsToMany
+    {
+        return $this->belongsToMany(Chamber::class, 'requestable_chamber_user')->withTimestamps();
     }
 
     /**

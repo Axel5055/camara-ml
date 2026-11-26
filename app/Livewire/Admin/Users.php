@@ -52,6 +52,9 @@ class Users extends Component
     /** @var array<int, int|string> */
     public array $chamberIds = [];
 
+    /** @var array<int, int|string> Chambers a warehouse user may ask for product. */
+    public array $requestableChamberIds = [];
+
     /** @var array<int, int|string> Branches a manager sees in full. */
     public array $branchIds = [];
 
@@ -91,7 +94,7 @@ class Users extends Component
     {
         Gate::authorize('create', User::class);
 
-        $this->reset('editingId', 'name', 'email', 'password', 'branch_id', 'chamberIds', 'branchIds');
+        $this->reset('editingId', 'name', 'email', 'password', 'branch_id', 'chamberIds', 'requestableChamberIds', 'branchIds');
         $this->role = UserRole::Warehouse->value;
         $this->is_active = true;
         $this->resetValidation();
@@ -100,7 +103,7 @@ class Users extends Component
 
     public function edit(int $id): void
     {
-        $user = User::query()->with(['chambers', 'managedBranches'])->findOrFail($id);
+        $user = User::query()->with(['chambers', 'requestableChambers', 'managedBranches'])->findOrFail($id);
         Gate::authorize('update', $user);
 
         $this->editingId = $user->id;
@@ -111,6 +114,7 @@ class Users extends Component
         $this->is_active = $user->is_active;
         $this->branch_id = $user->branch_id;
         $this->chamberIds = $user->chambers->pluck('id')->all();
+        $this->requestableChamberIds = $user->requestableChambers->pluck('id')->all();
         $this->branchIds = $user->managedBranches->pluck('id')->all();
         $this->resetValidation();
         Flux::modal('user-form')->show();
@@ -123,7 +127,7 @@ class Users extends Component
 
     public function updatedRole(): void
     {
-        $this->reset('branch_id', 'chamberIds', 'branchIds');
+        $this->reset('branch_id', 'chamberIds', 'requestableChamberIds', 'branchIds');
     }
 
     public function save(AssignChambers $assignChambers, AssignManagerScope $assignManagerScope): void
@@ -170,7 +174,9 @@ class Users extends Component
                 $user->save();
 
                 if (in_array($user->role, [UserRole::Warehouse, UserRole::Requester], true)) {
-                    $assignChambers->handle(Auth::user(), $user, array_map('intval', $this->chamberIds));
+                    $chamberIds = array_map('intval', $this->chamberIds);
+                    // The form hides the chambers they operate, so an earlier mark on one of them is dropped.
+                    $assignChambers->handle(Auth::user(), $user, $chamberIds, array_values(array_diff(array_map('intval', $this->requestableChamberIds), $chamberIds)));
                     $user->managedBranches()->sync([]);
                 } elseif ($user->role === UserRole::Manager) {
                     $assignManagerScope->handle(Auth::user(), $user, array_map('intval', $this->branchIds), array_map('intval', $this->chamberIds));
@@ -179,9 +185,14 @@ class Users extends Component
                     $user->managedBranches()->sync([]);
                 }
 
+                if ($user->role !== UserRole::Warehouse) {
+                    $user->requestableChambers()->sync([]);
+                }
+
                 AuditLog::record(Auth::user(), $isNew ? 'user.created' : 'user.updated', $user, $old, [
                     'name' => $user->name, 'email' => $user->email, 'role' => $user->role->value,
                     'is_active' => $user->is_active, 'branch_id' => $user->branch_id, 'chambers' => $user->chambers()->pluck('chambers.id')->all(),
+                    'requestable_chambers' => $user->requestableChambers()->pluck('chambers.id')->all(),
                     'managed_branches' => $user->managedBranches()->pluck('branches.id')->all(),
                     'password_changed' => ($validated['password'] ?? '') !== '',
                 ]);
@@ -207,7 +218,7 @@ class Users extends Component
         return view('livewire.admin.users', [
             'roles' => UserRole::cases(),
             'users' => $this->searchedUsers()
-                ->with(['branch', 'chambers', 'managedBranches'])
+                ->with(['branch', 'chambers', 'requestableChambers.branch', 'managedBranches'])
                 ->when(UserRole::tryFrom($this->roleFilter), fn (Builder $query, UserRole $role) => $query->where('role', $role))
                 ->when($this->status === 'active', fn (Builder $query) => $query->where('is_active', true))
                 ->when($this->status === 'inactive', fn (Builder $query) => $query->where('is_active', false))
@@ -226,7 +237,7 @@ class Users extends Component
             'branchChambers' => $this->branch_id
                 ? Chamber::query()->where('branch_id', $this->branch_id)->orderBy('name')->get()
                 : collect(),
-            'allChambers' => in_array($this->role, [UserRole::Manager->value, UserRole::Requester->value], true)
+            'allChambers' => in_array($this->role, [UserRole::Manager->value, UserRole::Requester->value, UserRole::Warehouse->value], true)
                 ? Chamber::query()->with('branch')->orderBy('branch_id')->orderBy('name')->get()
                 : collect(),
             'hasFilters' => trim($this->search) !== '' || $this->roleFilter !== 'all' || $this->status !== 'all',

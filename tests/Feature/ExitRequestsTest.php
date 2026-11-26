@@ -116,7 +116,7 @@ it('keeps requesters from asking a chamber that was not assigned to them', funct
     expect(ExitRequest::query()->count())->toBe(0);
 });
 
-it('only lets requesters and super administrators ask, never other roles', function () {
+it('only lets requesters, assigned warehouse users and super administrators ask, never other roles', function () {
     $w = exitRequestWorld();
 
     foreach (['warehouse', 'otherWarehouse'] as $who) {
@@ -127,7 +127,7 @@ it('only lets requesters and super administrators ask, never other roles', funct
         expect(fn () => askForBoxes($w, 1, $reader))->toThrow(AuthorizationException::class);
     }
 
-    $this->actingAs($w['warehouse'])->get(route('exit-requests.create'))->assertForbidden();
+    $this->actingAs(User::factory()->admin()->create())->get(route('exit-requests.create'))->assertForbidden();
 });
 
 it('validates the lines of a request', function () {
@@ -718,4 +718,114 @@ it('confirms an exit from the "Por solicitud" table so it moves to the direct on
 
     expect($request->fresh()->validated_by)->toBe($w['warehouse']->id);
     Livewire::actingAs($w['warehouse'])->test(Exits::class)->assertSee($exit->reference);
+});
+
+/**
+ * A chamber of another branch, with 3 boxes, that the warehouse user of Centro may ask for product.
+ *
+ * @param  array<string, mixed>  $w
+ */
+function chamberTheWarehouseMayAsk(array $w): Chamber
+{
+    $norte = Chamber::factory()->for(Branch::factory()->create(['name' => 'Norte']))->create(['name' => 'Cámara Norte']);
+    $w['warehouse']->requestableChambers()->attach($norte);
+
+    app(RegisterEntry::class)->handle($w['super'], $norte, [
+        ['product_id' => $w['product']->id, 'boxes_count' => 3, 'weight_per_box_kg' => '10', 'price_per_kg_mxn' => '20.00'],
+    ]);
+
+    return $norte;
+}
+
+it('lets a warehouse user ask only the chambers assigned for that, without letting them operate or look inside', function () {
+    $w = exitRequestWorld();
+    $norte = chamberTheWarehouseMayAsk($w);
+
+    Livewire::actingAs($w['warehouse'])->test(CreateExitRequest::class)
+        ->assertSet('chamberId', $norte->id)
+        ->set('productId', $w['product']->id)->set('quantity', '2')->call('addProduct')
+        ->call('save')
+        ->assertHasNoErrors()
+        ->assertRedirect(route('exit-requests.mine'));
+
+    $request = ExitRequest::query()->sole();
+
+    expect($request->branch_id)->toBe($w['centro']->id)
+        ->and($request->chamber_id)->toBe($norte->id)
+        ->and($w['warehouse']->canAccessChamber($norte))->toBeFalse()
+        ->and($w['warehouse']->canViewChamber($norte))->toBeFalse()
+        ->and($w['warehouse']->can('decide', $request))->toBeFalse()
+        ->and($w['warehouse']->can('view', $request))->toBeTrue()
+        ->and($w['warehouse']->can('cancel', $request))->toBeTrue()
+        ->and($w['otherWarehouse']->can('view', $request))->toBeFalse()
+        ->and(fn () => app(RequestExit::class)->handle($w['warehouse'], $w['otherChamber'], [['product_id' => $w['product']->id, 'boxes' => 1]]))
+        ->toThrow(AuthorizationException::class);
+});
+
+it('never lets a warehouse user ask a chamber they operate, even if it was marked to ask', function () {
+    $w = exitRequestWorld();
+    $w['warehouse']->requestableChambers()->attach($w['chamber']);
+
+    expect(Chamber::query()->requestableBy($w['warehouse'])->count())->toBe(0)
+        ->and(fn () => askForBoxes($w, 1, $w['warehouse']))->toThrow(AuthorizationException::class);
+});
+
+it('keeps what a warehouse user asks apart from what they have to decide', function () {
+    $w = exitRequestWorld();
+    $norte = chamberTheWarehouseMayAsk($w);
+    $incoming = askForBoxes($w, 1);
+    $own = app(RequestExit::class)->handle($w['warehouse'], $norte, [['product_id' => $w['product']->id, 'boxes' => 1]]);
+
+    $this->actingAs($w['warehouse'])->get(route('exit-requests.mine'))->assertOk()
+        ->assertSee($own->reference())
+        ->assertDontSee($incoming->reference())
+        ->assertSeeHtml('data-test="request-new"')
+        ->assertSeeHtml('data-test="nav-my-requests"');
+
+    Livewire::actingAs($w['warehouse'])->test(ExitRequests::class)->set('status', 'all')
+        ->assertSee($incoming->reference())
+        ->assertDontSee($own->reference())
+        ->assertDontSeeHtml('data-test="request-new"');
+});
+
+it('tells a warehouse user in the bell the answers to what they asked', function () {
+    $w = exitRequestWorld();
+    $norte = chamberTheWarehouseMayAsk($w);
+    $own = app(RequestExit::class)->handle($w['warehouse'], $norte, [['product_id' => $w['product']->id, 'boxes' => 1]]);
+
+    Livewire::actingAs($w['warehouse'])->test(NotificationsBell::class)
+        ->assertSee($own->reference())
+        ->assertDontSeeHtml('data-test="bell-exit-requests"')
+        // Only the low stock of their own chamber: a pending request of theirs is nothing to attend.
+        ->assertViewHas('count', 1);
+
+    app(ReviewExitRequest::class)->reject($w['super'], $own, 'No hay existencias');
+
+    Livewire::actingAs($w['warehouse'])->test(NotificationsBell::class)
+        ->assertSeeHtml('data-test="bell-my-exit-requests"')
+        ->assertViewHas('count', 2);
+});
+
+it('lets the super administrator assign a warehouse user the chambers they may ask and clears them on a role change', function () {
+    $w = exitRequestWorld();
+    $foreign = Chamber::factory()->for($w['sur'])->create();
+
+    Livewire::actingAs($w['super'])->test(Users::class)
+        ->call('edit', $w['warehouse']->id)
+        ->set('requestableChamberIds', [$foreign->id, $w['chamber']->id])
+        ->call('save')
+        ->assertHasNoErrors();
+
+    expect($w['warehouse']->requestableChambers()->pluck('chambers.id')->all())->toBe([$foreign->id])
+        ->and($w['warehouse']->chambers()->pluck('chambers.id')->all())->toBe([$w['chamber']->id])
+        ->and(fn () => app(AssignChambers::class)->handle($w['super'], $w['warehouse'], [$w['chamber']->id], [$w['chamber']->id]))
+        ->toThrow(InventoryException::class);
+
+    Livewire::actingAs($w['super'])->test(Users::class)
+        ->call('edit', $w['warehouse']->id)
+        ->set('role', UserRole::Admin->value)
+        ->call('save')
+        ->assertHasNoErrors();
+
+    expect($w['warehouse']->requestableChambers()->count())->toBe(0);
 });

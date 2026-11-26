@@ -13,9 +13,10 @@
             <flux:sidebar.nav>
                 @php($warehouseNav = auth()->user()->role === \App\Enums\UserRole::Warehouse)
                 @can('request-exits')
-                    @php($pendingExitRequests = \App\Models\ExitRequest::query()->visibleTo(auth()->user())->where('status', \App\Enums\ExitRequestStatus::Pending)->count())
+                    @php($myListRoute = $warehouseNav ? 'exit-requests.mine' : 'exit-requests.index')
+                    @php($myPendingRequests = \App\Models\ExitRequest::query()->visibleTo(auth()->user())->when($warehouseNav, fn ($query) => $query->where('user_id', auth()->id()))->where('status', \App\Enums\ExitRequestStatus::Pending)->count())
                     <flux:sidebar.group heading="Solicitudes" class="grid" data-test="nav-requester">
-                        <flux:sidebar.item icon="clipboard-document-list" :href="route('exit-requests.index')" :current="request()->routeIs('exit-requests.index')" :badge="$pendingExitRequests > 0 ? $pendingExitRequests : null" badge-color="amber" wire:navigate data-test="nav-my-requests">Mis solicitudes</flux:sidebar.item>
+                        <flux:sidebar.item icon="clipboard-document-list" :href="route($myListRoute)" :current="request()->routeIs($myListRoute)" :badge="$myPendingRequests > 0 ? $myPendingRequests : null" badge-color="amber" wire:navigate data-test="nav-my-requests">Mis solicitudes</flux:sidebar.item>
                         <flux:sidebar.item icon="plus-circle" :href="route('exit-requests.create')" :current="request()->routeIs('exit-requests.create')" wire:navigate data-test="nav-new-request">Nueva solicitud</flux:sidebar.item>
                     </flux:sidebar.group>
                 @endcan
@@ -45,7 +46,7 @@
                             @endcan
                         </div>
                     </div>
-                    @php($pendingExitRequests = \App\Models\ExitRequest::query()->visibleTo(auth()->user())->where('status', \App\Enums\ExitRequestStatus::Pending)->count())
+                    @php($pendingExitRequests = \App\Models\ExitRequest::query()->incomingFor(auth()->user())->where('status', \App\Enums\ExitRequestStatus::Pending)->count())
                     <div x-data='{ open: {{ $warehouseNav ? "true" : '(window.navOpen ??= {}).exits ?? false' }} }' x-effect="(window.navOpen ??= {}).exits = open" data-test="nav-exits">
                         <flux:sidebar.item as="button" type="button" icon="arrow-up-tray" x-on:click="open = ! open" x-bind:aria-expanded="open" class="w-full">
                             <span class="flex w-full items-center justify-between gap-2">

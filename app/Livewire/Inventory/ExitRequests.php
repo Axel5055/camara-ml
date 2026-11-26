@@ -16,6 +16,7 @@ use Illuminate\Database\Eloquent\Collection as EloquentCollection;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Gate;
+use Livewire\Attributes\Locked;
 use Livewire\Attributes\Title;
 use Livewire\Attributes\Url;
 use Livewire\Component;
@@ -32,6 +33,10 @@ class ExitRequests extends Component
     /** pending | approved | rejected | cancelled | all */
     #[Url(as: 'estado')]
     public string $status = 'pending';
+
+    /** "Mis solicitudes": only what the user asked for, instead of what is asked to them. */
+    #[Locked]
+    public bool $mine = false;
 
     public ?int $viewingId = null;
 
@@ -57,8 +62,9 @@ class ExitRequests extends Component
     public function mount(): void
     {
         $this->flash = (string) session()->pull('status', '');
+        $this->mine = $this->mine || request()->routeIs('exit-requests.mine') || Auth::user()->role === UserRole::Requester;
 
-        if (Auth::user()->role === UserRole::Requester && ! request()->has('estado')) {
+        if ($this->mine && ! request()->has('estado')) {
             $this->status = 'all';
         }
     }
@@ -74,6 +80,18 @@ class ExitRequests extends Component
     private function visibleRequests(): Builder
     {
         return ExitRequest::query()->visibleTo(Auth::user());
+    }
+
+    /**
+     * The requests of the list being looked at; opening or acting on one only needs it to be visible.
+     *
+     * @return Builder<ExitRequest>
+     */
+    private function listedRequests(): Builder
+    {
+        return $this->mine
+            ? $this->visibleRequests()->where('user_id', Auth::id())
+            : ExitRequest::query()->incomingFor(Auth::user());
     }
 
     private function viewingRequest(): ExitRequest
@@ -277,7 +295,7 @@ class ExitRequests extends Component
 
     public function render(): View
     {
-        $requests = $this->visibleRequests()
+        $requests = $this->listedRequests()
             ->when(in_array($this->status, array_column(ExitRequestStatus::cases(), 'value'), true), fn (Builder $query) => $query->where('status', $this->status))
             ->with(['branch:id,name', 'chamber:id,name,branch_id', 'chamber.branch:id,name', 'user:id,name', 'decider:id,name', 'validator:id,name', 'exit:id,reference,origin_chamber_id,dest_chamber_id'])
             ->orderByRaw("status = 'pending' desc")
@@ -301,9 +319,10 @@ class ExitRequests extends Component
             'viewing' => $viewing,
             'canDecide' => $canDecide,
             'boxesByProduct' => $boxesByProduct,
-            'pendingCount' => $this->visibleRequests()->where('status', ExitRequestStatus::Pending)->count(),
+            'pendingCount' => $this->listedRequests()->where('status', ExitRequestStatus::Pending)->count(),
             'statuses' => ExitRequestStatus::cases(),
-            'isRequester' => Auth::user()->role === UserRole::Requester,
+            // A super administrator also asks from the general list; warehouse users only from their own one.
+            'showNewRequest' => $this->mine || Auth::user()->isSuperAdmin(),
         ]);
     }
 }

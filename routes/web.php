@@ -55,6 +55,7 @@ Route::middleware(['auth', 'active', 'verified'])->group(function () {
     // Exit requests: requesters (branches without chambers) ask a chamber for product and follow their requests;
     // warehouse users and super administrators decide them; administrators and managers only look.
     Route::livewire('inventario/solicitudes-salida/nueva', CreateExitRequest::class)->name('exit-requests.create')->middleware('can:request-exits');
+    Route::livewire('inventario/solicitudes-salida/mias', ExitRequests::class)->name('exit-requests.mine')->middleware('can:request-exits');
     Route::livewire('inventario/solicitudes-salida', ExitRequests::class)->name('exit-requests.index')->can('viewAny', ExitRequest::class);
 
     // Everything else is closed to requesters.

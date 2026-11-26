@@ -2,6 +2,7 @@
 
 namespace App\Livewire\Inventory;
 
+use App\Enums\UserRole;
 use App\Livewire\Concerns\ReportsInventoryErrors;
 use App\Models\Box;
 use App\Models\Branch;
@@ -24,7 +25,7 @@ class CreateExitRequest extends Component
 
     public ?int $chamberId = null;
 
-    /** Only a super administrator chooses it: the branch the request is made for. A requester always asks for their own. */
+    /** Only a super administrator chooses it: the branch the request is made for. Everyone else asks for their own. */
     public ?int $branchId = null;
 
     public string $notes = '';
@@ -52,7 +53,7 @@ class CreateExitRequest extends Component
     }
 
     /**
-     * Active chambers the requester may ask for product.
+     * Active chambers the user may ask for product.
      *
      * @return Collection<int, Chamber>
      */
@@ -62,7 +63,7 @@ class CreateExitRequest extends Component
     }
 
     /**
-     * Active branches a super administrator may make the request for; none for a requester.
+     * Active branches a super administrator may make the request for; none for the other roles.
      *
      * @return Collection<int, Branch>
      */
@@ -176,8 +177,14 @@ class CreateExitRequest extends Component
             $this->dispatch('draft-saved');
             session()->flash('status', "Solicitud {$request->reference()} enviada.");
 
-            $this->redirectRoute('exit-requests.index', navigate: true);
+            $this->redirectRoute($this->listRoute(), navigate: true);
         }
+    }
+
+    /** Warehouse users have their own requests apart from the ones they receive. */
+    private function listRoute(): string
+    {
+        return Auth::user()->role === UserRole::Warehouse ? 'exit-requests.mine' : 'exit-requests.index';
     }
 
     /**
@@ -245,6 +252,7 @@ class CreateExitRequest extends Component
             'products' => $this->products(),
             'available' => $available,
             'totalBoxes' => array_sum(array_column($this->lines, 'boxes')),
+            'listRoute' => $this->listRoute(),
         ]);
     }
 }
