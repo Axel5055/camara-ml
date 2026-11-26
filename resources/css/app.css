@@ -65,6 +65,34 @@ select:focus[data-flux-control] {
     @apply size-4;
 } */
 
+/* Encabezado azul en todas las tablas de Flux, igual al de <x-product-summary> */
+[data-flux-columns] [data-flux-column] {
+    background-color: var(--color-accent);
+    border-bottom-color: transparent;
+    color: var(--color-accent-foreground);
+    font-weight: 600;
+}
+
+[data-flux-columns] [data-flux-column] * {
+    color: inherit;
+}
+
+/* Flux quita el relleno en las orillas: sin esto el texto quedaría pegado al borde. Las celdas se alinean igual. */
+[data-flux-column]:first-child,
+[data-flux-cell]:first-child {
+    padding-inline-start: 1rem;
+}
+
+[data-flux-column]:last-child,
+[data-flux-cell]:last-child {
+    padding-inline-end: 1rem;
+}
+
+/* La tabla ocupa todo su marco, así que solo la paginación lleva margen propio. */
+ui-table-scroll-area ~ [data-flux-pagination] {
+    padding: 0.75rem 1rem;
+}
+
 /* Tablas con scroll horizontal que se pueden arrastrar con el mouse (resources/js/app.js) */
 ui-table-scroll-area.drag-scroll,
 .overflow-x-auto.drag-scroll {

@@ -21,7 +21,7 @@
 
     <flux:error name="operation" />
 
-    <div class="overflow-hidden rounded-xl border border-zinc-200 bg-white p-2 shadow-xs dark:border-zinc-700 dark:bg-zinc-800" data-test="entry-requests-table">
+    <div class="overflow-hidden rounded-xl border border-accent/30 bg-white shadow-xs dark:border-zinc-700 dark:bg-zinc-800" data-test="entry-requests-table">
         <flux:table :paginate="$requests" container:class="overflow-x-auto">
             <flux:table.columns>
                 <flux:table.column>Solicitud</flux:table.column>
@@ -104,7 +104,7 @@
 
                 <div class="overflow-x-auto rounded-lg border border-zinc-200 dark:border-zinc-700">
                     <table class="w-full text-sm" data-test="request-groups">
-                        <thead class="bg-zinc-50 text-left text-xs uppercase text-zinc-500 dark:bg-zinc-700/40">
+                        <thead class="bg-accent text-left text-xs uppercase text-accent-foreground">
                             <tr>
                                 <th class="px-3 py-2">Producto</th>
                                 <th class="px-3 py-2 text-right">Cajas</th>

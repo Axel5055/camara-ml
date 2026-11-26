@@ -208,7 +208,7 @@
             <div class="grid lg:grid-cols-5">
             <div class="min-w-0 lg:col-span-3">
             @if ($tableAll)
-                <div class="p-2" data-test="chamber-summary">
+                <div data-test="chamber-summary">
                     <flux:table container:class="overflow-x-auto">
                         <flux:table.columns>
                             <flux:table.column>Sucursal</flux:table.column>
@@ -251,7 +251,7 @@
                     </flux:table>
                 </div>
             @else
-            <div class="p-2" data-test="products-table">
+            <div data-test="products-table">
                 <flux:table :paginate="$productPage" container:class="overflow-x-auto">
                     <flux:table.columns>
                         <flux:table.column>Producto</flux:table.column>

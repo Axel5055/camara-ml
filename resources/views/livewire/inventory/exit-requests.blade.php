@@ -32,7 +32,7 @@
 
     <flux:error name="operation" />
 
-    <div class="overflow-hidden rounded-xl border border-zinc-200 bg-white p-2 shadow-xs dark:border-zinc-700 dark:bg-zinc-800" data-test="exit-requests-table">
+    <div class="overflow-hidden rounded-xl border border-accent/30 bg-white shadow-xs dark:border-zinc-700 dark:bg-zinc-800" data-test="exit-requests-table">
         <flux:table :paginate="$requests" container:class="overflow-x-auto">
             <flux:table.columns>
                 <flux:table.column>Solicitud</flux:table.column>
@@ -292,7 +292,7 @@
                         </div>
                     </div>
                 @else
-                    <div class="overflow-hidden rounded-lg border border-zinc-200 dark:border-zinc-700" data-test="request-items">
+                    <div class="overflow-hidden rounded-lg border border-accent/30 dark:border-zinc-700" data-test="request-items">
                         <flux:table container:class="overflow-x-auto">
                             <flux:table.columns>
                                 <flux:table.column>Producto</flux:table.column>

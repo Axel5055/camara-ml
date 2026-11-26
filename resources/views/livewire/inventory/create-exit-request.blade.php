@@ -57,7 +57,7 @@
                 <flux:heading size="lg">Tu solicitud</flux:heading>
             </div>
 
-            <div class="overflow-hidden rounded-lg border border-zinc-200 dark:border-zinc-700" data-test="request-lines">
+            <div class="overflow-hidden rounded-lg border border-accent/30 dark:border-zinc-700" data-test="request-lines">
                 <flux:table container:class="overflow-x-auto">
                     <flux:table.columns>
                         <flux:table.column align="center" class="w-px">#</flux:table.column>
