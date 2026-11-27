@@ -3,6 +3,7 @@
 namespace App\Providers;
 
 use App\Enums\UserRole;
+use App\Livewire\Temperatures\TemperatureGate;
 use App\Models\Box;
 use App\Models\Branch;
 use App\Models\Category;
@@ -14,12 +15,16 @@ use App\Models\Product;
 use App\Models\StockExit;
 use App\Models\Transfer;
 use App\Models\User;
+use App\Services\Temperature\PendingTemperatures;
 use Carbon\CarbonImmutable;
 use Illuminate\Support\Facades\Date;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\ServiceProvider;
 use Illuminate\Validation\Rules\Password;
+use Livewire\Component;
+
+use function Livewire\on;
 
 class AppServiceProvider extends ServiceProvider
 {
@@ -38,6 +43,24 @@ class AppServiceProvider extends ServiceProvider
     {
         $this->configureDefaults();
         $this->configureAuthorization();
+        $this->configureTemperatureGate();
+    }
+
+    /**
+     * While a warehouse user has pending temperatures, no Livewire component runs except the one that records them.
+     * Pages and other requests are stopped by the EnsureTemperatureRecorded middleware.
+     */
+    protected function configureTemperatureGate(): void
+    {
+        on('hydrate', function (Component $component): void {
+            $user = auth()->user();
+
+            abort_if(
+                ! $component instanceof TemperatureGate && $user instanceof User && app(PendingTemperatures::class)->for($user)->isNotEmpty(),
+                423,
+                'Registra la temperatura de tus cámaras para continuar.',
+            );
+        });
     }
 
     /**
@@ -73,6 +96,9 @@ class AppServiceProvider extends ServiceProvider
         Gate::define('operate-inventory', fn (User $user): bool => $user->role === UserRole::Warehouse);
         Gate::define('print-exit-summary', fn (User $user): bool => $user->role === UserRole::Warehouse);
         Gate::define('request-exits', fn (User $user): bool => $user->asksForProduct() && $user->branch_id !== null);
+        // The temperature log; only super administrators (through Gate::before) correct it.
+        Gate::define('view-temperatures', fn (User $user): bool => in_array($user->role, [UserRole::Manager, UserRole::Warehouse], true));
+        Gate::define('correct-temperatures', fn (User $user): bool => false);
         // The panel, stock and the entry, exit and transfer records: everyone except requesters.
         Gate::define('use-inventory-area', fn (User $user): bool => true);
     }

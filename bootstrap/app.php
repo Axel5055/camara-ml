@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Middleware\EnsureTemperatureRecorded;
 use App\Http\Middleware\EnsureUserIsActive;
 use App\Http\Middleware\EnsureUserIsSuperAdmin;
 use Illuminate\Foundation\Application;
@@ -14,6 +15,8 @@ return Application::configure(basePath: dirname(__DIR__))
         health: '/up',
     )
     ->withMiddleware(function (Middleware $middleware): void {
+        $middleware->web(append: [EnsureTemperatureRecorded::class]);
+
         $middleware->alias([
             'active' => EnsureUserIsActive::class,
             'super-admin' => EnsureUserIsSuperAdmin::class,

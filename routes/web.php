@@ -3,6 +3,7 @@
 use App\Http\Controllers\AppVersionController;
 use App\Http\Controllers\QzSigningController;
 use App\Http\Controllers\RecordExportController;
+use App\Http\Controllers\TemperatureCaptureController;
 use App\Http\Controllers\TicketController;
 use App\Livewire\Admin\Adjustments;
 use App\Livewire\Admin\AuditLogs;
@@ -34,6 +35,7 @@ use App\Livewire\Reports\InventoryReport;
 use App\Livewire\Reports\LowStock;
 use App\Livewire\Reports\MovementsReport;
 use App\Livewire\Reports\PriceReport;
+use App\Livewire\Temperatures\TemperatureLog;
 use App\Models\ExitRequest;
 use App\Models\Transfer;
 use Illuminate\Support\Facades\Route;
@@ -49,6 +51,9 @@ Route::middleware(['auth', 'active'])->get('bienvenida', function () {
 })->name('welcome.user');
 
 Route::middleware(['auth', 'active', 'verified'])->group(function () {
+    // Where a warehouse user records the pending temperatures before anything else.
+    Route::get('temperaturas/registrar', TemperatureCaptureController::class)->name('temperatures.capture');
+
     // Every signed-in role: the panel and the stock and entry/exit records (scoped to what each role may see).
     Route::livewire('dashboard', Dashboard::class)->name('dashboard');
 
@@ -63,6 +68,10 @@ Route::middleware(['auth', 'active', 'verified'])->group(function () {
         Route::livewire('impresoras', Printers::class)->name('printers');
         Route::get('impresoras/certificado', [QzSigningController::class, 'certificate'])->name('qz.certificate');
         Route::post('impresoras/firmar', [QzSigningController::class, 'sign'])->name('qz.sign');
+
+        // Temperature log: super administrators and managers (their chambers) see every reading; warehouse users
+        // only their own.
+        Route::livewire('inventario/temperaturas', TemperatureLog::class)->name('temperatures.index')->middleware('can:view-temperatures');
 
         Route::livewire('inventario/existencias', Stock::class)->name('stock');
         Route::livewire('inventario/cajas/{box}', BoxHistory::class)->name('boxes.show');

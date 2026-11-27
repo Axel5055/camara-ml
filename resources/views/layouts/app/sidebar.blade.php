@@ -12,6 +12,11 @@
 
             <flux:sidebar.nav>
                 @php($warehouseNav = auth()->user()->role === \App\Enums\UserRole::Warehouse)
+                @can('view-temperatures')
+                    <flux:sidebar.group heading="Control de temperatura" class="grid" data-test="nav-temperature-group">
+                        <flux:sidebar.item icon="chart-bar-square" :href="route('temperatures.index')" :current="request()->routeIs('temperatures.index')" wire:navigate data-test="nav-temperatures">Temperaturas</flux:sidebar.item>
+                    </flux:sidebar.group>
+                @endcan
                 @can('request-exits')
                     @php($myListRoute = $warehouseNav ? 'exit-requests.mine' : 'exit-requests.index')
                     @php($myPendingRequests = \App\Models\ExitRequest::query()->visibleTo(auth()->user())->when($warehouseNav, fn ($query) => $query->where('user_id', auth()->id()))->where('status', \App\Enums\ExitRequestStatus::Pending)->count())
@@ -292,6 +297,7 @@
 
         @if (auth()->user()->role === \App\Enums\UserRole::Warehouse)
             <livewire:approved-entry-prompt />
+            @include('partials.temperature-gate')
         @endif
 
         <script src="{{ asset('js/ticket-printer.js') }}?v={{ filemtime(public_path('js/ticket-printer.js')) }}"></script>
