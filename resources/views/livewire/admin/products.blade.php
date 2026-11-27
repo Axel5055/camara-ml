@@ -73,10 +73,10 @@
     <div class="overflow-hidden rounded-xl border border-accent/30 bg-white shadow-xs dark:border-zinc-700 dark:bg-zinc-800" data-test="products-table">
         <flux:table :paginate="$products" container:class="overflow-x-auto">
             <flux:table.columns>
-                <flux:table.column>Código</flux:table.column>
+                <flux:table.column class="max-md:hidden">Código</flux:table.column>
                 <flux:table.column>Producto</flux:table.column>
-                <flux:table.column>Categoría</flux:table.column>
-                <flux:table.column align="end">Cajas disponibles</flux:table.column>
+                <flux:table.column class="max-xl:hidden">Categoría</flux:table.column>
+                <flux:table.column align="end">Total<span class="max-sm:hidden">&nbsp;de cajas</span></flux:table.column>
                 <flux:table.column>Estado</flux:table.column>
                 @if ($canManage)
                     <flux:table.column></flux:table.column>
@@ -85,16 +85,42 @@
             <flux:table.rows>
                 @forelse ($products as $product)
                     <flux:table.row :key="$product->id" class="hover:bg-zinc-50 dark:hover:bg-zinc-700/40">
-                        <flux:table.cell>
+                        <flux:table.cell class="max-md:hidden">
                             <span class="rounded-md bg-zinc-100 px-2 py-1 font-mono text-xs text-zinc-700 dark:bg-zinc-700 dark:text-zinc-200">{{ $product->code }}</span>
                         </flux:table.cell>
-                        <flux:table.cell>
-                            <div class="font-medium text-zinc-900 dark:text-white">{{ $product->name }}</div>
-                            @if ($product->description)
-                                <div class="max-w-xs truncate text-xs text-zinc-500">{{ $product->description }}</div>
-                            @endif
+                        <flux:table.cell class="whitespace-normal!">
+                            <div class="min-w-40 max-w-md space-y-1.5">
+                                <div>
+                                    <div class="font-medium text-zinc-900 dark:text-white">{{ $product->name }}</div>
+                                    <div class="text-xs text-zinc-500 xl:hidden"><span class="font-mono md:hidden">{{ $product->code }} · </span>{{ $product->category->name }}</div>
+                                    @if ($product->description)
+                                        <div class="max-w-xs truncate text-xs text-zinc-500">{{ $product->description }}</div>
+                                    @endif
+                                </div>
+                                @if ($row = $stock[$product->id] ?? null)
+                                    <ul class="flex flex-wrap gap-1.5" aria-label="Cajas por cámara" data-test="product-stock-{{ $product->id }}">
+                                        @if ($row['everywhere'])
+                                            <li><flux:badge size="sm" color="sky">En todas las cámaras</flux:badge></li>
+                                        @endif
+                                        @foreach ($row['chambers'] as $chamber)
+                                            <li class="rounded-lg bg-zinc-100 px-2 py-1 text-xs text-zinc-600 dark:bg-zinc-700/60 dark:text-zinc-300">
+                                                {{ $chamber['name'] }}@if ($showBranches) ({{ $chamber['branch'] }})@endif:
+                                                <strong class="whitespace-nowrap font-semibold tabular-nums text-zinc-900 dark:text-white">{{ number_format($chamber['boxes']) }} {{ $chamber['boxes'] === 1 ? 'caja' : 'cajas' }}</strong>
+                                            </li>
+                                        @endforeach
+                                        @if ($row['others'] > 0)
+                                            <li class="rounded-lg bg-zinc-100 px-2 py-1 text-xs text-zinc-600 dark:bg-zinc-700/60 dark:text-zinc-300">
+                                                Otras cámaras:
+                                                <strong class="whitespace-nowrap font-semibold tabular-nums text-zinc-900 dark:text-white">{{ number_format($row['others']) }} {{ $row['others'] === 1 ? 'caja' : 'cajas' }}</strong>
+                                            </li>
+                                        @endif
+                                    </ul>
+                                @else
+                                    <div class="text-xs text-zinc-500">Sin existencias en ninguna cámara</div>
+                                @endif
+                            </div>
                         </flux:table.cell>
-                        <flux:table.cell class="text-zinc-500">{{ $product->category->name }}</flux:table.cell>
+                        <flux:table.cell class="max-xl:hidden text-zinc-500">{{ $product->category->name }}</flux:table.cell>
                         <flux:table.cell align="end" class="tabular-nums font-medium text-zinc-900 dark:text-white">{{ number_format($product->stocked_boxes_count) }}</flux:table.cell>
                         <flux:table.cell>
                             <flux:badge size="sm" :color="$product->is_active ? 'green' : 'zinc'">{{ $product->is_active ? 'Activo' : 'Inactivo' }}</flux:badge>

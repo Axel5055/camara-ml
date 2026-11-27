@@ -2,14 +2,19 @@
 
 namespace App\Livewire\Admin;
 
+use App\Enums\BoxStatus;
+use App\Enums\UserRole;
 use App\Livewire\Concerns\SavesAuditedModels;
 use App\Models\AuditLog;
+use App\Models\Box;
 use App\Models\Category;
+use App\Models\Chamber;
 use App\Models\Product;
 use App\Support\SimilarProductNames;
 use Flux\Flux;
 use Illuminate\Contracts\View\View;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
@@ -258,25 +263,73 @@ class Products extends Component
         $this->saveAudited($product, ['is_active' => ! $product->is_active], 'product');
     }
 
+    /**
+     * Where the available boxes of each listed product are. The catalog is global, so warehouse users see the stock
+     * of every chamber; managers only see the names of their own chambers and the rest added together.
+     *
+     * @param  list<int>  $productIds
+     * @return array<int, array{chambers: list<array{name: string, branch: string, boxes: int}>, others: int, everywhere: bool}>
+     */
+    private function stockByChamber(array $productIds): array
+    {
+        $counts = Box::query()
+            ->where('status', BoxStatus::Available)
+            ->whereIn('product_id', $productIds)
+            ->groupBy('product_id', 'current_chamber_id')
+            ->toBase()
+            ->selectRaw('product_id, current_chamber_id, count(*) as total')
+            ->get();
+
+        $chambers = Chamber::query()
+            ->when(Auth::user()->role === UserRole::Manager, fn (Builder $query) => $query->accessibleBy(Auth::user()))
+            ->with('branch')
+            ->get()
+            ->sortBy(fn (Chamber $chamber): string => $chamber->branch->name.' '.$chamber->name);
+
+        $activeIds = Chamber::query()->where('is_active', true)->pluck('id');
+
+        return $counts->groupBy('product_id')->map(function (Collection $rows) use ($chambers, $activeIds): array {
+            $totals = $rows->pluck('total', 'current_chamber_id');
+            $listed = $chambers->filter(fn (Chamber $chamber): bool => $totals->has($chamber->id));
+            $listedIds = $listed->pluck('id')->all();
+
+            return [
+                'chambers' => array_values($listed->map(fn (Chamber $chamber): array => [
+                    'name' => $chamber->name,
+                    'branch' => $chamber->branch->name,
+                    'boxes' => (int) $totals->get($chamber->id),
+                ])->all()),
+                'others' => (int) $totals->except($listedIds)->sum(),
+                'everywhere' => $activeIds->count() > 1 && $activeIds->diff($listedIds)->isEmpty(),
+            ];
+        })->all();
+    }
+
     public function render(): View
     {
         $totals = $this->searchedProducts()->toBase()
             ->selectRaw('count(*) as total, coalesce(sum(is_active), 0) as active')
             ->first();
 
+        $products = $this->searchedProducts()
+            ->with('category')
+            ->withCount(['boxes as stocked_boxes_count' => fn (Builder $query) => $query->where('status', 'available')])
+            ->withExists(['boxes as has_boxes', 'entryItems as has_entry_items'])
+            ->when($this->status === 'active', fn (Builder $query) => $query->where('is_active', true))
+            ->when($this->status === 'inactive', fn (Builder $query) => $query->where('is_active', false))
+            ->orderBy('name')
+            ->paginate(15);
+
+        $stock = $this->stockByChamber(array_values(array_map(intval(...), $products->pluck('id')->all())));
+
         return view('livewire.admin.products', [
+            'stock' => $stock,
+            'showBranches' => collect($stock)->flatMap(fn (array $row): array => $row['chambers'])->pluck('branch')->unique()->count() > 1,
             'canCreate' => Gate::allows('create', Product::class),
             'canManage' => Gate::allows('update', Product::class),
             'canDelete' => Gate::allows('delete', Product::class),
             'deletingProduct' => $this->deletingId ? Product::query()->find($this->deletingId, ['id', 'name', 'code']) : null,
-            'products' => $this->searchedProducts()
-                ->with('category')
-                ->withCount(['boxes as stocked_boxes_count' => fn (Builder $query) => $query->where('status', 'available')])
-                ->withExists(['boxes as has_boxes', 'entryItems as has_entry_items'])
-                ->when($this->status === 'active', fn (Builder $query) => $query->where('is_active', true))
-                ->when($this->status === 'inactive', fn (Builder $query) => $query->where('is_active', false))
-                ->orderBy('name')
-                ->paginate(15),
+            'products' => $products,
             'totals' => [
                 'total' => (int) $totals->total,
                 'active' => (int) $totals->active,

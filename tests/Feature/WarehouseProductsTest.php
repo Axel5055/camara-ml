@@ -5,8 +5,10 @@ use App\Livewire\Admin\Products;
 use App\Models\AuditLog;
 use App\Models\Branch;
 use App\Models\Category;
+use App\Models\Chamber;
 use App\Models\Product;
 use App\Models\User;
+use App\Services\Inventory\RegisterEntry;
 use Livewire\Livewire;
 
 function warehouseUser(): User
@@ -181,4 +183,37 @@ it('does not warn when editing an existing product', function () {
         ->assertSet('similar', []);
 
     expect($other->fresh()->name)->toBe('POLLO ENTRERO');
+});
+
+it('shows warehouse users how many boxes of each product every chamber has, and managers only the names of theirs', function () {
+    $product = Product::factory()->create();
+    $unstocked = Product::factory()->create();
+    $branch = Branch::factory()->create();
+    [$own, $other] = [Chamber::factory()->for($branch)->create(['name' => 'Cámara propia']), Chamber::factory()->create(['name' => 'Cámara ajena'])];
+    $warehouse = User::factory()->warehouse($branch)->create();
+    $warehouse->chambers()->attach($own);
+    $super = User::factory()->superAdmin()->create();
+
+    foreach ([[$own, 2], [$other, 3]] as [$chamber, $boxes]) {
+        app(RegisterEntry::class)->handle($super, $chamber, [
+            ['product_id' => $product->id, 'boxes_count' => $boxes, 'weight_per_box_kg' => '10', 'price_per_kg_mxn' => '100'],
+        ]);
+    }
+
+    Livewire::actingAs($warehouse)->test(Products::class)
+        ->assertViewHas('stock', fn (array $stock): bool => ! isset($stock[$unstocked->id])
+            && $stock[$product->id]['everywhere']
+            && $stock[$product->id]['others'] === 0
+            && collect($stock[$product->id]['chambers'])->pluck('boxes', 'name')->all() == ['Cámara propia' => 2, 'Cámara ajena' => 3])
+        ->assertSee('Cámara ajena')
+        ->assertSee('Sin existencias');
+
+    $manager = User::factory()->manager()->create();
+    $manager->chambers()->attach($own);
+
+    Livewire::actingAs($manager)->test(Products::class)
+        ->assertSee('Cámara propia')
+        ->assertSee('Otras cámaras')
+        ->assertDontSee('Cámara ajena')
+        ->assertViewHas('stock', fn (array $stock): bool => $stock[$product->id]['others'] === 3 && ! $stock[$product->id]['everywhere']);
 });
